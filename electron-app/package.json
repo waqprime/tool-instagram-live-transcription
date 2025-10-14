@@ -1,0 +1,85 @@
+{
+  "name": "instagram-live-transcription",
+  "version": "1.0.0",
+  "description": "Instagram Live & Reel transcription with Whisper AI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node test.js",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "keywords": [
+    "instagram",
+    "transcription",
+    "whisper",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.instagram.live.transcription",
+    "productName": "Instagram Live Transcription",
+    "directories": {
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "waqprime",
+        "repo": "tool-instagram-live-transcription"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "styles.css",
+      "../*.py",
+      "../requirements.txt",
+      "../output/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../",
+        "to": "app",
+        "filter": [
+          "*.py",
+          "requirements.txt"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "dmg": {
+      "title": "Instagram Live Transcription"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  }
+}

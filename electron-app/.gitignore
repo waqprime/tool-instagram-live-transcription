@@ -1,0 +1,36 @@
+# Node modules
+node_modules/
+
+# Electron dist
+dist/
+out/
+
+# macOS
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS files
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Output files
+output/
+
+# Environment variables (機密情報)
+.env
+.env.local
+.env.*
+
+# Secrets
+*secret*
+*token*
+*.pem
+*.key

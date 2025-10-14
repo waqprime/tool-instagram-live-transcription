@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instagram Live Transcription</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">Instagram Live Transcription</h1>
+      <p class="subtitle">Instagram LiveやReelを自動で文字起こし</p>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- URL Input Section -->
+      <section class="glass-card section-card">
+        <div class="section-header">
+          <h2 class="section-title">Instagram URL</h2>
+          <button id="add-url-btn" class="btn btn-add">+ 追加</button>
+        </div>
+        <div id="url-list" class="url-list">
+          <!-- URL inputs will be added here dynamically -->
+        </div>
+      </section>
+
+      <!-- Settings Section -->
+      <section class="glass-card section-card">
+        <h2 class="section-title">設定</h2>
+        <div class="settings-grid">
+          <!-- Language Selection -->
+          <div class="setting-item">
+            <label class="setting-label" for="language-select">言語</label>
+            <select id="language-select" class="glass-select">
+              <option value="ja" selected>日本語</option>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="ko">한국어</option>
+              <option value="es">Español</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+
+          <!-- Output Directory -->
+          <div class="setting-item">
+            <label class="setting-label" for="output-dir">保存先</label>
+            <div class="input-with-button">
+              <input
+                type="text"
+                id="output-dir"
+                class="glass-input"
+                readonly
+                placeholder="出力ディレクトリを選択..."
+              >
+              <button id="select-dir-btn" class="btn btn-secondary">選択</button>
+            </div>
+          </div>
+
+          <!-- Whisper Model Selection -->
+          <div class="setting-item">
+            <label class="setting-label" for="model-select">Whisperモデル</label>
+            <select id="model-select" class="glass-select">
+              <option value="tiny">Tiny - 最速（精度は低め）</option>
+              <option value="base" selected>Base - 高速でバランス良い（推奨）</option>
+              <option value="small">Small - 高精度</option>
+              <option value="medium">Medium - より高精度（処理時間長め）</option>
+              <option value="large">Large - 最高精度（要高性能PC/長時間）</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <section class="action-buttons">
+        <button id="start-btn" class="btn btn-primary">
+          <span class="btn-icon">▶</span>
+          開始
+        </button>
+        <button id="stop-btn" class="btn btn-danger" disabled>
+          <span class="btn-icon">■</span>
+          停止
+        </button>
+        <button id="open-folder-btn" class="btn btn-secondary" disabled>
+          <span class="btn-icon">📁</span>
+          フォルダを開く
+        </button>
+      </section>
+
+      <!-- Progress Section -->
+      <section class="glass-card section-card progress-section">
+        <h2 class="section-title">進行状況</h2>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div id="progress-text" class="progress-text">待機中...</div>
+          <div id="progress-details" class="progress-details"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

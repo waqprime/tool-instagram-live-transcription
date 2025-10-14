@@ -1,0 +1,4 @@
+# Instagram URLをここに追加してください（1行に1つ）
+# 例:
+# https://www.instagram.com/reel/xxxxx/
+# https://www.instagram.com/reel/yyyyy/
