@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Instagram LiveやReelを簡単にMP3保存 & AI文字起こし。OpenAI Whisperで自動テキスト化。">
+    <title>Instagram Live Transcription - MP3保存 & AI文字起こし</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #4A90E2;
+            --primary-dark: #357ABD;
+            --secondary: #50C878;
+            --accent: #F39C12;
+            --dark: #2E3440;
+            --darker: #1F2329;
+            --light: #ECEFF4;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Animated Gradient Background */
+        .hero {
+            min-height: 100vh;
+            background: linear-gradient(-45deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glass Morphism Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            text-align: center;
+            animation: fadeInUp 1s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            font-weight: 800;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .hero p {
+            font-size: clamp(1.1rem, 2vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 1.2rem 3rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(74, 144, 226, 0.3);
+            margin: 0.5rem;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(74, 144, 226, 0.4);
+        }
+
+        .cta-button.secondary {
+            background: linear-gradient(135deg, var(--secondary), #3DA75D);
+            box-shadow: 0 10px 30px rgba(80, 200, 120, 0.3);
+        }
+
+        .cta-button.secondary:hover {
+            box-shadow: 0 15px 40px rgba(80, 200, 120, 0.4);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 4rem;
+            font-weight: 300;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 4rem;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            border-color: var(--primary);
+        }
+
+        .feature-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--dark);
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        /* Screenshots Section */
+        .screenshots {
+            padding: 6rem 2rem;
+            background: white;
+        }
+
+        .screenshot-container {
+            max-width: 900px;
+            margin: 0 auto;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        .screenshot-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Download Section */
+        .download {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .download h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+        }
+
+        .download p {
+            font-size: 1.3rem;
+            margin-bottom: 3rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .download-badges {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            color: white;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .badge:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .badge-icon {
+            font-size: 2.5rem;
+        }
+
+        .badge-text strong {
+            display: block;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .badge-text span {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        /* FAQ Section */
+        .faq {
+            padding: 6rem 2rem;
+            background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+        }
+
+        .faq-list {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .faq-item h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .faq-item p {
+            color: #666;
+            line-height: 1.8;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--darker);
+            color: white;
+            padding: 4rem 2rem 2rem;
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+        }
+
+        .footer-bottom {
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 0.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .glass-card {
+                padding: 2rem;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .features, .screenshots, .download, .faq {
+                padding: 4rem 1.5rem;
+            }
+        }
+
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero" id="home">
+        <div class="glass-card">
+            <h1>🎙️ Instagram Live<br>Transcription</h1>
+            <p>Instagram動画を簡単にMP3保存 & AI文字起こし</p>
+            <div>
+                <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest" class="cta-button">
+                    ⬇️ 今すぐダウンロード
+                </a>
+                <a href="#features" class="cta-button secondary">
+                    ✨ 機能を見る
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">✨ できること</h2>
+            <p class="section-subtitle">強力な機能を、シンプルな操作で</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎵</div>
+                    <h3>動画→音声変換</h3>
+                    <p>Instagram ReelやLiveの動画を、高音質のMP3ファイルとして保存できます。</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>AI文字起こし</h3>
+                    <p>OpenAI Whisper AIが、音声を自動的にテキストに変換。議事録作成に最適！</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>自動アップデート</h3>
+                    <p>新しいバージョンが出たら、アプリが自動的にお知らせ＆更新。</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>簡単操作</h3>
+                    <p>URLを貼り付けて「開始」ボタンを押すだけ。プログラミング知識不要！</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section class="screenshots" id="screenshots">
+        <div class="container">
+            <h2 class="section-title">📱 アプリ画面</h2>
+            <p class="section-subtitle">美しく、使いやすいインターフェース</p>
+
+            <div class="screenshot-container">
+                <img src="../.github/images/app-main.png" alt="Instagram Live Transcription アプリ画面">
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section class="download" id="download">
+        <div class="container">
+            <h2>💾 今すぐダウンロード</h2>
+            <p>macOS・Windows対応。完全無料で使えます。</p>
+
+            <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest" class="cta-button" style="font-size: 1.5rem; padding: 1.5rem 4rem;">
+                ⬇️ 最新版をダウンロード
+            </a>
+
+            <div class="download-badges">
+                <div class="badge">
+                    <div class="badge-icon">🍎</div>
+                    <div class="badge-text">
+                        <strong>macOS</strong>
+                        <span>10.15 Catalina 以降</span>
+                    </div>
+                </div>
+
+                <div class="badge">
+                    <div class="badge-icon">🪟</div>
+                    <div class="badge-text">
+                        <strong>Windows</strong>
+                        <span>10 / 11</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <h2 class="section-title">❓ よくある質問</h2>
+            <p class="section-subtitle">気になる疑問にお答えします</p>
+
+            <div class="faq-list">
+                <div class="faq-item">
+                    <h3>💰 アプリは無料ですか？</h3>
+                    <p>はい、完全無料です。個人利用・商用利用ともに自由にご利用いただけます。</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>🌐 インターネット接続は必要ですか？</h3>
+                    <p>動画のダウンロード時と初回起動時（Whisperモデルのダウンロード）に必要です。文字起こし処理自体はオフラインで実行されます。</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>⏱️ どのくらい時間がかかりますか？</h3>
+                    <p>5分の動画なら約2〜3分、30分の動画なら約10〜15分で完了します。選択したWhisperモデルによって変動します。</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>🎯 精度を上げるには？</h3>
+                    <p>より大きなWhisperモデル（Small, Medium, Large）を選択するか、音声がクリアな動画を選ぶことで精度が向上します。</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3>🔒 プライバシーは大丈夫？</h3>
+                    <p>すべての処理はあなたのPC上で実行されます。動画や音声ファイルは外部サーバーに送信されません。完全にプライベートです。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <h3 style="margin-bottom: 1rem; font-size: 1.5rem;">Instagram Live Transcription</h3>
+            <p style="opacity: 0.8; margin-bottom: 2rem;">Instagram動画を簡単にMP3保存 & AI文字起こし</p>
+
+            <div class="footer-links">
+                <a href="https://github.com/waqprime/tool-instagram-live-transcription">GitHub</a>
+                <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases">ダウンロード</a>
+                <a href="https://github.com/waqprime/tool-instagram-live-transcription/issues">サポート</a>
+                <a href="https://github.com/waqprime/tool-instagram-live-transcription/blob/main/README.md">ドキュメント</a>
+            </div>
+
+            <div class="footer-bottom">
+                <p>Made with ❤️ by <a href="https://github.com/waqprime" style="color: white;">waqprime</a></p>
+                <p style="margin-top: 0.5rem;">MIT License - オープンソースプロジェクト</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
