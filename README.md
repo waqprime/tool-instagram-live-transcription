@@ -10,7 +10,7 @@ Instagram LiveやReelを**簡単に**MP3保存 & AI文字起こし
 
 **[📥 ダウンロード](#-ダウンロード方法) • [📖 使い方](#-使い方簡単3ステップ) • [❓ FAQ](#-よくある質問faq)**
 
-![App Screenshot](https://via.placeholder.com/800x500/1a1a2e/ffffff?text=Instagram+Live+Transcription+%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%E3%82%92%E8%BF%BD%E5%8A%A0%E4%BA%88%E5%AE%9A)
+<img src=".github/images/app-main.png" alt="Instagram Live Transcription メイン画面" width="800">
 
 </div>
 
@@ -137,7 +137,7 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 </td>
 <td width="40%">
 
-![使い方イメージ](https://via.placeholder.com/300x400/0f1729/ffffff?text=%E3%82%A2%E3%83%97%E3%83%AA%E7%94%BB%E9%9D%A2%E3%82%A4%E3%83%A1%E3%83%BC%E3%82%B8)
+<img src=".github/images/app-main.png" alt="アプリ画面" width="300">
 
 </td>
 </tr>
@@ -164,6 +164,26 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 **処理時間の目安:**
 - 5分の動画 → 約2〜3分
 - 30分の動画 → 約10〜15分
+
+<details>
+<summary>📸 処理中の画面を見る</summary>
+
+<div align="center">
+  <img src=".github/images/app-processing.png" alt="処理中の画面" width="600">
+  <p><i>リアルタイムで進捗状況が表示されます</i></p>
+</div>
+
+</details>
+
+<details>
+<summary>✅ 完了画面を見る</summary>
+
+<div align="center">
+  <img src=".github/images/app-complete.png" alt="完了画面" width="600">
+  <p><i>完了後すぐにフォルダを開いて確認できます</i></p>
+</div>
+
+</details>
 
 ---
 
