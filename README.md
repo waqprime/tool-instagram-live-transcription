@@ -82,25 +82,55 @@
 
 </div>
 
-| OS | ダウンロードファイル | サイズ | 動作環境 |
-|:---:|:---|:---:|:---|
-| 🍎 **macOS** | `Instagram Live Transcription-1.0.0-arm64.dmg` | ~90MB | macOS 10.15 (Catalina) 以降 |
-| 🪟 **Windows** | `Instagram Live Transcription Setup 1.0.0.exe` | ~90MB | Windows 10 / 11 |
+<table>
+<thead>
+<tr>
+<th align="center" width="10%">OS</th>
+<th align="center" width="50%">ダウンロードファイル</th>
+<th align="center" width="15%">サイズ</th>
+<th align="center" width="25%">動作環境</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">🍎<br><strong>macOS</strong></td>
+<td align="center"><code>Instagram Live Transcription-1.0.0-arm64.dmg</code></td>
+<td align="center">~90MB</td>
+<td align="center">macOS 10.15<br>(Catalina) 以降</td>
+</tr>
+<tr>
+<td align="center">🪟<br><strong>Windows</strong></td>
+<td align="center"><code>Instagram Live Transcription Setup 1.0.0.exe</code></td>
+<td align="center">~90MB</td>
+<td align="center">Windows 10 / 11</td>
+</tr>
+</tbody>
+</table>
 
 <br>
 
-### ステップ 2: インストール
+<div align="center">
 
-#### 🍎 macOS の場合
+<h3>💿 インストール方法</h3>
+
+</div>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+<h4>🍎 macOS の場合</h4>
 
 1. ダウンロードした `.dmg` ファイルをダブルクリック
 2. 表示されたウィンドウで、アプリを「Applications」フォルダにドラッグ
 3. Launchpad または Finder から「Instagram Live Transcription」を起動
 
-**⚠️ 初回起動時に「開発元を確認できません」と表示される場合:**
+<br>
 
 <details>
-<summary>👉 解決方法を見る</summary>
+<summary><strong>⚠️ 「開発元を確認できません」と表示される場合</strong></summary>
+
+<br>
 
 1. アプリを**右クリック**（または Control + クリック）
 2. メニューから「**開く**」を選択
@@ -110,18 +140,21 @@
 
 </details>
 
----
+</td>
+<td width="50%" valign="top">
 
-#### 🪟 Windows の場合
+<h4>🪟 Windows の場合</h4>
 
 1. ダウンロードした `.exe` ファイルをダブルクリック
 2. インストーラーの指示に従ってインストール
 3. デスクトップまたはスタートメニューから起動
 
-**⚠️「WindowsによってPCが保護されました」と表示される場合:**
+<br>
 
 <details>
-<summary>👉 解決方法を見る</summary>
+<summary><strong>⚠️ 「WindowsによってPCが保護されました」と表示される場合</strong></summary>
+
+<br>
 
 1. 「**詳細情報**」をクリック
 2. 「**実行**」ボタンをクリック
@@ -130,88 +163,94 @@
 
 </details>
 
+</td>
+</tr>
+</table>
+
 <br>
 
 ## 🚀 使い方（簡単3ステップ）
 
+<table>
+<tr>
+<td align="center" width="33%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Link.png" width="100">
+<h3>ステップ 1</h3>
+<h4>📹 URLをコピー</h4>
+<p>Instagram アプリまたはブラウザで動画を開き、<br>「<strong>シェア</strong>」→「<strong>リンクをコピー</strong>」</p>
+<sub>例: https://www.instagram.com/reel/ABC123xyz/</sub>
+</td>
+<td align="center" width="33%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Desktop%20Computer.png" width="100">
+<h3>ステップ 2</h3>
+<h4>🎬 アプリに貼り付け</h4>
+<p>
+1️⃣ アプリを起動<br>
+2️⃣ URLを入力欄に貼り付け<br>
+3️⃣ 保存先フォルダを選択<br>
+4️⃣ 言語を選択<br>
+5️⃣ Whisperモデルを選択
+</p>
+</td>
+<td align="center" width="33%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Travel%20and%20places/Rocket.png" width="100">
+<h3>ステップ 3</h3>
+<h4>⚡ 処理開始！</h4>
+<p>「<strong>処理開始</strong>」ボタンを<br>クリックするだけ！</p>
+<br>
+<sub>📥 ダウンロード → 🎵 MP3抽出 → 📝 文字起こし → ✅ 完了</sub>
+</td>
+</tr>
+</table>
+
 <br>
 
 <div align="center">
 
-<h3>📹 ステップ 1: Instagram URLをコピー</h3>
-
-<p>Instagram アプリまたはブラウザで動画を開き、「<strong>シェア</strong>」→「<strong>リンクをコピー</strong>」</p>
-
-</div>
-
-```
-例: https://www.instagram.com/reel/ABC123xyz/
-```
-
-<div align="center">
-
-<br>
-
-↓
-
-<br>
-
-<h3>🎬 ステップ 2: アプリに貼り付け</h3>
+<h3>📱 アプリ画面</h3>
 
 <img src=".github/images/app-main.png" alt="アプリ画面" width="700">
 
 </div>
 
-1. アプリを起動
-2. **URLを入力**欄に、コピーしたリンクを貼り付け
-3. **保存先フォルダ**を選択（デフォルトは `output`）
-4. **言語**を選択（日本語 / 英語 / 自動検出）
-5. **Whisperモデル**を選択（迷ったら「Base」でOK）
+<br>
 
 <div align="center">
 
-<br>
-
-↓
-
-<br>
-
-<h3>⚡ ステップ 3: 処理開始！</h3>
-
-<p>「<strong>処理開始</strong>」ボタンをクリックするだけ！</p>
-
-<br>
+<h3>⏱️ 処理時間の目安</h3>
 
 </div>
-
-```
-📥 動画ダウンロード → 🎵 MP3抽出 → 📝 AI文字起こし → ✅ 完了！
-```
-
-<div align="center">
-
-<br>
 
 <table>
+<thead>
 <tr>
-<th>動画の長さ</th>
-<th>処理時間の目安</th>
+<th align="center" width="25%">🎬 動画の長さ</th>
+<th align="center" width="25%">⚡ Base モデル</th>
+<th align="center" width="25%">🚀 Medium モデル</th>
+<th align="center" width="25%">💎 Large モデル</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><strong>5分</strong></td>
+<td align="center">約2〜3分</td>
+<td align="center">約3〜5分</td>
+<td align="center">約5〜8分</td>
 </tr>
 <tr>
-<td align="center">5分</td>
-<td>約2〜3分</td>
+<td align="center"><strong>30分</strong></td>
+<td align="center">約10〜15分</td>
+<td align="center">約15〜25分</td>
+<td align="center">約30〜45分</td>
 </tr>
 <tr>
-<td align="center">30分</td>
-<td>約10〜15分</td>
+<td align="center"><strong>60分</strong></td>
+<td align="center">約20〜30分</td>
+<td align="center">約40〜60分</td>
+<td align="center">約1〜1.5時間</td>
 </tr>
-<tr>
-<td align="center">60分</td>
-<td>約20〜30分</td>
-</tr>
+</tbody>
 </table>
-
-</div>
 
 <br>
 
@@ -245,15 +284,52 @@
 
 <br>
 
-| モデル | 精度 | 速度 | おすすめの用途 |
-|:---:|:---:|:---:|:---|
-| **Tiny** | ⭐ | ⚡⚡⚡⚡⚡ | とにかく速く試したい |
-| **Base** | ⭐⭐ | ⚡⚡⚡⚡ | **初心者におすすめ！** バランス型 |
-| **Small** | ⭐⭐⭐ | ⚡⚡⚡ | 精度重視で、ある程度速くしたい |
-| **Medium** | ⭐⭐⭐⭐ | ⚡⚡ | 高精度が必要（処理時間長め） |
-| **Large** | ⭐⭐⭐⭐⭐ | ⚡ | 最高精度（要高性能PC） |
+<table>
+<thead>
+<tr>
+<th align="center" width="15%">モデル</th>
+<th align="center" width="20%">📊 精度</th>
+<th align="center" width="20%">⚡ 速度</th>
+<th align="center" width="45%">💡 おすすめの用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center"><strong>Tiny</strong></td>
+<td align="center">⭐</td>
+<td align="center">⚡⚡⚡⚡⚡</td>
+<td>とにかく速く試したい</td>
+</tr>
+<tr style="background-color: #f0f8ff;">
+<td align="center"><strong>Base</strong><br>👈 <sub>おすすめ</sub></td>
+<td align="center">⭐⭐</td>
+<td align="center">⚡⚡⚡⚡</td>
+<td><strong>初心者におすすめ！</strong><br>速度と精度のバランス型</td>
+</tr>
+<tr>
+<td align="center"><strong>Small</strong></td>
+<td align="center">⭐⭐⭐</td>
+<td align="center">⚡⚡⚡</td>
+<td>精度重視で、ある程度速くしたい</td>
+</tr>
+<tr>
+<td align="center"><strong>Medium</strong></td>
+<td align="center">⭐⭐⭐⭐</td>
+<td align="center">⚡⚡</td>
+<td>高精度が必要（処理時間長め）</td>
+</tr>
+<tr>
+<td align="center"><strong>Large</strong></td>
+<td align="center">⭐⭐⭐⭐⭐</td>
+<td align="center">⚡</td>
+<td>最高精度（要高性能PC・時間かかる）</td>
+</tr>
+</tbody>
+</table>
 
 <div align="center">
+
+<br>
 
 💡 **迷ったら「Base」を選びましょう！**
 
