@@ -1,72 +1,93 @@
-# Instagram Live Transcription
-
 <div align="center">
 
-Instagram LiveやReelを**簡単に**MP3保存 & AI文字起こし
+<h1>
+  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Studio%20Microphone.png" alt="Microphone" width="50" height="50" />
+  Instagram Live Transcription
+</h1>
 
-[![GitHub release](https://img.shields.io/github/v/release/waqprime/tool-instagram-live-transcription)](https://github.com/waqprime/tool-instagram-live-transcription/releases)
-[![Downloads](https://img.shields.io/github/downloads/waqprime/tool-instagram-live-transcription/total)](https://github.com/waqprime/tool-instagram-live-transcription/releases)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <strong>Instagram LiveやReelを簡単にMP3保存 & AI文字起こし</strong>
+</p>
 
-**[📥 ダウンロード](#-ダウンロード方法) • [📖 使い方](#-使い方簡単3ステップ) • [❓ FAQ](#-よくある質問faq)**
+<p align="center">
+  <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
+    <img src="https://img.shields.io/github/v/release/waqprime/tool-instagram-live-transcription?style=for-the-badge&logo=github&color=blue" alt="GitHub release">
+  </a>
+  <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases">
+    <img src="https://img.shields.io/github/downloads/waqprime/tool-instagram-live-transcription/total?style=for-the-badge&logo=github&color=green" alt="Downloads">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-orange.svg?style=for-the-badge" alt="License">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#-ダウンロード方法">📥 ダウンロード</a> •
+  <a href="#-使い方簡単3ステップ">📖 使い方</a> •
+  <a href="#-よくある質問faq">❓ FAQ</a> •
+  <a href="#-トラブルシューティング">🔧 サポート</a>
+</p>
+
+<br>
 
 <img src=".github/images/app-main.png" alt="Instagram Live Transcription メイン画面" width="800">
 
+<br>
+<br>
+
 </div>
 
----
+<br>
 
 ## ✨ できること
 
 <table>
 <tr>
-<td width="50%">
-
-### 🎵 動画を音声に変換
-Instagram ReelやLiveの動画を、高音質のMP3ファイルとして保存できます。
-
+<td align="center" width="25%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Musical%20Note.png" width="60"><br>
+<b>動画→音声変換</b><br>
+<sub>Instagram動画を高音質MP3として保存</sub>
 </td>
-<td width="50%">
-
-### 📝 自動で文字起こし
-OpenAI Whisper AIが、音声を自動的にテキストに変換。議事録作成に最適！
-
+<td align="center" width="25%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Memo.png" width="60"><br>
+<b>AI文字起こし</b><br>
+<sub>OpenAI Whisperで自動テキスト化</sub>
 </td>
-</tr>
-<tr>
-<td width="50%">
-
-### 🔄 自動アップデート
-新しいバージョンが出たら、アプリが自動的にお知らせ＆更新。
-
+<td align="center" width="25%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Symbols/Clockwise%20Vertical%20Arrows.png" width="60"><br>
+<b>自動アップデート</b><br>
+<sub>新バージョンを自動でお知らせ</sub>
 </td>
-<td width="50%">
-
-### 🎯 簡単操作
-URLを貼り付けて「開始」ボタンを押すだけ。プログラミング知識不要！
-
+<td align="center" width="25%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Thumbs%20Up.png" width="60"><br>
+<b>簡単操作</b><br>
+<sub>URLを貼り付けるだけ！</sub>
 </td>
 </tr>
 </table>
 
----
+<br>
 
 ## 📥 ダウンロード方法
 
-### ステップ 1: ファイルをダウンロード
+<div align="center">
 
-**最新版をダウンロード** 👉 [リリースページ](https://github.com/waqprime/tool-instagram-live-transcription/releases/latest)
+### 💾 最新版をダウンロード
 
-| OS | ダウンロードファイル | サイズ |
-|:---:|:---|:---:|
-| 🍎 **macOS** | `Instagram Live Transcription-1.0.0-arm64.dmg` | ~90MB |
-| 🪟 **Windows** | `Instagram Live Transcription Setup 1.0.0.exe` | ~90MB |
+<a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
+  <img src="https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="50">
+</a>
 
-**動作環境:**
-- macOS 10.15 (Catalina) 以降
-- Windows 10 / 11
+<br><br>
 
----
+</div>
+
+| OS | ダウンロードファイル | サイズ | 動作環境 |
+|:---:|:---|:---:|:---|
+| 🍎 **macOS** | `Instagram Live Transcription-1.0.0-arm64.dmg` | ~90MB | macOS 10.15 (Catalina) 以降 |
+| 🪟 **Windows** | `Instagram Live Transcription Setup 1.0.0.exe` | ~90MB | Windows 10 / 11 |
+
+<br>
 
 ### ステップ 2: インストール
 
@@ -109,24 +130,31 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 
 </details>
 
----
+<br>
 
 ## 🚀 使い方（簡単3ステップ）
 
+<br>
+
+<div align="center">
+
 ### 📹 ステップ 1: Instagram URLをコピー
 
-1. Instagram アプリまたはブラウザで、文字起こししたい動画を開く
-2. 「**シェア**」→「**リンクをコピー**」
+Instagram アプリまたはブラウザで動画を開き、「**シェア**」→「**リンクをコピー**」
 
-例: `https://www.instagram.com/reel/ABC123xyz/`
+```
+例: https://www.instagram.com/reel/ABC123xyz/
+```
 
----
+<br>
+
+↓
+
+<br>
 
 ### 🎬 ステップ 2: アプリに貼り付け
 
-<table>
-<tr>
-<td width="60%">
+<img src=".github/images/app-main.png" alt="アプリ画面" width="700">
 
 1. アプリを起動
 2. **URLを入力**欄に、コピーしたリンクを貼り付け
@@ -134,36 +162,33 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 4. **言語**を選択（日本語 / 英語 / 自動検出）
 5. **Whisperモデル**を選択（迷ったら「Base」でOK）
 
-</td>
-<td width="40%">
+<br>
 
-<img src=".github/images/app-main.png" alt="アプリ画面" width="300">
+↓
 
-</td>
-</tr>
-</table>
-
----
+<br>
 
 ### ⚡ ステップ 3: 処理開始！
 
-「**処理開始**」ボタンをクリック
+「**処理開始**」ボタンをクリックするだけ！
 
-アプリが自動的に以下を実行します：
+<br>
 
 ```
-1. 📥 動画をダウンロード
-   ↓
-2. 🎵 MP3音声を抽出
-   ↓
-3. 📝 AIで文字起こし
-   ↓
-4. ✅ 完了！
+📥 動画ダウンロード → 🎵 MP3抽出 → 📝 AI文字起こし → ✅ 完了！
 ```
 
-**処理時間の目安:**
-- 5分の動画 → 約2〜3分
-- 30分の動画 → 約10〜15分
+<br>
+
+| 動画の長さ | 処理時間の目安 |
+|:---:|:---|
+| 5分 | 約2〜3分 |
+| 30分 | 約10〜15分 |
+| 60分 | 約20〜30分 |
+
+</div>
+
+<br>
 
 <details>
 <summary>📸 処理中の画面を見る</summary>
@@ -185,27 +210,39 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 
 </details>
 
----
+<br>
 
 ## 🎯 Whisperモデルの選び方
 
-処理速度と精度のバランスで選びます：
+<div align="center">
+<sub>処理速度と精度のバランスで選べます</sub>
+</div>
 
-| モデル | 精度 | 速度 | こんな人におすすめ |
+<br>
+
+| モデル | 精度 | 速度 | おすすめの用途 |
 |:---:|:---:|:---:|:---|
-| **Tiny** | ★☆☆☆☆ | ★★★★★ | とにかく速く試したい |
-| **Base** | ★★☆☆☆ | ★★★★☆ | **初心者におすすめ！**バランス型 |
-| **Small** | ★★★☆☆ | ★★★☆☆ | 精度重視で、ある程度速くしたい |
-| **Medium** | ★★★★☆ | ★★☆☆☆ | 高精度が必要（処理時間長め） |
-| **Large** | ★★★★★ | ★☆☆☆☆ | 最高精度（要高性能PC・時間かかる） |
+| **Tiny** | ⭐ | ⚡⚡⚡⚡⚡ | とにかく速く試したい |
+| **Base** | ⭐⭐ | ⚡⚡⚡⚡ | **初心者におすすめ！** バランス型 |
+| **Small** | ⭐⭐⭐ | ⚡⚡⚡ | 精度重視で、ある程度速くしたい |
+| **Medium** | ⭐⭐⭐⭐ | ⚡⚡ | 高精度が必要（処理時間長め） |
+| **Large** | ⭐⭐⭐⭐⭐ | ⚡ | 最高精度（要高性能PC） |
+
+<div align="center">
 
 💡 **迷ったら「Base」を選びましょう！**
 
----
+</div>
+
+<br>
 
 ## 📂 ファイルの保存場所
 
-選択した保存先フォルダに、以下のように整理されて保存されます：
+<div align="center">
+<sub>選択した保存先フォルダに、自動的に整理されて保存されます</sub>
+</div>
+
+<br>
 
 ```
 📁 output/
@@ -218,9 +255,13 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
       └── 📄 video_2_transcript.txt
 ```
 
-**完了後に「フォルダを開く」ボタンで、すぐに確認できます！**
+<div align="center">
 
----
+✅ **完了後に「フォルダを開く」ボタンで、すぐに確認できます！**
+
+</div>
+
+<br>
 
 ## ❓ よくある質問（FAQ）
 
@@ -297,9 +338,15 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 
 </details>
 
----
+<br>
 
 ## 🔧 トラブルシューティング
+
+<div align="center">
+<sub>よくある問題と解決方法</sub>
+</div>
+
+<br>
 
 ### ❌ 「ダウンロードに失敗しました」
 
@@ -312,7 +359,7 @@ URLを貼り付けて「開始」ボタンを押すだけ。プログラミン�
 2. 動画が公開されているか確認
 3. インターネット接続を確認
 
----
+<br>
 
 ### ❌ 「音声抽出に失敗しました」
 
@@ -327,7 +374,7 @@ brew install ffmpeg
 1. [ffmpeg公式サイト](https://ffmpeg.org/download.html) からダウンロード
 2. インストールしてPATHに追加
 
----
+<br>
 
 ### ❌ 処理が途中で止まる
 
@@ -340,7 +387,7 @@ brew install ffmpeg
 2. より小さいモデル（Tiny, Base）を試す
 3. アプリを再起動
 
----
+<br>
 
 ### ❌ macOSで「開発元を確認できません」
 
@@ -349,7 +396,7 @@ brew install ffmpeg
 2. 「**開く**」を選択
 3. 確認ダイアログで「**開く**」をクリック
 
----
+<br>
 
 ### ❌ Windowsで「WindowsによってPCが保護されました」
 
@@ -357,40 +404,74 @@ brew install ffmpeg
 1. 「**詳細情報**」をクリック
 2. 「**実行**」をクリック
 
----
+<br>
 
 ## 🔄 自動アップデート機能
 
-アプリは起動時に自動的に新しいバージョンをチェックします。
+<div align="center">
 
-**アップデートの流れ:**
-1. 🔍 起動時に最新版をチェック
-2. 📥 新バージョンがあればバックグラウンドでダウンロード
-3. 🔔 ダウンロード完了後、通知ダイアログを表示
-4. ✅ 「今すぐインストール」→ 自動的に再起動＆更新
+アプリは起動時に自動的に新しいバージョンをチェックします
 
----
+</div>
+
+<br>
+
+```
+🔍 起動時チェック → 📥 バックグラウンドDL → 🔔 通知 → ✅ 自動更新
+```
+
+<br>
 
 ## 🛡️ プライバシーとセキュリティ
 
-- ✅ すべての処理はあなたのPC上で実行されます
-- ✅ 動画や音声ファイルは外部サーバーに送信されません
-- ✅ 個人情報を収集しません
-- ✅ オープンソース - コードはすべてGitHubで公開
+<table>
+<tr>
+<td align="center" width="25%">
+✅<br><b>ローカル処理</b><br><sub>すべてPC上で実行</sub>
+</td>
+<td align="center" width="25%">
+✅<br><b>データ送信なし</b><br><sub>外部サーバー不使用</sub>
+</td>
+<td align="center" width="25%">
+✅<br><b>個人情報収集なし</b><br><sub>完全プライベート</sub>
+</td>
+<td align="center" width="25%">
+✅<br><b>オープンソース</b><br><sub>コード完全公開</sub>
+</td>
+</tr>
+</table>
 
----
+<br>
 
 ## 📄 ライセンス
 
-MIT License - 個人利用・商用利用ともに自由にご利用いただけます。
+<div align="center">
 
----
+MIT License - 個人利用・商用利用ともに自由にご利用いただけます
+
+</div>
+
+<br>
 
 ## 🤝 フィードバック・バグ報告
 
+<div align="center">
+
 問題や要望があれば、お気軽に[Issue](https://github.com/waqprime/tool-instagram-live-transcription/issues)を作成してください！
 
----
+<br><br>
+
+<a href="https://github.com/waqprime/tool-instagram-live-transcription/issues/new">
+  <img src="https://img.shields.io/badge/Report_Bug-red?style=for-the-badge&logo=github" alt="Report Bug">
+</a>
+&nbsp;&nbsp;
+<a href="https://github.com/waqprime/tool-instagram-live-transcription/issues/new">
+  <img src="https://img.shields.io/badge/Request_Feature-blue?style=for-the-badge&logo=github" alt="Request Feature">
+</a>
+
+</div>
+
+<br>
 
 ## 🏗️ 技術スタック
 
@@ -424,23 +505,67 @@ npm start
 
 </details>
 
----
+<br>
 
 ## 🙏 謝辞
 
-このプロジェクトは以下のオープンソースプロジェクトを使用しています：
+<div align="center">
 
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Instagram動画ダウンロード
-- [OpenAI Whisper](https://github.com/openai/whisper) - 音声認識エンジン
-- [Electron](https://www.electronjs.org/) - クロスプラットフォームフレームワーク
-- [ffmpeg](https://ffmpeg.org/) - 音声処理
+このプロジェクトは以下のオープンソースプロジェクトを使用しています
+
+<br><br>
+
+<table>
+<tr>
+<td align="center">
+<a href="https://github.com/yt-dlp/yt-dlp">
+<img src="https://img.shields.io/badge/yt--dlp-E74C3C?style=for-the-badge&logo=youtube&logoColor=white" alt="yt-dlp">
+</a><br>
+<sub>Instagram動画ダウンロード</sub>
+</td>
+<td align="center">
+<a href="https://github.com/openai/whisper">
+<img src="https://img.shields.io/badge/OpenAI_Whisper-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper">
+</a><br>
+<sub>音声認識エンジン</sub>
+</td>
+<td align="center">
+<a href="https://www.electronjs.org/">
+<img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
+</a><br>
+<sub>クロスプラットフォーム</sub>
+</td>
+<td align="center">
+<a href="https://ffmpeg.org/">
+<img src="https://img.shields.io/badge/FFmpeg-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="ffmpeg">
+</a><br>
+<sub>音声処理</sub>
+</td>
+</tr>
+</table>
+
+</div>
+
+<br>
 
 ---
 
 <div align="center">
 
-**⭐ このプロジェクトが役に立ったら、ぜひスターをお願いします！ ⭐**
+<h3>⭐ このプロジェクトが役に立ったら、ぜひスターをお願いします！ ⭐</h3>
+
+<br>
+
+<a href="https://github.com/waqprime/tool-instagram-live-transcription">
+  <img src="https://img.shields.io/github/stars/waqprime/tool-instagram-live-transcription?style=social" alt="GitHub stars">
+</a>
+
+<br><br>
 
 Made with ❤️ by [waqprime](https://github.com/waqprime)
+
+<br><br>
+
+[![GitHub](https://img.shields.io/badge/GitHub-waqprime-181717?style=flat&logo=github)](https://github.com/waqprime)
 
 </div>
