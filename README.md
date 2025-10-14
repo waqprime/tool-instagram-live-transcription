@@ -72,7 +72,7 @@
 
 <div align="center">
 
-### 💾 最新版をダウンロード
+<h3>💾 最新版をダウンロード</h3>
 
 <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
   <img src="https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="50">
@@ -138,13 +138,17 @@
 
 <div align="center">
 
-### 📹 ステップ 1: Instagram URLをコピー
+<h3>📹 ステップ 1: Instagram URLをコピー</h3>
 
-Instagram アプリまたはブラウザで動画を開き、「**シェア**」→「**リンクをコピー**」
+<p>Instagram アプリまたはブラウザで動画を開き、「<strong>シェア</strong>」→「<strong>リンクをコピー</strong>」</p>
+
+</div>
 
 ```
 例: https://www.instagram.com/reel/ABC123xyz/
 ```
+
+<div align="center">
 
 <br>
 
@@ -152,9 +156,11 @@ Instagram アプリまたはブラウザで動画を開き、「**シェア**」
 
 <br>
 
-### 🎬 ステップ 2: アプリに貼り付け
+<h3>🎬 ステップ 2: アプリに貼り付け</h3>
 
 <img src=".github/images/app-main.png" alt="アプリ画面" width="700">
+
+</div>
 
 1. アプリを起動
 2. **URLを入力**欄に、コピーしたリンクを貼り付け
@@ -162,29 +168,48 @@ Instagram アプリまたはブラウザで動画を開き、「**シェア**」
 4. **言語**を選択（日本語 / 英語 / 自動検出）
 5. **Whisperモデル**を選択（迷ったら「Base」でOK）
 
+<div align="center">
+
 <br>
 
 ↓
 
 <br>
 
-### ⚡ ステップ 3: 処理開始！
+<h3>⚡ ステップ 3: 処理開始！</h3>
 
-「**処理開始**」ボタンをクリックするだけ！
+<p>「<strong>処理開始</strong>」ボタンをクリックするだけ！</p>
 
 <br>
+
+</div>
 
 ```
 📥 動画ダウンロード → 🎵 MP3抽出 → 📝 AI文字起こし → ✅ 完了！
 ```
 
+<div align="center">
+
 <br>
 
-| 動画の長さ | 処理時間の目安 |
-|:---:|:---|
-| 5分 | 約2〜3分 |
-| 30分 | 約10〜15分 |
-| 60分 | 約20〜30分 |
+<table>
+<tr>
+<th>動画の長さ</th>
+<th>処理時間の目安</th>
+</tr>
+<tr>
+<td align="center">5分</td>
+<td>約2〜3分</td>
+</tr>
+<tr>
+<td align="center">30分</td>
+<td>約10〜15分</td>
+</tr>
+<tr>
+<td align="center">60分</td>
+<td>約20〜30分</td>
+</tr>
+</table>
 
 </div>
 
