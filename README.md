@@ -1,41 +1,44 @@
 <div align="center">
 
-<h1>
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Studio%20Microphone.png" alt="Microphone" width="50" height="50" />
-  Instagram Live Transcription
-</h1>
+<!-- Header with gradient background effect -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/your-banner-dark.png">
+  <img width="100%" alt="Instagram Live Transcription" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Instagram%20Live%20Transcription&fontSize=42&fontColor=fff&animation=twinkling&fontAlignY=32">
+</picture>
 
-<p align="center">
-  <strong>Instagram LiveやReelを簡単にMP3保存 & AI文字起こし</strong>
-</p>
+<br>
 
-<p align="center">
+<h3>🎙️ Instagram動画を簡単にMP3保存 & AI文字起こし ✨</h3>
+
+<p>
   <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
-    <img src="https://img.shields.io/github/v/release/waqprime/tool-instagram-live-transcription?style=for-the-badge&logo=github&color=blue" alt="GitHub release">
+    <img src="https://img.shields.io/github/v/release/waqprime/tool-instagram-live-transcription?style=for-the-badge&logo=github&color=4A90E2&labelColor=2E3440" alt="GitHub release">
   </a>
   <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases">
-    <img src="https://img.shields.io/github/downloads/waqprime/tool-instagram-live-transcription/total?style=for-the-badge&logo=github&color=green" alt="Downloads">
+    <img src="https://img.shields.io/github/downloads/waqprime/tool-instagram-live-transcription/total?style=for-the-badge&logo=download&color=50C878&labelColor=2E3440" alt="Downloads">
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-MIT-orange.svg?style=for-the-badge" alt="License">
+    <img src="https://img.shields.io/badge/license-MIT-F39C12?style=for-the-badge&labelColor=2E3440" alt="License">
   </a>
 </p>
 
-<p align="center">
-  <a href="#-ダウンロード方法">📥 ダウンロード</a> •
-  <a href="#-使い方簡単3ステップ">📖 使い方</a> •
-  <a href="#-よくある質問faq">❓ FAQ</a> •
-  <a href="#-トラブルシューティング">🔧 サポート</a>
+<p>
+  <a href="#-ダウンロード">📥 ダウンロード</a> •
+  <a href="#-使い方">📖 使い方</a> •
+  <a href="#-faq">❓ FAQ</a> •
+  <a href="#-サポート">🛟 サポート</a>
 </p>
 
-<br>
-
-<img src=".github/images/app-main.png" alt="Instagram Live Transcription メイン画面" width="800">
-
-<br>
-<br>
-
 </div>
+
+<br>
+
+<!-- App Screenshot with shadow -->
+<div align="center">
+  <img src=".github/images/app-main.png" alt="Instagram Live Transcription メイン画面" width="800" style="border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);">
+</div>
+
+<br>
 
 <br>
 
@@ -68,14 +71,15 @@
 
 <br>
 
-## 📥 ダウンロード方法
-
+<!-- Download Section -->
 <div align="center">
 
-<h3>💾 最新版をダウンロード</h3>
+## 📥 ダウンロード
+
+<br>
 
 <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
-  <img src="https://img.shields.io/badge/Download-Latest_Release-blue?style=for-the-badge&logo=github&logoColor=white" alt="Download Latest Release" height="50">
+  <img src="https://img.shields.io/badge/⬇️_最新版をダウンロード-4A90E2?style=for-the-badge&labelColor=2E3440&logoColor=white" alt="Download Latest Release" height="60">
 </a>
 
 <br><br>
@@ -169,7 +173,18 @@
 
 <br>
 
-## 🚀 使い方（簡単3ステップ）
+<br>
+
+<!-- Usage Section -->
+<div align="center">
+
+## 🚀 使い方
+
+<sub>たった3ステップで完了！</sub>
+
+</div>
+
+<br>
 
 <table>
 <tr>
@@ -276,10 +291,15 @@
 
 <br>
 
-## 🎯 Whisperモデルの選び方
+<br>
 
+<!-- Model Selection Section -->
 <div align="center">
+
+## 🎯 モデル選択ガイド
+
 <sub>処理速度と精度のバランスで選べます</sub>
+
 </div>
 
 <br>
@@ -364,7 +384,18 @@
 
 <br>
 
-## ❓ よくある質問（FAQ）
+<br>
+
+<!-- FAQ Section -->
+<div align="center">
+
+## ❓ FAQ
+
+<sub>よくある質問と回答</sub>
+
+</div>
+
+<br>
 
 <details>
 <summary><b>Q1: アプリは無料ですか？</b></summary>
@@ -441,10 +472,15 @@
 
 <br>
 
-## 🔧 トラブルシューティング
+<br>
 
+<!-- Troubleshooting Section -->
 <div align="center">
+
+## 🛟 サポート
+
 <sub>よくある問題と解決方法</sub>
+
 </div>
 
 <br>
@@ -649,13 +685,19 @@ npm start
 
 <br>
 
----
+<br><br>
 
+<!-- Footer -->
 <div align="center">
 
-<h3>⭐ このプロジェクトが役に立ったら、ぜひスターをお願いします！ ⭐</h3>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/your-footer-dark.png">
+  <img width="100%" alt="Footer" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=120&section=footer">
+</picture>
 
 <br>
+
+<h3>⭐ このプロジェクトが役に立ったら、スターをお願いします！</h3>
 
 <a href="https://github.com/waqprime/tool-instagram-live-transcription">
   <img src="https://img.shields.io/github/stars/waqprime/tool-instagram-live-transcription?style=social" alt="GitHub stars">
@@ -663,10 +705,12 @@ npm start
 
 <br><br>
 
-Made with ❤️ by [waqprime](https://github.com/waqprime)
+<sub>Made with ❤️ by <a href="https://github.com/waqprime">waqprime</a></sub>
 
-<br><br>
+<br>
 
-[![GitHub](https://img.shields.io/badge/GitHub-waqprime-181717?style=flat&logo=github)](https://github.com/waqprime)
+<a href="https://github.com/waqprime">
+  <img src="https://img.shields.io/badge/GitHub-waqprime-4A90E2?style=for-the-badge&logo=github&labelColor=2E3440" alt="GitHub">
+</a>
 
 </div>
