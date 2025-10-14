@@ -42,6 +42,7 @@
       "index.html",
       "renderer.js",
       "styles.css",
+      "backend/**/*",
       "../*.py",
       "../requirements.txt",
       "../output/**/*"
