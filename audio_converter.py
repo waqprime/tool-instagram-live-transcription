@@ -14,20 +14,36 @@ from typing import Optional
 class AudioConverter:
     """動画から音声を抽出してMP3に変換するクラス"""
 
-    def __init__(self):
-        """初期化"""
+    def __init__(self, ffmpeg_path: Optional[str] = None):
+        """初期化
+
+        Args:
+            ffmpeg_path: ffmpegバイナリのパス（Noneの場合はシステムのffmpegを使用）
+        """
+        # ffmpegパスを環境変数または引数から取得
+        self.ffmpeg_path = ffmpeg_path or os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+        self.ffprobe_path = os.environ.get('FFPROBE_BINARY', 'ffprobe')
+
+        # バンドル版の場合、ffprobeもffmpegと同じディレクトリにあると仮定
+        if ffmpeg_path and os.path.isfile(ffmpeg_path):
+            ffmpeg_dir = os.path.dirname(ffmpeg_path)
+            ffprobe_name = 'ffprobe.exe' if sys.platform == 'win32' else 'ffprobe'
+            possible_ffprobe = os.path.join(ffmpeg_dir, ffprobe_name)
+            if os.path.isfile(possible_ffprobe):
+                self.ffprobe_path = possible_ffprobe
+
         self._check_ffmpeg()
 
     def _check_ffmpeg(self):
         """ffmpegがインストールされているか確認"""
         try:
             subprocess.run(
-                ["ffmpeg", "-version"],
+                [self.ffmpeg_path, "-version"],
                 check=True,
                 capture_output=True
             )
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print("✗ エラー: ffmpegがインストールされていません")
+            print(f"✗ エラー: ffmpegが見つかりません: {self.ffmpeg_path}")
             print("インストール方法:")
             print("  macOS: brew install ffmpeg")
             print("  Ubuntu: sudo apt install ffmpeg")
@@ -69,7 +85,7 @@ class AudioConverter:
 
             # ffmpegコマンドを実行
             cmd = [
-                "ffmpeg",
+                self.ffmpeg_path,
                 "-i", input_file,
                 "-vn",  # 映像を無効化
                 "-acodec", "libmp3lame",  # MP3コーデック
@@ -113,7 +129,7 @@ class AudioConverter:
         """
         try:
             cmd = [
-                "ffprobe",
+                self.ffprobe_path,
                 "-v", "quiet",
                 "-print_format", "json",
                 "-show_format",

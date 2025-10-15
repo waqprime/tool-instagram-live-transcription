@@ -1,8 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { ProcessManager } = require('./backend/process');
+const { ProcessManager } = require('./backend/process-bundled');
 const { autoUpdater } = require('electron-updater');
-const { execSync } = require('child_process');
 const fs = require('fs');
 
 // Set application name
@@ -12,28 +11,42 @@ let mainWindow;
 let processManager;
 const isDev = process.argv.includes('--dev');
 
-// Find Python executable
-function findPythonPath() {
+// Get bundled backend binary path
+function getBackendBinaryPath() {
   const isWindows = process.platform === 'win32';
-  const pythonCommands = isWindows
-    ? ['python', 'py', 'python3']
-    : ['python3', 'python'];
+  const binaryName = isWindows ? 'instagram-transcriber.exe' : 'instagram-transcriber';
 
-  for (const cmd of pythonCommands) {
-    try {
-      const result = execSync(`${cmd} --version`, { encoding: 'utf8' });
-      if (result.includes('Python')) {
-        console.log(`Found Python: ${cmd} (${result.trim()})`);
-        return cmd;
-      }
-    } catch (error) {
-      // Command not found, try next
-      continue;
+  if (isDev) {
+    // In development, use the binary from resources if it exists
+    const devBinaryPath = path.join(__dirname, 'resources', 'backend', binaryName);
+    if (fs.existsSync(devBinaryPath)) {
+      console.log('Using dev binary:', devBinaryPath);
+      return devBinaryPath;
     }
+    console.warn('Dev binary not found. Run "npm run prebuild" first.');
+    return null;
   }
 
-  console.error('Python not found. Please install Python 3.7 or higher.');
-  return null;
+  // In production, use the bundled binary
+  const binaryPath = path.join(process.resourcesPath, 'resources', 'backend', binaryName);
+  console.log('Using production binary:', binaryPath);
+  return binaryPath;
+}
+
+// Get ffmpeg binary path
+function getFFmpegPath() {
+  const isWindows = process.platform === 'win32';
+  const ffmpegName = isWindows ? 'ffmpeg.exe' : 'ffmpeg';
+
+  if (isDev) {
+    const devFFmpegPath = path.join(__dirname, 'resources', 'ffmpeg', ffmpegName);
+    if (fs.existsSync(devFFmpegPath)) {
+      return devFFmpegPath;
+    }
+    return null;
+  }
+
+  return path.join(process.resourcesPath, 'resources', 'ffmpeg', ffmpegName);
 }
 
 function createWindow() {
@@ -112,25 +125,33 @@ ipcMain.handle('start-processing', async (event, config) => {
   try {
     console.log('Starting processing with config:', config);
 
-    // Find Python executable
-    const pythonPath = findPythonPath();
-    if (!pythonPath) {
+    // Get bundled backend binary
+    const binaryPath = getBackendBinaryPath();
+    if (!binaryPath) {
       return {
         success: false,
-        error: 'Python not found. Please install Python 3.7 or higher and try again.'
+        error: 'Backend binary not found. Please rebuild the application.'
       };
     }
 
-    // Get Python scripts directory
-    const scriptsDir = isDev
-      ? path.join(__dirname, '..')
-      : path.join(process.resourcesPath, 'app');
+    if (!fs.existsSync(binaryPath)) {
+      return {
+        success: false,
+        error: `Backend binary does not exist: ${binaryPath}`
+      };
+    }
 
-    console.log('Python path:', pythonPath);
-    console.log('Scripts directory:', scriptsDir);
+    // Get ffmpeg path
+    const ffmpegPath = getFFmpegPath();
+    if (ffmpegPath && !fs.existsSync(ffmpegPath)) {
+      console.warn('ffmpeg not found at:', ffmpegPath);
+    }
 
-    // Initialize ProcessManager
-    processManager = new ProcessManager(pythonPath, scriptsDir);
+    console.log('Backend binary:', binaryPath);
+    console.log('ffmpeg binary:', ffmpegPath);
+
+    // Initialize ProcessManager with bundled binary
+    processManager = new ProcessManager(binaryPath, ffmpegPath);
 
     // Set up log handler
     processManager.onLog((log) => {

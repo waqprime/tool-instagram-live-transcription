@@ -23,7 +23,16 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install dependencies
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Install Electron dependencies
         run: |
           cd electron-app
           npm install

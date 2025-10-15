@@ -1,15 +1,16 @@
 {
   "name": "instagram-live-transcription",
-  "version": "1.0.4",
-  "description": "Instagram Live & Reel transcription with Whisper AI",
+  "version": "1.0.0",
+  "description": "Instagram Live & Reel transcription with Whisper AI (Bundled)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "test": "node test.js",
+    "prebuild": "node build-scripts/build-backend.js",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
+    "build:mac": "npm run prebuild && electron-builder --mac",
+    "build:win": "npm run prebuild && electron-builder --win"
   },
   "keywords": [
     "instagram",
@@ -42,15 +43,15 @@
       "index.html",
       "renderer.js",
       "styles.css",
-      "backend/**/*"
+      "backend/**/*",
+      "resources/**/*"
     ],
     "extraResources": [
       {
-        "from": "../",
-        "to": "app",
+        "from": "resources",
+        "to": "resources",
         "filter": [
-          "*.py",
-          "requirements.txt"
+          "**/*"
         ]
       }
     ],
