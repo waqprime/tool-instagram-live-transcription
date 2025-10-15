@@ -62,33 +62,33 @@ class InstagramLiveProcessor:
         print("【ステップ1/3】動画ダウンロード")
         video_file = self.downloader.download(url, filename_prefix)
         if not video_file:
-            print("✗ ダウンロード失敗")
+            print("[ERROR] ダウンロード失敗")
             return False
 
         # ステップ2: 音声をMP3に変換
         print(f"\n【ステップ2/3】音声抽出")
         mp3_file = self.converter.extract_audio(video_file)
         if not mp3_file:
-            print("✗ 音声抽出失敗")
+            print("[ERROR] 音声抽出失敗")
             return False
 
         # 元の動画ファイルを削除（オプション）
         try:
             if video_file != mp3_file:
                 os.remove(video_file)
-                print(f"✓ 元の動画ファイルを削除: {video_file}")
+                print(f"[OK] 元の動画ファイルを削除: {video_file}")
         except Exception as e:
-            print(f"⚠ 動画ファイル削除時の警告: {e}")
+            print(f"[WARNING] 動画ファイル削除時の警告: {e}")
 
         # ステップ3: 音声を文字起こし
         print(f"\n【ステップ3/3】文字起こし")
         result = self.transcriber.transcribe(mp3_file, str(self.output_dir))
         if not result:
-            print("✗ 文字起こし失敗")
+            print("[ERROR] 文字起こし失敗")
             return False
 
         print(f"\n{'=' * 60}")
-        print("✓ 処理完了!")
+        print("[OK] 処理完了!")
         print(f"{'=' * 60}")
         print(f"MP3ファイル: {mp3_file}")
         print(f"文字起こし: {Path(mp3_file).stem}_transcript.txt")
@@ -108,7 +108,7 @@ class InstagramLiveProcessor:
         """
         urls = self._read_urls_from_file(file_path)
         if not urls:
-            print(f"✗ URLが見つかりません: {file_path}")
+            print(f"[ERROR] URLが見つかりません: {file_path}")
             return {'total': 0, 'success': 0, 'failed': 0}
 
         print(f"\n処理するURL数: {len(urls)}")
@@ -164,7 +164,7 @@ class InstagramLiveProcessor:
             return urls
 
         except Exception as e:
-            print(f"✗ ファイル読み込みエラー: {e}")
+            print(f"[ERROR] ファイル読み込みエラー: {e}")
             return []
 
 
@@ -227,7 +227,7 @@ def main():
         return 0 if success else 1
     else:
         if not Path(args.file).exists():
-            print(f"✗ エラー: ファイルが見つかりません: {args.file}")
+            print(f"[ERROR] エラー: ファイルが見つかりません: {args.file}")
             print(f"使い方: python main.py --url <Instagram URL>")
             return 1
 
@@ -239,10 +239,10 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        print("\n\n✗ ユーザーによる中断")
+        print("\n\n[ERROR] ユーザーによる中断")
         sys.exit(1)
     except Exception as e:
-        print(f"\n✗ 予期しないエラー: {e}")
+        print(f"\n[ERROR] 予期しないエラー: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

@@ -89,25 +89,25 @@ class InstagramDownloader:
                 for ext in ['mp4', 'webm', 'mkv', 'm4a']:
                     filepath = self.output_dir / f"{output_filename}.{ext}"
                     if filepath.exists():
-                        print(f"✓ ダウンロード完了: {filepath}")
+                        print(f"[OK] ダウンロード完了: {filepath}")
                         return str(filepath)
             else:
                 # 最新のファイルを取得
                 files = sorted(self.output_dir.glob("*"), key=os.path.getmtime)
                 if files:
-                    print(f"✓ ダウンロード完了: {files[-1]}")
+                    print(f"[OK] ダウンロード完了: {files[-1]}")
                     return str(files[-1])
 
-            print("✗ ダウンロードしたファイルが見つかりません")
+            print("[ERROR] ダウンロードしたファイルが見つかりません")
             return None
 
         except subprocess.CalledProcessError as e:
-            print(f"✗ ダウンロードエラー: {e}")
+            print(f"[ERROR] ダウンロードエラー: {e}")
             print(f"stdout: {e.stdout}")
             print(f"stderr: {e.stderr}")
             return None
         except Exception as e:
-            print(f"✗ 予期しないエラー: {e}")
+            print(f"[ERROR] 予期しないエラー: {e}")
             return None
 
     def get_video_info(self, url: str) -> Optional[Dict]:
@@ -134,7 +134,7 @@ class InstagramDownloader:
                 return info
 
         except Exception as e:
-            print(f"✗ 情報取得エラー: {e}")
+            print(f"[ERROR] 情報取得エラー: {e}")
             return None
 
 

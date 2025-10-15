@@ -25,7 +25,7 @@ class AudioTranscriber:
             language: 言語コード (デフォルト: ja=日本語)
         """
         if model_size not in self.MODELS:
-            print(f"✗ 無効なモデルサイズ: {model_size}")
+            print(f"[ERROR] 無効なモデルサイズ: {model_size}")
             print(f"利用可能なモデル: {', '.join(self.MODELS)}")
             sys.exit(1)
 
@@ -40,9 +40,9 @@ class AudioTranscriber:
         """Whisperモデルを読み込む"""
         try:
             self.model = whisper.load_model(self.model_size)
-            print(f"✓ モデル読み込み完了: {self.model_size}")
+            print(f"[OK] モデル読み込み完了: {self.model_size}")
         except Exception as e:
-            print(f"✗ モデル読み込みエラー: {e}")
+            print(f"[ERROR] モデル読み込みエラー: {e}")
             sys.exit(1)
 
     def transcribe(
@@ -65,7 +65,7 @@ class AudioTranscriber:
         try:
             audio_path = Path(audio_file)
             if not audio_path.exists():
-                print(f"✗ エラー: ファイルが見つかりません: {audio_file}")
+                print(f"[ERROR] エラー: ファイルが見つかりません: {audio_file}")
                 return None
 
             print(f"\n文字起こし中: {audio_file}")
@@ -92,7 +92,7 @@ class AudioTranscriber:
             txt_file = output_path / f"{base_name}_transcript.txt"
             with open(txt_file, 'w', encoding='utf-8') as f:
                 f.write(result['text'])
-            print(f"✓ 全文テキスト保存: {txt_file}")
+            print(f"[OK] 全文テキスト保存: {txt_file}")
 
             # 2. タイムスタンプ付きテキスト
             detailed_file = output_path / f"{base_name}_transcript_detailed.txt"
@@ -101,15 +101,15 @@ class AudioTranscriber:
                     start = self._format_timestamp(segment['start'])
                     end = self._format_timestamp(segment['end'])
                     text = segment['text'].strip()
-                    f.write(f"[{start} → {end}] {text}\n")
-            print(f"✓ タイムスタンプ付きテキスト保存: {detailed_file}")
+                    f.write(f"[{start} -> {end}] {text}\n")
+            print(f"[OK] タイムスタンプ付きテキスト保存: {detailed_file}")
 
             # JSONは保存しない（オプションで有効化可能）
             if save_json:
                 json_file = output_path / f"{base_name}_transcript.json"
                 with open(json_file, 'w', encoding='utf-8') as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                print(f"✓ JSON保存: {json_file}")
+                print(f"[OK] JSON保存: {json_file}")
 
             print(f"\n文字起こし完了!")
             print(f"全体の文字数: {len(result['text'])}文字")
@@ -118,7 +118,7 @@ class AudioTranscriber:
             return result
 
         except Exception as e:
-            print(f"✗ 文字起こしエラー: {e}")
+            print(f"[ERROR] 文字起こしエラー: {e}")
             import traceback
             traceback.print_exc()
             return None

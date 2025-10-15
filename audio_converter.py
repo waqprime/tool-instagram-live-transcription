@@ -43,7 +43,7 @@ class AudioConverter:
                 capture_output=True
             )
         except (subprocess.CalledProcessError, FileNotFoundError):
-            print(f"✗ エラー: ffmpegが見つかりません: {self.ffmpeg_path}")
+            print(f"[ERROR] エラー: ffmpegが見つかりません: {self.ffmpeg_path}")
             print("インストール方法:")
             print("  macOS: brew install ffmpeg")
             print("  Ubuntu: sudo apt install ffmpeg")
@@ -70,7 +70,7 @@ class AudioConverter:
         try:
             input_path = Path(input_file)
             if not input_path.exists():
-                print(f"✗ エラー: ファイルが見つかりません: {input_file}")
+                print(f"[ERROR] エラー: ファイルが見つかりません: {input_file}")
                 return None
 
             # 出力ファイル名を決定
@@ -103,18 +103,18 @@ class AudioConverter:
 
             if Path(output_file).exists():
                 file_size = Path(output_file).stat().st_size / (1024 * 1024)  # MB
-                print(f"✓ 音声抽出完了: {output_file} ({file_size:.2f} MB)")
+                print(f"[OK] 音声抽出完了: {output_file} ({file_size:.2f} MB)")
                 return output_file
             else:
-                print("✗ 出力ファイルが生成されませんでした")
+                print("[ERROR] 出力ファイルが生成されませんでした")
                 return None
 
         except subprocess.CalledProcessError as e:
-            print(f"✗ 音声抽出エラー: {e}")
+            print(f"[ERROR] 音声抽出エラー: {e}")
             print(f"stderr: {e.stderr}")
             return None
         except Exception as e:
-            print(f"✗ 予期しないエラー: {e}")
+            print(f"[ERROR] 予期しないエラー: {e}")
             return None
 
     def get_audio_info(self, audio_file: str) -> Optional[dict]:
@@ -168,7 +168,7 @@ class AudioConverter:
             return None
 
         except Exception as e:
-            print(f"✗ 情報取得エラー: {e}")
+            print(f"[ERROR] 情報取得エラー: {e}")
             return None
 
 
