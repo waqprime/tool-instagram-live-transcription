@@ -2,6 +2,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const unzipper = require('unzipper');
 
 const FFMPEG_VERSION = '6.0';
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
@@ -68,12 +69,10 @@ async function extractArchive(archivePath, destDir) {
 
   try {
     if (ext === '.zip') {
-      // Use unzip command
-      if (process.platform === 'win32') {
-        execSync(`powershell -command "Expand-Archive -Path '${archivePath}' -DestinationPath '${destDir}' -Force"`, { stdio: 'inherit' });
-      } else {
-        execSync(`unzip -q -o "${archivePath}" -d "${destDir}"`, { stdio: 'inherit' });
-      }
+      // Use Node.js unzipper for cross-platform compatibility
+      await fs.createReadStream(archivePath)
+        .pipe(unzipper.Extract({ path: destDir }))
+        .promise();
     } else if (ext === '.xz') {
       execSync(`tar -xJf "${archivePath}" -C "${destDir}"`, { stdio: 'inherit' });
     }
