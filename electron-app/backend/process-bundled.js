@@ -95,6 +95,14 @@ class ProcessManager {
 
   async processSingleUrl(url, outputDir, language, model, urlNum, totalUrls) {
     return new Promise((resolve, reject) => {
+      // Verify binary exists
+      if (!fs.existsSync(this.binaryPath)) {
+        const error = `Backend binary not found: ${this.binaryPath}`;
+        this.log('error', error);
+        reject(new Error(error));
+        return;
+      }
+
       const args = [
         '--url', url,
         '--model', model,
@@ -106,9 +114,12 @@ class ProcessManager {
       const env = { ...process.env };
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
+        this.log('info', `Using ffmpeg: ${this.ffmpegPath}`);
       }
 
-      this.log('info', `[${urlNum}/${totalUrls}] 実行: ${this.binaryPath} ${args.join(' ')}`);
+      this.log('info', `[${urlNum}/${totalUrls}] バイナリ実行: ${this.binaryPath}`);
+      this.log('info', `[${urlNum}/${totalUrls}] 引数: ${args.join(' ')}`);
+      this.log('info', `[${urlNum}/${totalUrls}] 出力先: ${outputDir}`);
 
       this.currentProcess = spawn(this.binaryPath, args, { env });
 
@@ -143,14 +154,19 @@ class ProcessManager {
         const text = data.toString();
         errorData += text;
 
-        // Log errors and warnings
+        // Log all stderr output for debugging
         const lines = text.split('\n');
         for (const line of lines) {
           if (!line.trim()) continue;
-          if (line.includes('error') || line.includes('Error') || line.includes('ERROR')) {
-            this.log('error', line.trim());
-          } else if (line.includes('warning') || line.includes('Warning')) {
-            this.log('warning', line.trim());
+
+          // Log as error or warning based on content
+          if (line.includes('error') || line.includes('Error') || line.includes('ERROR') || line.includes('Exception') || line.includes('Traceback')) {
+            this.log('error', `STDERR: ${line.trim()}`);
+          } else if (line.includes('warning') || line.includes('Warning') || line.includes('WARN')) {
+            this.log('warning', `STDERR: ${line.trim()}`);
+          } else {
+            // Log all other stderr as info for debugging
+            this.log('debug', `STDERR: ${line.trim()}`);
           }
         }
       });

@@ -229,7 +229,18 @@ function openOutputFolder() {
 
 // Handle log messages from backend
 function handleLog(log) {
+  const type = log.type || 'info';
   const message = log.message || log;
+
+  // Log to console for debugging (open DevTools with F12)
+  console.log(`[${type}]`, message);
+
+  // Show errors prominently
+  if (type === 'error') {
+    updateProgress(null, '⚠️ エラー発生', message);
+    return;
+  }
+
   // Extract important progress info from log messages
   if (message.includes('ダウンロード')) {
     updateProgress(null, '動画をダウンロード中...', message);
@@ -239,6 +250,9 @@ function handleLog(log) {
     updateProgress(null, '文字起こし中...', message);
   } else if (message.includes('完了')) {
     // Keep details if available
+    updateProgress(null, null, message);
+  } else if (message.includes('実行') || message.includes('バイナリ') || message.includes('引数')) {
+    // Show detailed execution info
     updateProgress(null, null, message);
   }
 }
