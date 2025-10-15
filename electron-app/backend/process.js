@@ -3,12 +3,17 @@ const path = require('path');
 const fs = require('fs');
 
 class ProcessManager {
-  constructor(pythonPath) {
+  constructor(pythonPath, scriptsDir) {
     this.pythonPath = pythonPath || 'python3';
+    this.scriptsDir = scriptsDir || path.join(__dirname, '..', '..');
     this.currentProcess = null;
     this.logCallback = null;
     this.progressCallback = null;
     this.stopped = false;
+
+    console.log('ProcessManager initialized:');
+    console.log('  Python:', this.pythonPath);
+    console.log('  Scripts directory:', this.scriptsDir);
   }
 
   onLog(callback) {
@@ -136,8 +141,10 @@ class ProcessManager {
 
   async downloadVideo(url, outputDir, filename) {
     return new Promise((resolve, reject) => {
-      const scriptPath = path.join(__dirname, '..', '..', 'downloader.py');
+      const scriptPath = path.join(this.scriptsDir, 'downloader.py');
       const outputTemplate = path.join(outputDir, filename);
+
+      console.log('Download script path:', scriptPath);
 
       const args = [scriptPath, url, '-o', outputDir, '-n', filename];
 
@@ -186,8 +193,10 @@ class ProcessManager {
 
   async extractAudio(videoPath) {
     return new Promise((resolve, reject) => {
-      const scriptPath = path.join(__dirname, '..', '..', 'audio_converter.py');
+      const scriptPath = path.join(this.scriptsDir, 'audio_converter.py');
       const audioPath = videoPath.replace(/\.[^.]+$/, '.mp3');
+
+      console.log('Audio converter script path:', scriptPath);
 
       const args = [scriptPath, videoPath, '-o', audioPath];
 
@@ -220,7 +229,9 @@ class ProcessManager {
 
   async transcribeAudio(audioPath, language, model, outputDir) {
     return new Promise((resolve, reject) => {
-      const scriptPath = path.join(__dirname, '..', '..', 'transcriber.py');
+      const scriptPath = path.join(this.scriptsDir, 'transcriber.py');
+
+      console.log('Transcriber script path:', scriptPath);
 
       const args = [
         scriptPath,

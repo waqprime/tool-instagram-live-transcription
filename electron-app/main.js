@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { ProcessManager } = require('./backend/process');
 const { autoUpdater } = require('electron-updater');
+const { execSync } = require('child_process');
+const fs = require('fs');
 
 // Set application name
 app.setName('Instagram Live Transcription');
@@ -9,6 +11,30 @@ app.setName('Instagram Live Transcription');
 let mainWindow;
 let processManager;
 const isDev = process.argv.includes('--dev');
+
+// Find Python executable
+function findPythonPath() {
+  const isWindows = process.platform === 'win32';
+  const pythonCommands = isWindows
+    ? ['python', 'py', 'python3']
+    : ['python3', 'python'];
+
+  for (const cmd of pythonCommands) {
+    try {
+      const result = execSync(`${cmd} --version`, { encoding: 'utf8' });
+      if (result.includes('Python')) {
+        console.log(`Found Python: ${cmd} (${result.trim()})`);
+        return cmd;
+      }
+    } catch (error) {
+      // Command not found, try next
+      continue;
+    }
+  }
+
+  console.error('Python not found. Please install Python 3.7 or higher.');
+  return null;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -86,10 +112,25 @@ ipcMain.handle('start-processing', async (event, config) => {
   try {
     console.log('Starting processing with config:', config);
 
+    // Find Python executable
+    const pythonPath = findPythonPath();
+    if (!pythonPath) {
+      return {
+        success: false,
+        error: 'Python not found. Please install Python 3.7 or higher and try again.'
+      };
+    }
+
+    // Get Python scripts directory
+    const scriptsDir = isDev
+      ? path.join(__dirname, '..')
+      : path.join(process.resourcesPath, 'app');
+
+    console.log('Python path:', pythonPath);
+    console.log('Scripts directory:', scriptsDir);
+
     // Initialize ProcessManager
-    processManager = new ProcessManager(
-      path.join(__dirname, '..', 'venv_new', 'bin', 'python3')
-    );
+    processManager = new ProcessManager(pythonPath, scriptsDir);
 
     // Set up log handler
     processManager.onLog((log) => {
