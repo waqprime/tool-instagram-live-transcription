@@ -26,31 +26,48 @@ async function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
     console.log(`Downloading from: ${url}`);
 
-    const file = fs.createWriteStream(destPath);
+    const download = (downloadUrl, redirectCount = 0) => {
+      if (redirectCount > 10) {
+        reject(new Error('Too many redirects'));
+        return;
+      }
 
-    const download = (downloadUrl) => {
       const parsedUrl = new URL(downloadUrl);
       const protocol = parsedUrl.protocol === 'https:' ? https : require('http');
 
       protocol.get(downloadUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
         // Handle redirects
-        if (response.statusCode === 302 || response.statusCode === 301) {
+        if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 303 || response.statusCode === 307 || response.statusCode === 308) {
+          response.resume(); // Consume response data to free up memory
           const redirectLocation = response.headers.location;
           // Convert relative URLs to absolute
           const redirectUrl = redirectLocation.startsWith('http')
             ? redirectLocation
             : new URL(redirectLocation, downloadUrl).href;
           console.log(`Redirecting to: ${redirectUrl}`);
-          download(redirectUrl);
+          download(redirectUrl, redirectCount + 1);
           return;
         }
 
+        // Check for successful response
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
+          return;
+        }
+
+        const file = fs.createWriteStream(destPath);
         response.pipe(file);
 
         file.on('finish', () => {
-          file.close();
-          console.log(`Downloaded to: ${destPath}`);
-          resolve();
+          file.close(() => {
+            console.log(`Downloaded to: ${destPath}`);
+            resolve();
+          });
+        });
+
+        file.on('error', (err) => {
+          fs.unlink(destPath, () => {});
+          reject(err);
         });
       }).on('error', (err) => {
         fs.unlink(destPath, () => {});
