@@ -110,8 +110,9 @@ class ProcessManager {
         '--output-dir', outputDir
       ];
 
-      // Set ffmpeg path as environment variable
+      // Set ffmpeg path and unbuffered output as environment variables
       const env = { ...process.env };
+      env.PYTHONUNBUFFERED = '1';  // Force unbuffered output for Windows
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
         this.log('info', `Using ffmpeg: ${this.ffmpegPath}`);
@@ -137,7 +138,7 @@ class ProcessManager {
           if (!line.trim()) continue;
 
           // Log important messages
-          if (line.includes('ステップ') || line.includes('処理') || line.includes('✓') || line.includes('✗')) {
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
             this.log('info', line.trim());
           }
 

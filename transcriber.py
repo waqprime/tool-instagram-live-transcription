@@ -25,24 +25,24 @@ class AudioTranscriber:
             language: 言語コード (デフォルト: ja=日本語)
         """
         if model_size not in self.MODELS:
-            print(f"[ERROR] 無効なモデルサイズ: {model_size}")
-            print(f"利用可能なモデル: {', '.join(self.MODELS)}")
+            print(f"[ERROR] 無効なモデルサイズ: {model_size}", flush=True)
+            print(f"利用可能なモデル: {', '.join(self.MODELS)}", flush=True)
             sys.exit(1)
 
         self.model_size = model_size
         self.language = language
         self.model = None
 
-        print(f"Whisperモデルを読み込み中... (サイズ: {model_size})")
+        print(f"Whisperモデルを読み込み中... (サイズ: {model_size})", flush=True)
         self._load_model()
 
     def _load_model(self):
         """Whisperモデルを読み込む"""
         try:
             self.model = whisper.load_model(self.model_size)
-            print(f"[OK] モデル読み込み完了: {self.model_size}")
+            print(f"[OK] モデル読み込み完了: {self.model_size}", flush=True)
         except Exception as e:
-            print(f"[ERROR] モデル読み込みエラー: {e}")
+            print(f"[ERROR] モデル読み込みエラー: {e}", flush=True)
             sys.exit(1)
 
     def transcribe(
@@ -65,11 +65,11 @@ class AudioTranscriber:
         try:
             audio_path = Path(audio_file)
             if not audio_path.exists():
-                print(f"[ERROR] エラー: ファイルが見つかりません: {audio_file}")
+                print(f"[ERROR] エラー: ファイルが見つかりません: {audio_file}", flush=True)
                 return None
 
-            print(f"\n文字起こし中: {audio_file}")
-            print("(処理には数分かかる場合があります...)")
+            print(f"\n文字起こし中: {audio_file}", flush=True)
+            print("(処理には数分かかる場合があります...)", flush=True)
 
             # 文字起こし実行
             result = self.model.transcribe(
@@ -92,7 +92,7 @@ class AudioTranscriber:
             txt_file = output_path / f"{base_name}_transcript.txt"
             with open(txt_file, 'w', encoding='utf-8') as f:
                 f.write(result['text'])
-            print(f"[OK] 全文テキスト保存: {txt_file}")
+            print(f"[OK] 全文テキスト保存: {txt_file}", flush=True)
 
             # 2. タイムスタンプ付きテキスト
             detailed_file = output_path / f"{base_name}_transcript_detailed.txt"
@@ -102,23 +102,23 @@ class AudioTranscriber:
                     end = self._format_timestamp(segment['end'])
                     text = segment['text'].strip()
                     f.write(f"[{start} -> {end}] {text}\n")
-            print(f"[OK] タイムスタンプ付きテキスト保存: {detailed_file}")
+            print(f"[OK] タイムスタンプ付きテキスト保存: {detailed_file}", flush=True)
 
             # JSONは保存しない（オプションで有効化可能）
             if save_json:
                 json_file = output_path / f"{base_name}_transcript.json"
                 with open(json_file, 'w', encoding='utf-8') as f:
                     json.dump(result, f, ensure_ascii=False, indent=2)
-                print(f"[OK] JSON保存: {json_file}")
+                print(f"[OK] JSON保存: {json_file}", flush=True)
 
-            print(f"\n文字起こし完了!")
-            print(f"全体の文字数: {len(result['text'])}文字")
-            print(f"セグメント数: {len(result['segments'])}")
+            print(f"\n文字起こし完了!", flush=True)
+            print(f"全体の文字数: {len(result['text'])}文字", flush=True)
+            print(f"セグメント数: {len(result['segments'])}", flush=True)
 
             return result
 
         except Exception as e:
-            print(f"[ERROR] 文字起こしエラー: {e}")
+            print(f"[ERROR] 文字起こしエラー: {e}", flush=True)
             import traceback
             traceback.print_exc()
             return None
@@ -181,13 +181,13 @@ def main():
     result = transcriber.transcribe(args.audio, args.output)
 
     if result:
-        print("\n=== 文字起こし結果（抜粋） ===")
-        print(result['text'][:500])
+        print("\n=== 文字起こし結果（抜粋） ===", flush=True)
+        print(result['text'][:500], flush=True)
         if len(result['text']) > 500:
-            print("...")
+            print("...", flush=True)
         return 0
     else:
-        print("\n文字起こしに失敗しました")
+        print("\n文字起こしに失敗しました", flush=True)
         return 1
 
 
