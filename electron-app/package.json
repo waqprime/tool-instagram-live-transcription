@@ -1,6 +1,6 @@
 {
   "name": "instagram-live-transcription",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Instagram Live & Reel transcription with Whisper AI",
   "main": "main.js",
   "scripts": {
@@ -59,7 +59,12 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "identity": "WAQPRIME (QFSX3T23BY)",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
       "target": [

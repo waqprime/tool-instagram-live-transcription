@@ -29,6 +29,9 @@ wheels/
 build/
 dist/
 
+# Exclude electron-app/build from ignore (needed for entitlements)
+!electron-app/build/
+
 # 出力ファイル
 output/
 *.mp3
