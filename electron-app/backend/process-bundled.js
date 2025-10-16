@@ -122,6 +122,23 @@ class ProcessManager {
       this.log('info', `[${urlNum}/${totalUrls}] 引数: ${args.join(' ')}`);
       this.log('info', `[${urlNum}/${totalUrls}] 出力先: ${outputDir}`);
 
+      // Create log file for this processing session
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
+      const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+      const writeLog = (message) => {
+        const timestampStr = new Date().toISOString();
+        logStream.write(`[${timestampStr}] ${message}\n`);
+      };
+
+      writeLog('='.repeat(60));
+      writeLog(`Processing started: ${url}`);
+      writeLog(`Binary: ${this.binaryPath}`);
+      writeLog(`Args: ${args.join(' ')}`);
+      writeLog(`Output: ${outputDir}`);
+      writeLog('='.repeat(60));
+
       this.currentProcess = spawn(this.binaryPath, args, { env });
 
       let outputData = '';
@@ -136,6 +153,9 @@ class ProcessManager {
         const lines = text.split('\n');
         for (const line of lines) {
           if (!line.trim()) continue;
+
+          // Write all stdout to log file
+          writeLog(`STDOUT: ${line.trim()}`);
 
           // Log important messages
           if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
@@ -160,6 +180,9 @@ class ProcessManager {
         for (const line of lines) {
           if (!line.trim()) continue;
 
+          // Write all stderr to log file
+          writeLog(`STDERR: ${line.trim()}`);
+
           // Log as error or warning based on content
           if (line.includes('error') || line.includes('Error') || line.includes('ERROR') || line.includes('Exception') || line.includes('Traceback')) {
             this.log('error', `STDERR: ${line.trim()}`);
@@ -175,23 +198,37 @@ class ProcessManager {
       this.currentProcess.on('close', (code) => {
         this.currentProcess = null;
 
+        // Write final log entry
+        writeLog('='.repeat(60));
+        writeLog(`Process finished with exit code: ${code}`);
+        writeLog('='.repeat(60));
+
         if (code === 0) {
           // Find the output files
           const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
           const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
 
           if (mp3Files.length > 0 && transcriptFiles.length > 0) {
+            writeLog(`SUCCESS: Found output files - MP3: ${mp3Files[0]}, Transcript: ${transcriptFiles[0]}`);
+            writeLog(`Log file saved to: ${logFilePath}`);
+            logStream.end();
             resolve({
               success: true,
               output: path.join(outputDir, transcriptFiles[0])
             });
           } else {
+            writeLog(`ERROR: Output files not found - MP3s: ${mp3Files.length}, Transcripts: ${transcriptFiles.length}`);
+            writeLog(`Log file saved to: ${logFilePath}`);
+            logStream.end();
             resolve({
               success: false,
               error: '出力ファイルが見つかりませんでした'
             });
           }
         } else {
+          writeLog(`ERROR: Process failed with exit code ${code}`);
+          writeLog(`Log file saved to: ${logFilePath}`);
+          logStream.end();
           resolve({
             success: false,
             error: `処理が失敗しました (exit code: ${code})`
@@ -201,6 +238,15 @@ class ProcessManager {
 
       this.currentProcess.on('error', (error) => {
         this.currentProcess = null;
+
+        // Write error to log file
+        writeLog('='.repeat(60));
+        writeLog(`FATAL ERROR: ${error.message}`);
+        writeLog(`Stack trace: ${error.stack}`);
+        writeLog('='.repeat(60));
+        writeLog(`Log file saved to: ${logFilePath}`);
+        logStream.end();
+
         reject(error);
       });
     });

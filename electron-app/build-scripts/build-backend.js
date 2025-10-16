@@ -30,7 +30,7 @@ const targetBinaryPath = path.join(BACKEND_DIR, binaryName);
 
 // Check if PyInstaller is available
 try {
-  execSync('pyinstaller --version', { stdio: 'pipe' });
+  execSync('python3 -m PyInstaller --version', { stdio: 'pipe' });
 } catch (error) {
   console.error('✗ PyInstaller not found. Installing...');
   try {
