@@ -92,9 +92,13 @@ class InstagramDownloader:
                         print(f"[OK] ダウンロード完了: {filepath}")
                         return str(filepath)
             else:
-                # 最新のファイルを取得
-                files = sorted(self.output_dir.glob("*"), key=os.path.getmtime)
-                if files:
+                # 最新の動画ファイルを取得（ログファイルを除外）
+                video_files = []
+                for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                    video_files.extend(self.output_dir.glob(f"*.{ext}"))
+
+                if video_files:
+                    files = sorted(video_files, key=os.path.getmtime)
                     print(f"[OK] ダウンロード完了: {files[-1]}")
                     return str(files[-1])
 
