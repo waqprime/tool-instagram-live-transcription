@@ -33,6 +33,14 @@ class AudioTranscriber:
         self.language = language
         self.model = None
 
+        # ffmpegパスを環境変数から取得してPATHに追加
+        ffmpeg_binary = os.environ.get('FFMPEG_BINARY')
+        if ffmpeg_binary and os.path.isfile(ffmpeg_binary):
+            ffmpeg_dir = os.path.dirname(ffmpeg_binary)
+            # PATHの先頭にffmpegディレクトリを追加
+            os.environ['PATH'] = ffmpeg_dir + os.pathsep + os.environ.get('PATH', '')
+            print(f"ffmpegパスを設定: {ffmpeg_dir}", flush=True)
+
         print(f"Whisperモデルを読み込み中... (サイズ: {model_size})", flush=True)
         self._load_model()
 
