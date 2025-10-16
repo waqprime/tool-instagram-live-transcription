@@ -58,6 +58,11 @@ class InstagramLiveProcessor:
         print(f"処理開始: {url}")
         print(f"{'=' * 60}\n")
 
+        # ファイル名プレフィックスが指定されていない場合は自動生成
+        if not filename_prefix:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename_prefix = f"instagram_{timestamp}"
+
         # ステップ1: 動画をダウンロード
         print("【ステップ1/3】動画ダウンロード")
         video_file = self.downloader.download(url, filename_prefix)
