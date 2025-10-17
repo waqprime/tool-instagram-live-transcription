@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Instagram Live/Reel MP3保存・文字起こしシステム
 メインスクリプト
@@ -10,6 +11,23 @@ import argparse
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
+
+# Windows環境での文字化け対策
+if sys.platform == 'win32':
+    # PYTHONIOENCODING環境変数を設定
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+    # コンソール出力をUTF-8に設定（安全にラップ）
+    try:
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.encoding.lower() != 'utf-8':
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        if hasattr(sys.stderr, 'buffer') and sys.stderr.encoding.lower() != 'utf-8':
+            import io
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    except (AttributeError, OSError):
+        # PyInstallerやリダイレクト環境ではスキップ
+        pass
 
 from downloader import InstagramDownloader
 from audio_converter import AudioConverter

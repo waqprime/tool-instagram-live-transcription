@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Instagram動画ダウンローダー
 yt-dlpを使用してInstagram LiveやReelをダウンロード
@@ -9,6 +10,19 @@ import sys
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict
+
+# Windows環境での文字化け対策
+if sys.platform == 'win32':
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    try:
+        if hasattr(sys.stdout, 'buffer') and sys.stdout.encoding.lower() != 'utf-8':
+            import io
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        if hasattr(sys.stderr, 'buffer') and sys.stderr.encoding.lower() != 'utf-8':
+            import io
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+    except (AttributeError, OSError):
+        pass
 
 
 class InstagramDownloader:
@@ -80,7 +94,8 @@ class InstagramDownloader:
                     cmd,
                     check=True,
                     capture_output=True,
-                    text=True
+                    encoding='utf-8',
+                    errors='replace'
                 )
 
             # ダウンロードしたファイルを探す
