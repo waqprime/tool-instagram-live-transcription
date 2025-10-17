@@ -29,18 +29,22 @@ const distBinaryPath = path.join(ROOT_DIR, 'dist', binaryName);
 const targetBinaryPath = path.join(BACKEND_DIR, binaryName);
 
 // Check if PyInstaller is available
+// Try both python and python3 for cross-platform compatibility
+const pythonCmd = platform === 'win32' ? 'python' : 'python3';
+const pipCmd = platform === 'win32' ? 'pip' : 'pip3';
+
 try {
-  execSync('python3 -m PyInstaller --version', { stdio: 'pipe' });
+  execSync(`${pythonCmd} -m PyInstaller --version`, { stdio: 'pipe' });
 } catch (error) {
   console.error('✗ PyInstaller not found. Installing...');
   try {
-    execSync('pip3 install pyinstaller', { stdio: 'inherit', cwd: ROOT_DIR });
+    execSync(`${pipCmd} install pyinstaller`, { stdio: 'inherit', cwd: ROOT_DIR });
   } catch (pipError) {
     try {
-      execSync('python3 -m pip install pyinstaller', { stdio: 'inherit', cwd: ROOT_DIR });
+      execSync(`${pythonCmd} -m pip install pyinstaller`, { stdio: 'inherit', cwd: ROOT_DIR });
     } catch (pythonPipError) {
       console.error('✗ Failed to install PyInstaller. Please install manually:');
-      console.error('   pip3 install pyinstaller');
+      console.error(`   ${pipCmd} install pyinstaller`);
       process.exit(1);
     }
   }
@@ -49,7 +53,7 @@ try {
 // Build with PyInstaller
 try {
   console.log('Running PyInstaller...');
-  execSync('python3 -m PyInstaller instagram-transcriber.spec --clean', {
+  execSync(`${pythonCmd} -m PyInstaller instagram-transcriber.spec --clean`, {
     stdio: 'inherit',
     cwd: ROOT_DIR
   });
