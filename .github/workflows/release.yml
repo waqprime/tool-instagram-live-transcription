@@ -45,7 +45,7 @@ jobs:
           npm install
 
       - name: Setup code signing (macOS)
-        if: false
+        if: false  # Skip code signing for now
         run: |
           # Create certificate file from base64
           echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
