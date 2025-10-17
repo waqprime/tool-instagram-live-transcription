@@ -45,7 +45,7 @@ jobs:
           npm install
 
       - name: Setup code signing (macOS)
-        if: matrix.os == 'macos-latest' && secrets.MACOS_CERTIFICATE != ''
+        if: false
         run: |
           # Create certificate file from base64
           echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
@@ -77,7 +77,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
       - name: Cleanup keychain (macOS)
-        if: matrix.os == 'macos-latest' && always()
+        if: false
         run: |
           security delete-keychain build.keychain || true
 
