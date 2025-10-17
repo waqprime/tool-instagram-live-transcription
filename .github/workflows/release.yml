@@ -30,7 +30,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
       - name: Install Electron dependencies
         run: |
@@ -38,7 +39,7 @@ jobs:
           npm install
 
       - name: Setup code signing (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && env.MACOS_CERTIFICATE != ''
         run: |
           # Create certificate file from base64
           echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
