@@ -21,6 +21,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "electron": "^28.3.3",
     "electron-builder": "^26.0.12",
     "unzipper": "^0.12.3"
@@ -56,6 +57,7 @@
         ]
       }
     ],
+    "afterSign": "build-scripts/notarize.js",
     "mac": {
       "category": "public.app-category.utilities",
       "target": [
