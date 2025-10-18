@@ -9,8 +9,8 @@
     "test": "node test.js",
     "prebuild": "node build-scripts/build-backend.js",
     "build": "electron-builder",
-    "build:mac": "npm run prebuild && electron-builder --mac",
-    "build:win": "npm run prebuild && electron-builder --win"
+    "build:mac": "npm run prebuild && electron-builder --mac --publish never",
+    "build:win": "npm run prebuild && electron-builder --win --publish never"
   },
   "keywords": [
     "instagram",
