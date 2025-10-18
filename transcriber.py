@@ -8,9 +8,17 @@ OpenAI Whisperを使用して音声をテキストに変換
 import os
 import sys
 import json
+import ssl
 from pathlib import Path
 from typing import Optional, Dict, List
 import whisper
+
+# SSL証明書の設定（PyInstaller環境対応）
+try:
+    import certifi
+    os.environ['SSL_CERT_FILE'] = certifi.where()
+except ImportError:
+    pass
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':

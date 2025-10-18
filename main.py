@@ -8,9 +8,13 @@ Instagram Live/Reel MP3保存・文字起こしシステム
 import os
 import sys
 import argparse
+import multiprocessing
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
+
+# PyInstaller環境でのmultiprocessing対応
+multiprocessing.freeze_support()
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
