@@ -1,12 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import whisper
 
 block_cipher = None
+
+# Get Whisper assets path
+whisper_path = os.path.dirname(whisper.__file__)
+whisper_assets = os.path.join(whisper_path, 'assets')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        (whisper_assets, 'whisper/assets'),
+    ],
     hiddenimports=[
         'whisper',
         'whisper.model',
