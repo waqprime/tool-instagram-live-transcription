@@ -29,6 +29,7 @@
   "build": {
     "appId": "com.instagram.live.transcription",
     "productName": "Instagram Live Transcription",
+    "icon": "build/icon.png",
     "directories": {
       "output": "dist"
     },
