@@ -67,7 +67,7 @@ function addUrlInput(url = '') {
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'glass-input';
-  input.placeholder = 'https://www.instagram.com/reel/...';
+  input.placeholder = 'https://www.instagram.com/... / https://www.youtube.com/... / https://twitter.com/i/spaces/...';
   input.value = url;
 
   const removeBtn = document.createElement('button');

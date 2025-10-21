@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Instagram動画ダウンローダー
-yt-dlpを使用してInstagram LiveやReelをダウンロード
+動画・音声ダウンローダー
+yt-dlpを使用して各種プラットフォームから動画・音声をダウンロード
+対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm等（yt-dlp対応サイト全て）
 """
 
 import os
@@ -25,8 +26,12 @@ if sys.platform == 'win32':
         pass
 
 
-class InstagramDownloader:
-    """Instagram動画をダウンロードするクラス"""
+class VideoDownloader:
+    """各種プラットフォームから動画・音声をダウンロードするクラス
+
+    yt-dlpを使用して、Instagram, YouTube, X Spaces, Voicy等、
+    1,800以上のサイトから動画・音声をダウンロード
+    """
 
     def __init__(self, output_dir: str = "output"):
         """
@@ -62,10 +67,10 @@ class InstagramDownloader:
 
     def download(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
         """
-        Instagram動画をダウンロード
+        各種プラットフォームから動画・音声をダウンロード
 
         Args:
-            url: Instagram動画のURL
+            url: 動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）
             output_filename: 出力ファイル名（拡張子なし）
 
         Returns:
@@ -145,13 +150,13 @@ class InstagramDownloader:
 
     def get_video_info(self, url: str) -> Optional[Dict]:
         """
-        動画情報を取得
+        動画・音声情報を取得
 
         Args:
-            url: Instagram動画のURL
+            url: 動画・音声のURL
 
         Returns:
-            動画情報の辞書、失敗時はNone
+            動画・音声情報の辞書、失敗時はNone
         """
         try:
             import yt_dlp
@@ -175,14 +180,14 @@ def main():
     """テスト用のメイン関数"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Instagram動画ダウンローダー")
-    parser.add_argument("url", help="Instagram動画のURL")
+    parser = argparse.ArgumentParser(description="動画・音声ダウンローダー（yt-dlp対応全サイト）")
+    parser.add_argument("url", help="動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）")
     parser.add_argument("-o", "--output", help="出力ディレクトリ", default="output")
     parser.add_argument("-n", "--name", help="出力ファイル名", default=None)
 
     args = parser.parse_args()
 
-    downloader = InstagramDownloader(args.output)
+    downloader = VideoDownloader(args.output)
     filepath = downloader.download(args.url, args.name)
 
     if filepath:

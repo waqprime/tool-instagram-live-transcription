@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Instagram Live/Reel MP3保存・文字起こしシステム
-メインスクリプト
+音声文字起こしシステム
+各種プラットフォーム（Instagram, YouTube, X Spaces, Voicy等）から
+動画・音声をダウンロードし、MP3抽出と文字起こしを実行
 """
 
 import os
@@ -33,13 +34,17 @@ if sys.platform == 'win32':
         # PyInstallerやリダイレクト環境ではスキップ
         pass
 
-from downloader import InstagramDownloader
+from downloader import VideoDownloader
 from audio_converter import AudioConverter
 from transcriber import AudioTranscriber
 
 
-class InstagramLiveProcessor:
-    """Instagram Live/Reelを処理するメインクラス"""
+class AudioTranscriptionProcessor:
+    """各種プラットフォームの動画・音声を処理するメインクラス
+
+    Instagram, YouTube, X Spaces, Voicy等、yt-dlp対応サイトから
+    動画・音声をダウンロードし、MP3抽出と文字起こしを実行
+    """
 
     def __init__(
         self,
@@ -57,11 +62,12 @@ class InstagramLiveProcessor:
         self.output_dir.mkdir(exist_ok=True)
 
         print("=" * 60)
-        print("Instagram Live/Reel MP3保存・文字起こしシステム")
+        print("音声文字起こしシステム")
+        print("対応: Instagram, YouTube, X Spaces, Voicy等")
         print("=" * 60)
 
         # 各コンポーネントを初期化
-        self.downloader = InstagramDownloader(str(self.output_dir))
+        self.downloader = VideoDownloader(str(self.output_dir))
         self.converter = AudioConverter()
         self.transcriber = AudioTranscriber(whisper_model, language)
 
@@ -70,7 +76,7 @@ class InstagramLiveProcessor:
         単一のURLを処理
 
         Args:
-            url: Instagram動画のURL
+            url: 動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）
             filename_prefix: ファイル名のプレフィックス
 
         Returns:
@@ -83,7 +89,7 @@ class InstagramLiveProcessor:
         # ファイル名プレフィックスが指定されていない場合は自動生成
         if not filename_prefix:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename_prefix = f"instagram_{timestamp}"
+            filename_prefix = f"video_{timestamp}"
 
         # ステップ1: 動画をダウンロード
         print("【ステップ1/3】動画ダウンロード")
@@ -149,7 +155,7 @@ class InstagramLiveProcessor:
 
             # ファイル名のプレフィックスを生成
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            prefix = f"instagram_{timestamp}_{i}"
+            prefix = f"video_{timestamp}_{i}"
 
             if self.process_url(url, prefix):
                 stats['success'] += 1
@@ -180,12 +186,13 @@ class InstagramLiveProcessor:
             with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
 
-            # 空行とコメント行を除外
+            # 空行とコメント行を除外、URL形式の行を抽出
             urls = []
             for line in lines:
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    if 'instagram.com' in line:
+                    # http/httpsで始まる行をURLとみなす
+                    if line.startswith('http://') or line.startswith('https://'):
                         urls.append(line)
 
             return urls
@@ -198,15 +205,21 @@ class InstagramLiveProcessor:
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(
-        description="Instagram Live/ReelをMP3で保存して文字起こし",
+        description="各種プラットフォームの動画・音声をMP3で保存して文字起こし（Instagram, YouTube, X Spaces, Voicy等）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用例:
   # link.txtに記載されたURLを一括処理
   python main.py
 
-  # 単一URLを処理
+  # 単一URLを処理（Instagram）
   python main.py --url "https://www.instagram.com/reel/..."
+
+  # 単一URLを処理（YouTube）
+  python main.py --url "https://www.youtube.com/watch?v=..."
+
+  # 単一URLを処理（X Spaces）
+  python main.py --url "https://twitter.com/i/spaces/..."
 
   # モデルとオプションを指定
   python main.py --model medium --language ja --output-dir ./results
@@ -215,7 +228,7 @@ def main():
 
     parser.add_argument(
         "-u", "--url",
-        help="Instagram動画のURL（単一URL処理）"
+        help="動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）"
     )
     parser.add_argument(
         "-f", "--file",
@@ -242,7 +255,7 @@ def main():
     args = parser.parse_args()
 
     # プロセッサーを初期化
-    processor = InstagramLiveProcessor(
+    processor = AudioTranscriptionProcessor(
         output_dir=args.output_dir,
         whisper_model=args.model,
         language=args.language
@@ -255,7 +268,7 @@ def main():
     else:
         if not Path(args.file).exists():
             print(f"[ERROR] エラー: ファイルが見つかりません: {args.file}")
-            print(f"使い方: python main.py --url <Instagram URL>")
+            print(f"使い方: python main.py --url <動画・音声URL>")
             return 1
 
         stats = processor.process_urls_from_file(args.file)
