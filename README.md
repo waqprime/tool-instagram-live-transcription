@@ -3,7 +3,7 @@
 <!-- Header with gradient background effect -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/your-banner-dark.png">
-  <img width="100%" alt="Audio Transcription App" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Audio%20Transcription%20App&fontSize=42&fontColor=fff&animation=twinkling&fontAlignY=32">
+  <img width="100%" alt="文字起こしツール" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=%E6%96%87%E5%AD%97%E8%B5%B7%E3%81%93%E3%81%97%E3%83%84%E3%83%BC%E3%83%AB&fontSize=42&fontColor=fff&animation=twinkling&fontAlignY=32">
 </picture>
 
 <br>

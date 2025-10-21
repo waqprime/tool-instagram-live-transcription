@@ -1,5 +1,5 @@
 {
-  "name": "audio-transcription-app",
+  "name": "transcription-tool",
   "version": "1.0.0",
   "description": "Multi-platform audio/video transcription with Whisper AI - Supports Instagram, YouTube, X Spaces, Voicy, etc.",
   "main": "main.js",
@@ -32,8 +32,8 @@
     "unzipper": "^0.12.3"
   },
   "build": {
-    "appId": "com.audio.transcription.app",
-    "productName": "Audio Transcription",
+    "appId": "com.transcription.tool",
+    "productName": "Transcription Tool",
     "icon": "build/icon.png",
     "directories": {
       "output": "dist"
@@ -83,7 +83,7 @@
       ]
     },
     "dmg": {
-      "title": "Audio Transcription"
+      "title": "Transcription Tool"
     },
     "nsis": {
       "oneClick": false,
