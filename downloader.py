@@ -47,6 +47,19 @@ class InstagramDownloader:
             # システムのyt-dlpコマンドを使用
             return "yt-dlp"
 
+    def _progress_hook(self, d):
+        """yt-dlpの進捗フック"""
+        if d['status'] == 'downloading':
+            # ダウンロード中の進捗
+            if 'total_bytes' in d and d['total_bytes'] > 0:
+                percent = (d['downloaded_bytes'] / d['total_bytes']) * 100
+                print(f"[PROGRESS] ダウンロード: {percent:.1f}%", flush=True)
+            elif 'total_bytes_estimate' in d and d['total_bytes_estimate'] > 0:
+                percent = (d['downloaded_bytes'] / d['total_bytes_estimate']) * 100
+                print(f"[PROGRESS] ダウンロード: {percent:.1f}%", flush=True)
+        elif d['status'] == 'finished':
+            print(f"[PROGRESS] ダウンロード: 100%", flush=True)
+
     def download(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
         """
         Instagram動画をダウンロード
@@ -76,6 +89,7 @@ class InstagramDownloader:
                     'nocheckcertificate': True,
                     'quiet': False,
                     'no_warnings': False,
+                    'progress_hooks': [self._progress_hook],
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:

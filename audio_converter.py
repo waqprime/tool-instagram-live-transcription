@@ -66,6 +66,23 @@ class AudioConverter:
             print("  Windows: https://ffmpeg.org/download.html")
             sys.exit(1)
 
+    def _get_duration(self, input_file: str) -> Optional[float]:
+        """動画の長さを取得（秒）"""
+        try:
+            cmd = [
+                self.ffprobe_path,
+                "-v", "quiet",
+                "-print_format", "json",
+                "-show_format",
+                input_file
+            ]
+            result = subprocess.run(cmd, check=True, capture_output=True, encoding='utf-8', errors='replace')
+            import json
+            info = json.loads(result.stdout)
+            return float(info.get('format', {}).get('duration', 0))
+        except:
+            return None
+
     def extract_audio(
         self,
         input_file: str,
@@ -99,6 +116,9 @@ class AudioConverter:
 
             print(f"音声抽出中: {input_file} → {output_file}")
 
+            # 動画の長さを取得
+            total_duration = self._get_duration(input_file)
+
             # ffmpegコマンドを実行
             cmd = [
                 self.ffmpeg_path,
@@ -107,16 +127,36 @@ class AudioConverter:
                 "-acodec", "libmp3lame",  # MP3コーデック
                 "-b:a", bitrate,  # ビットレート
                 "-y",  # 上書き確認なし
+                "-progress", "pipe:2",  # 進捗をstderrに出力
                 output_file
             ]
 
-            result = subprocess.run(
+            # リアルタイムで進捗を表示
+            import re
+            process = subprocess.Popen(
                 cmd,
-                check=True,
-                capture_output=True,
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
                 encoding='utf-8',
                 errors='replace'
             )
+
+            # stderrから進捗を読み取る
+            for line in process.stderr:
+                if total_duration and 'out_time_ms=' in line:
+                    # out_time_ms=123456789 形式から現在の処理時間を取得
+                    match = re.search(r'out_time_ms=(\d+)', line)
+                    if match:
+                        current_ms = int(match.group(1))
+                        current_sec = current_ms / 1000000.0
+                        percent = min(100, (current_sec / total_duration) * 100)
+                        print(f"[PROGRESS] 音声抽出: {percent:.1f}%", flush=True)
+
+            process.wait()
+
+            if process.returncode != 0:
+                print(f"[ERROR] ffmpegエラー: 終了コード {process.returncode}")
+                return None
 
             if Path(output_file).exists():
                 file_size = Path(output_file).stat().st_size / (1024 * 1024)  # MB

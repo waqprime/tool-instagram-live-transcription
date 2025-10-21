@@ -100,6 +100,7 @@ class AudioTranscriber:
 
             print(f"\n文字起こし中: {audio_file}", flush=True)
             print("(処理には数分かかる場合があります...)", flush=True)
+            print(f"[PROGRESS] 文字起こし: 0%", flush=True)
 
             # 文字起こし実行
             result = self.model.transcribe(
@@ -107,6 +108,8 @@ class AudioTranscriber:
                 language=self.language,
                 verbose=False
             )
+
+            print(f"[PROGRESS] 文字起こし: 100%", flush=True)
 
             # 出力ディレクトリを決定
             if output_dir:

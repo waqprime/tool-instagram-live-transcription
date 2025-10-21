@@ -157,12 +157,41 @@ class ProcessManager {
           // Write all stdout to log file
           writeLog(`STDOUT: ${line.trim()}`);
 
+          // Parse [PROGRESS] messages
+          const progressMatch = line.match(/\[PROGRESS\]\s*(.+?):\s*(\d+(?:\.\d+)?)%/);
+          if (progressMatch) {
+            const taskName = progressMatch[1];  // "ダウンロード", "音声抽出", "文字起こし"
+            const percent = parseFloat(progressMatch[2]);
+
+            // Calculate overall progress based on task
+            // Task weights: Download 33%, Audio 33%, Transcribe 34%
+            let overallPercent = (i / totalUrls) * 100;  // Base progress for this URL
+            const urlProgress = 100 / totalUrls;  // Progress allocated for one URL
+
+            if (taskName.includes('ダウンロード')) {
+              overallPercent += (percent / 100) * (urlProgress * 0.33);
+            } else if (taskName.includes('音声抽出')) {
+              overallPercent += (urlProgress * 0.33) + (percent / 100) * (urlProgress * 0.33);
+            } else if (taskName.includes('文字起こし')) {
+              overallPercent += (urlProgress * 0.66) + (percent / 100) * (urlProgress * 0.34);
+            }
+
+            this.updateProgress(
+              Math.min(100, overallPercent),
+              `${taskName}中... (${percent.toFixed(1)}%)`,
+              `URL ${urlNum}/${totalUrls}`
+            );
+            this.log('info', `${taskName}: ${percent.toFixed(1)}%`);
+            lastProgressUpdate = Date.now();
+            continue;
+          }
+
           // Log important messages
           if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
             this.log('info', line.trim());
           }
 
-          // Update progress for long operations
+          // Update progress for long operations (fallback)
           const now = Date.now();
           if (now - lastProgressUpdate > 2000) {
             this.updateProgress(null, `処理中: URL ${urlNum}/${totalUrls}`, line.substring(0, 100));
