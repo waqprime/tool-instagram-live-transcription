@@ -165,7 +165,8 @@ class ProcessManager {
 
             // Calculate overall progress based on task
             // Task weights: Download 33%, Audio 33%, Transcribe 34%
-            let overallPercent = (i / totalUrls) * 100;  // Base progress for this URL
+            const currentUrlIndex = urlNum - 1;  // Convert to 0-based index
+            let overallPercent = (currentUrlIndex / totalUrls) * 100;  // Base progress for this URL
             const urlProgress = 100 / totalUrls;  // Progress allocated for one URL
 
             if (taskName.includes('ダウンロード')) {
