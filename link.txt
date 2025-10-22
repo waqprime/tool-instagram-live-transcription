@@ -1,6 +1,10 @@
-# Instagram URLをここに追加してください（1行に1つ）
+# 動画・音声のURLをここに追加してください（1行に1つ）
+# 対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm等
 # 例:
 # https://www.instagram.com/reel/xxxxx/
-# https://www.instagram.com/reel/yyyyy/
+# https://www.youtube.com/watch?v=xxxxx
+# https://twitter.com/i/spaces/xxxxx
+# https://stand.fm/episodes/xxxxx
 
 https://www.instagram.com/reel/DPjdLVKjyQX/
+https://www.instagram.com/reel/DPTEafkjy5X/?igsh=ZmR4dGwzbmgydHFw
