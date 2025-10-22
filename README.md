@@ -3,12 +3,15 @@
 <!-- Header with gradient background effect -->
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/your-banner-dark.png">
-  <img width="100%" alt="Instagram Live Transcription" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=Instagram%20Live%20Transcription&fontSize=42&fontColor=fff&animation=twinkling&fontAlignY=32">
+  <img width="100%" alt="文字起こしツール" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=%E6%96%87%E5%AD%97%E8%B5%B7%E3%81%93%E3%81%97%E3%83%84%E3%83%BC%E3%83%AB&fontSize=42&fontColor=fff&animation=twinkling&fontAlignY=32">
 </picture>
 
 <br>
 
-<h3>🎙️ Instagram動画を簡単にMP3保存 & AI文字起こし ✨</h3>
+<h3>🎙️ 多様なプラットフォームの動画・音声を簡単にMP3保存 & AI文字起こし ✨</h3>
+<p align="center">
+  <strong>対応:</strong> Instagram • YouTube • X Spaces • Voicy • Radiko • stand.fm 等
+</p>
 
 <p>
   <a href="https://github.com/waqprime/tool-instagram-live-transcription/releases/latest">
@@ -49,7 +52,7 @@
 <td align="center" width="25%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Musical%20Note.png" width="60"><br>
 <b>動画→音声変換</b><br>
-<sub>Instagram動画を高音質MP3として保存</sub>
+<sub>各種プラットフォームの動画を高音質MP3として保存</sub>
 </td>
 <td align="center" width="25%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Memo.png" width="60"><br>
@@ -192,8 +195,8 @@
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Link.png" width="100">
 <h3>ステップ 1</h3>
 <h4>📹 URLをコピー</h4>
-<p>Instagram アプリまたはブラウザで動画を開き、<br>「<strong>シェア</strong>」→「<strong>リンクをコピー</strong>」</p>
-<sub>例: https://www.instagram.com/reel/ABC123xyz/</sub>
+<p>各プラットフォームで動画・音声を開き、<br>「<strong>シェア</strong>」→「<strong>リンクをコピー</strong>」</p>
+<sub>Instagram, YouTube, X Spaces, Voicy等</sub>
 </td>
 <td align="center" width="33%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Desktop%20Computer.png" width="100">
@@ -405,9 +408,20 @@
 </details>
 
 <details>
-<summary><b>Q2: Instagram以外の動画も処理できますか？</b></summary>
+<summary><b>Q2: どのプラットフォームに対応していますか？</b></summary>
 
-**A:** 現在はInstagramのみ対応していますが、将来的に他のプラットフォームにも対応予定です。
+**A:** yt-dlpが対応する1,800以上のサイトに対応しています！
+
+主な対応プラットフォーム:
+- **Instagram** - Live, Reels, 投稿動画
+- **YouTube** - 動画, ライブ配信, Podcast
+- **X (Twitter)** - Spaces（音声ライブ）
+- **Voicy** - 音声配信
+- **Radiko** - ラジオ配信
+- **stand.fm** - 音声配信
+- その他多数のサイト
+
+URLを貼り付けるだけで自動判定されます！
 
 </details>
 
