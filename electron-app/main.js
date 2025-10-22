@@ -193,44 +193,101 @@ ipcMain.handle('open-folder', async (event, folderPath) => {
 
 // Auto-update functions
 function checkForUpdates() {
-  // For private repositories, set token if needed
-  // autoUpdater.setFeedURL({
-  //   provider: 'github',
-  //   owner: 'YOUR_USERNAME',
-  //   repo: 'instagram-live-transcription',
-  //   private: true,
-  //   token: 'YOUR_GITHUB_TOKEN'  // Only for private repos
-  // });
+  // Check if running as portable
+  const isPortable = process.env.PORTABLE_EXECUTABLE_DIR !== undefined ||
+                     process.argv.some(arg => arg.includes('portable'));
 
-  autoUpdater.checkForUpdatesAndNotify();
+  if (isPortable) {
+    console.log('Running as portable - checking for updates manually');
+    // For portable version, we'll check GitHub releases manually
+    checkPortableUpdate();
+  } else {
+    // For installed version (NSIS), use electron-updater
+    autoUpdater.checkForUpdatesAndNotify();
 
-  autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info.version);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-available', info);
-    }
-  });
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available:', info.version);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-available', info);
+      }
+    });
 
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log('Update downloaded:', info.version);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-downloaded', info);
-    }
-  });
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('Update downloaded:', info.version);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-downloaded', info);
+      }
+    });
 
-  autoUpdater.on('error', (error) => {
-    console.error('Auto-updater error:', error);
-  });
+    autoUpdater.on('error', (error) => {
+      console.error('Auto-updater error:', error);
+    });
 
-  autoUpdater.on('download-progress', (progressObj) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update-progress', progressObj);
-    }
-  });
+    autoUpdater.on('download-progress', (progressObj) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-progress', progressObj);
+      }
+    });
+  }
+}
+
+// Check for updates for portable version
+async function checkPortableUpdate() {
+  try {
+    const https = require('https');
+    const currentVersion = app.getVersion();
+
+    const options = {
+      hostname: 'api.github.com',
+      path: '/repos/waqprime/tool-instagram-live-transcription/releases/latest',
+      headers: {
+        'User-Agent': 'Instagram-Live-Transcription'
+      }
+    };
+
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const release = JSON.parse(data);
+          const latestVersion = release.tag_name.replace('v', '');
+
+          console.log(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
+
+          if (latestVersion > currentVersion) {
+            // Find portable asset
+            const portableAsset = release.assets.find(asset =>
+              asset.name.includes('portable') && asset.name.endsWith('.exe')
+            );
+
+            if (portableAsset && mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('update-available-portable', {
+                version: latestVersion,
+                downloadUrl: portableAsset.browser_download_url,
+                releaseUrl: release.html_url
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error parsing release data:', err);
+        }
+      });
+    }).on('error', (err) => {
+      console.error('Error checking for updates:', err);
+    });
+  } catch (error) {
+    console.error('Error in checkPortableUpdate:', error);
+  }
 }
 
 ipcMain.handle('install-update', () => {
   autoUpdater.quitAndInstall();
+});
+
+ipcMain.handle('open-download-page', (event, url) => {
+  const { shell } = require('electron');
+  shell.openExternal(url);
 });
 
 // Log uncaught exceptions

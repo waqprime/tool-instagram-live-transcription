@@ -35,7 +35,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('update-progress', (event, progress) => callback(progress));
   },
 
+  // Portable version update listener
+  onUpdateAvailablePortable: (callback) => {
+    ipcRenderer.on('update-available-portable', (event, info) => callback(info));
+  },
+
   installUpdate: () => ipcRenderer.invoke('install-update'),
+
+  openDownloadPage: (url) => ipcRenderer.invoke('open-download-page', url),
 
   // Remove listeners (for cleanup)
   removeAllListeners: (channel) => {

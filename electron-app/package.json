@@ -78,9 +78,19 @@
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
-      ]
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "publisherName": "WAQPRIME"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.${ext}"
     },
     "dmg": {
       "title": "Transcription Tool"

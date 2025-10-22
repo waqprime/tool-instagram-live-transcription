@@ -56,6 +56,21 @@ function init() {
       window.electronAPI.installUpdate();
     }
   });
+
+  // Setup portable version update listener
+  window.electronAPI.onUpdateAvailablePortable((info) => {
+    const download = confirm(
+      `新しいバージョン ${info.version} が利用可能です！\n\n` +
+      `現在：ポータブル版\n` +
+      `このバージョンでは自動アップデートができません。\n\n` +
+      `「OK」を押すとダウンロードページを開きます。\n` +
+      `新しいバージョンをダウンロードして、現在の実行ファイルを置き換えてください。`
+    );
+
+    if (download) {
+      window.electronAPI.openDownloadPage(info.releaseUrl);
+    }
+  });
 }
 
 // Add URL input row
