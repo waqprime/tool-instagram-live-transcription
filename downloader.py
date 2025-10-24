@@ -3,7 +3,7 @@
 """
 動画・音声ダウンローダー
 yt-dlpを使用して各種プラットフォームから動画・音声をダウンロード
-対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm等（yt-dlp対応サイト全て）
+対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm, UTAGE等（yt-dlp対応サイト全て）
 """
 
 import os
@@ -11,6 +11,7 @@ import sys
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict
+from utage_extractor import UtageExtractor
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -29,7 +30,7 @@ if sys.platform == 'win32':
 class VideoDownloader:
     """各種プラットフォームから動画・音声をダウンロードするクラス
 
-    yt-dlpを使用して、Instagram, YouTube, X Spaces, Voicy等、
+    yt-dlpを使用して、Instagram, YouTube, X Spaces, Voicy, UTAGE等、
     1,800以上のサイトから動画・音声をダウンロード
     """
 
@@ -40,6 +41,7 @@ class VideoDownloader:
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
+        self.utage_extractor = UtageExtractor()
 
     def _get_yt_dlp_path(self) -> str:
         """yt-dlpの実行可能ファイルのパスを取得"""
@@ -70,13 +72,24 @@ class VideoDownloader:
         各種プラットフォームから動画・音声をダウンロード
 
         Args:
-            url: 動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）
+            url: 動画・音声のURL（Instagram, YouTube, X Spaces, Voicy, UTAGE等）
             output_filename: 出力ファイル名（拡張子なし）
 
         Returns:
             ダウンロードしたファイルのパス、失敗時はNone
         """
         try:
+            # UTAGEページの場合、動画URLを抽出
+            if self.utage_extractor.is_utage_url(url):
+                print(f"[INFO] UTAGEページを検出: {url}")
+                video_url = self.utage_extractor.extract_video_url(url)
+                if video_url:
+                    print(f"[INFO] UTAGE動画URL: {video_url}")
+                    url = video_url  # 抽出したm3u8 URLを使用
+                else:
+                    print(f"[ERROR] UTAGE動画URLの抽出に失敗")
+                    return None
+
             if output_filename:
                 output_template = str(self.output_dir / f"{output_filename}.%(ext)s")
             else:
