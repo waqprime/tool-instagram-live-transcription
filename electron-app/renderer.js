@@ -30,7 +30,7 @@ async function init() {
   addUrlInput();
 
   // Setup event listeners
-  addUrlBtn.addEventListener('click', addUrlInput);
+  addUrlBtn.addEventListener('click', () => addUrlInput());
   selectDirBtn.addEventListener('click', selectOutputDirectory);
   startBtn.addEventListener('click', startProcessing);
   stopBtn.addEventListener('click', stopProcessing);
