@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Get default output directory
+  getDefaultOutputDir: () => ipcRenderer.invoke('get-default-output-dir'),
+
   // Directory selection
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
 

@@ -42,6 +42,19 @@ class ProcessManager {
     const results = [];
     const totalUrls = urls.length;
 
+    // Validate URLs before processing
+    console.log('Processing URLs:', urls);
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+      if (typeof url !== 'string') {
+        console.error(`URL at index ${i} is not a string:`, url);
+        this.log('error', `無効なURL（文字列ではありません）: ${typeof url}`);
+      } else if (url.includes('[object')) {
+        console.error(`URL at index ${i} contains object reference:`, url);
+        this.log('error', `無効なURL（オブジェクト参照を含む）: ${url}`);
+      }
+    }
+
     // Ensure output directory exists
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
@@ -54,6 +67,13 @@ class ProcessManager {
       }
 
       const url = urls[i];
+
+      // Skip invalid URLs
+      if (typeof url !== 'string' || url.includes('[object')) {
+        this.log('error', `スキップ: 無効なURL - ${url}`);
+        results.push({ url: String(url), success: false, error: '無効なURL形式' });
+        continue;
+      }
       const urlNum = i + 1;
 
       // Create dedicated folder for this URL

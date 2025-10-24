@@ -20,9 +20,9 @@ const progressText = document.getElementById('progress-text');
 const progressDetails = document.getElementById('progress-details');
 
 // Initialize
-function init() {
-  // Set default output directory to project's output folder
-  const defaultOutputDir = 'output';
+async function init() {
+  // Get default output directory based on OS (via IPC)
+  const defaultOutputDir = await window.electronAPI.getDefaultOutputDir();
   outputDirectory = defaultOutputDir;
   outputDirInput.value = defaultOutputDir;
 
@@ -120,8 +120,18 @@ function getUrls() {
 
   inputs.forEach(input => {
     const url = input.value.trim();
-    if (url) {
-      urls.push(url);
+
+    // Safety check: Ensure URL is a valid string and not an object
+    if (url && typeof url === 'string' && !url.includes('[object')) {
+      // Further validation: Check if it looks like a URL
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        urls.push(url);
+        console.log('Valid URL added:', url);
+      } else {
+        console.warn('Invalid URL format (missing http/https):', url);
+      }
+    } else if (url) {
+      console.error('Invalid URL detected (not a string or contains object):', url);
     }
   });
 

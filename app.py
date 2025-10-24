@@ -18,6 +18,25 @@ from audio_converter import AudioConverter
 from transcriber import AudioTranscriber
 
 
+def get_default_output_dir():
+    """
+    OSごとのデフォルト出力ディレクトリを取得
+
+    Returns:
+        デフォルト出力ディレクトリのPath
+    """
+    import platform
+    home = Path.home()
+
+    if platform.system() == "Darwin":  # macOS
+        return home / "Downloads" / "InstagramTranscripts"
+    elif platform.system() == "Windows":
+        # Windowsはダウンロードフォルダを優先
+        return home / "Downloads" / "InstagramTranscripts"
+    else:  # Linux等
+        return home / "Downloads" / "InstagramTranscripts"
+
+
 class GlassCard(tk.Canvas):
     """Liquid Glass card - 正確なCSS仕様実装"""
     def __init__(self, parent, width=800, height=200, **kwargs):
@@ -298,9 +317,9 @@ class InstagramLiveApp:
         # Output queue
         self.log_queue = queue.Queue()
 
-        # Default settings
-        self.output_dir = Path("output")
-        self.output_dir.mkdir(exist_ok=True)
+        # Default settings - OSごとのデフォルトを使用
+        self.output_dir = get_default_output_dir()
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Whisper model set to "large" for maximum accuracy
         self.whisper_model = "large"

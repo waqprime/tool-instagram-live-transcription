@@ -13,6 +13,7 @@ import multiprocessing
 from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
+import platform
 
 # PyInstaller環境でのmultiprocessing対応
 multiprocessing.freeze_support()
@@ -39,6 +40,30 @@ from audio_converter import AudioConverter
 from transcriber import AudioTranscriber
 
 
+def get_default_output_dir() -> str:
+    """
+    OSごとのデフォルト出力ディレクトリを取得
+
+    Returns:
+        デフォルト出力ディレクトリのパス
+    """
+    system = platform.system()
+    home = Path.home()
+
+    if system == "Darwin":  # macOS
+        return str(home / "Downloads" / "InstagramTranscripts")
+    elif system == "Windows":
+        # Windowsはダウンロードフォルダを優先
+        downloads = home / "Downloads" / "InstagramTranscripts"
+        if downloads.parent.exists():
+            return str(downloads)
+        # ダウンロードフォルダがない場合はデスクトップ
+        desktop = home / "Desktop" / "InstagramTranscripts"
+        return str(desktop)
+    else:  # Linux等
+        return str(home / "Downloads" / "InstagramTranscripts")
+
+
 class AudioTranscriptionProcessor:
     """各種プラットフォームの動画・音声を処理するメインクラス
 
@@ -48,18 +73,22 @@ class AudioTranscriptionProcessor:
 
     def __init__(
         self,
-        output_dir: str = "output",
+        output_dir: Optional[str] = None,
         whisper_model: str = "base",
         language: str = "ja"
     ):
         """
         Args:
-            output_dir: 出力ディレクトリ
+            output_dir: 出力ディレクトリ（Noneの場合はOSごとのデフォルト）
             whisper_model: Whisperモデルサイズ
             language: 言語コード
         """
+        # output_dirが指定されていない場合はOSごとのデフォルトを使用
+        if output_dir is None:
+            output_dir = get_default_output_dir()
+
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(exist_ok=True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         print("=" * 60)
         print("音声文字起こしシステム")
@@ -248,8 +277,8 @@ def main():
     )
     parser.add_argument(
         "-o", "--output-dir",
-        default="output",
-        help="出力ディレクトリ（デフォルト: output）"
+        default=None,
+        help="出力ディレクトリ（デフォルト: macOSは~/Downloads/InstagramTranscripts, Windowsは~/Downloads/InstagramTranscripts または ~/Desktop/InstagramTranscripts）"
     )
 
     args = parser.parse_args()

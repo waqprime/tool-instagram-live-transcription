@@ -109,7 +109,29 @@ app.on('window-all-closed', () => {
   }
 });
 
+// Get default output directory based on OS
+function getDefaultOutputDirectory() {
+  const os = require('os');
+  const homeDir = os.homedir();
+  const platform = process.platform;
+
+  if (platform === 'darwin') {
+    // macOS: ~/Downloads/InstagramTranscripts
+    return path.join(homeDir, 'Downloads', 'InstagramTranscripts');
+  } else if (platform === 'win32') {
+    // Windows: ~/Downloads/InstagramTranscripts
+    return path.join(homeDir, 'Downloads', 'InstagramTranscripts');
+  } else {
+    // Linux: ~/Downloads/InstagramTranscripts
+    return path.join(homeDir, 'Downloads', 'InstagramTranscripts');
+  }
+}
+
 // IPC Handlers
+ipcMain.handle('get-default-output-dir', async () => {
+  return getDefaultOutputDirectory();
+});
+
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory', 'createDirectory']
