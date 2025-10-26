@@ -12,6 +12,7 @@ const selectDirBtn = document.getElementById('select-dir-btn');
 const outputDirInput = document.getElementById('output-dir');
 const languageSelect = document.getElementById('language-select');
 const modelSelect = document.getElementById('model-select');
+const keepVideoCheckbox = document.getElementById('keep-video-checkbox');
 const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
 const openFolderBtn = document.getElementById('open-folder-btn');
@@ -161,6 +162,7 @@ async function startProcessing() {
   selectDirBtn.disabled = true;
   languageSelect.disabled = true;
   modelSelect.disabled = true;
+  keepVideoCheckbox.disabled = true;
 
   // Disable all URL inputs
   const inputs = urlList.querySelectorAll('input');
@@ -176,7 +178,8 @@ async function startProcessing() {
     urls: urls,
     outputDir: outputDirectory,
     language: languageSelect.value,
-    model: modelSelect.value
+    model: modelSelect.value,
+    keepVideo: keepVideoCheckbox.checked
   };
 
   try {
@@ -202,6 +205,7 @@ async function startProcessing() {
     selectDirBtn.disabled = false;
     languageSelect.disabled = false;
     modelSelect.disabled = false;
+    keepVideoCheckbox.disabled = false;
 
     inputs.forEach(input => input.disabled = false);
   }

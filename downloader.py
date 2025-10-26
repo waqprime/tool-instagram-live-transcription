@@ -34,14 +34,17 @@ class VideoDownloader:
     1,800以上のサイトから動画・音声をダウンロード
     """
 
-    def __init__(self, output_dir: str = "output"):
+    def __init__(self, output_dir: str = "output", keep_video: bool = False):
         """
         Args:
             output_dir: 出力ディレクトリ
+            keep_video: 動画ファイルを保持するかどうか（UTAGE動画のMP4変換に使用）
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.utage_extractor = UtageExtractor()
+        self.keep_video = keep_video
+        self.is_utage_video = False  # UTAGE動画かどうかのフラグ
 
     def _get_yt_dlp_path(self) -> str:
         """yt-dlpの実行可能ファイルのパスを取得"""
@@ -82,6 +85,7 @@ class VideoDownloader:
             # UTAGEページの場合、動画URLを抽出
             if self.utage_extractor.is_utage_url(url):
                 print(f"[INFO] UTAGEページを検出: {url}")
+                self.is_utage_video = True  # UTAGEフラグを立てる
                 video_url = self.utage_extractor.extract_video_url(url)
                 if video_url:
                     print(f"[INFO] UTAGE動画URL: {video_url}")
@@ -89,6 +93,8 @@ class VideoDownloader:
                 else:
                     print(f"[ERROR] UTAGE動画URLの抽出に失敗")
                     return None
+            else:
+                self.is_utage_video = False
 
             if output_filename:
                 output_template = str(self.output_dir / f"{output_filename}.%(ext)s")
@@ -131,13 +137,15 @@ class VideoDownloader:
                 )
 
             # ダウンロードしたファイルを探す
+            downloaded_file = None
             if output_filename:
                 # 可能性のある拡張子をチェック
                 for ext in ['mp4', 'webm', 'mkv', 'm4a']:
                     filepath = self.output_dir / f"{output_filename}.{ext}"
                     if filepath.exists():
                         print(f"[OK] ダウンロード完了: {filepath}")
-                        return str(filepath)
+                        downloaded_file = str(filepath)
+                        break
             else:
                 # 最新の動画ファイルを取得（ログファイルを除外）
                 video_files = []
@@ -147,10 +155,37 @@ class VideoDownloader:
                 if video_files:
                     files = sorted(video_files, key=os.path.getmtime)
                     print(f"[OK] ダウンロード完了: {files[-1]}")
-                    return str(files[-1])
+                    downloaded_file = str(files[-1])
 
-            print("[ERROR] ダウンロードしたファイルが見つかりません")
-            return None
+            if not downloaded_file:
+                print("[ERROR] ダウンロードしたファイルが見つかりません")
+                return None
+
+            # UTAGE動画でkeep_videoフラグが立っている場合、MP4に変換
+            if self.is_utage_video and self.keep_video:
+                print(f"[INFO] UTAGE動画をMP4形式に変換中...")
+                from audio_converter import AudioConverter
+                converter = AudioConverter()
+
+                # MP4ファイル名を生成
+                downloaded_path = Path(downloaded_file)
+                mp4_file = str(downloaded_path.parent / f"{downloaded_path.stem}_converted.mp4")
+
+                # MP4に変換
+                converted_file = converter.convert_to_mp4(downloaded_file, mp4_file)
+                if converted_file:
+                    # 元のファイルを削除（変換後のMP4を保持）
+                    try:
+                        os.remove(downloaded_file)
+                        print(f"[OK] 元のファイルを削除: {downloaded_file}")
+                    except:
+                        pass
+                    return converted_file
+                else:
+                    print("[WARNING] MP4変換に失敗、元のファイルを使用します")
+                    return downloaded_file
+
+            return downloaded_file
 
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] ダウンロードエラー: {e}")

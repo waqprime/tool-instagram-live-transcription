@@ -37,7 +37,7 @@ class ProcessManager {
     }
   }
 
-  async processUrls(urls, outputDir, language, model) {
+  async processUrls(urls, outputDir, language, model, keepVideo = false) {
     this.stopped = false;
     const results = [];
     const totalUrls = urls.length;
@@ -91,7 +91,7 @@ class ProcessManager {
 
       try {
         // Run the bundled binary with URL
-        const result = await this.processSingleUrl(url, urlOutputDir, language, model, urlNum, totalUrls);
+        const result = await this.processSingleUrl(url, urlOutputDir, language, model, keepVideo, urlNum, totalUrls);
 
         if (result.success) {
           this.log('success', `[${urlNum}/${totalUrls}] 完了`);
@@ -113,7 +113,7 @@ class ProcessManager {
     return results;
   }
 
-  async processSingleUrl(url, outputDir, language, model, urlNum, totalUrls) {
+  async processSingleUrl(url, outputDir, language, model, keepVideo, urlNum, totalUrls) {
     return new Promise((resolve, reject) => {
       // Verify binary exists
       if (!fs.existsSync(this.binaryPath)) {
@@ -129,6 +129,11 @@ class ProcessManager {
         '--language', language,
         '--output-dir', outputDir
       ];
+
+      // Add --keep-video flag if enabled
+      if (keepVideo) {
+        args.push('--keep-video');
+      }
 
       // Set ffmpeg path and unbuffered output as environment variables
       const env = { ...process.env };

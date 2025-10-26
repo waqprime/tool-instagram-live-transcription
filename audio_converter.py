@@ -83,6 +83,74 @@ class AudioConverter:
         except:
             return None
 
+    def convert_to_mp4(
+        self,
+        input_file: str,
+        output_file: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        動画ファイルをMP4形式に変換（HLS/m3u8対応）
+
+        Args:
+            input_file: 入力ファイルパス（動画ファイルまたはm3u8 URL）
+            output_file: 出力ファイルパス（Noneの場合は自動生成）
+
+        Returns:
+            出力ファイルのパス、失敗時はNone
+        """
+        try:
+            # 出力ファイル名を決定
+            if output_file is None:
+                # URLの場合とファイルパスの場合で処理を分ける
+                if input_file.startswith('http://') or input_file.startswith('https://'):
+                    # URLの場合は適当な名前を生成
+                    from datetime import datetime
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    output_file = f"video_{timestamp}.mp4"
+                else:
+                    input_path = Path(input_file)
+                    output_file = str(input_path.with_suffix('.mp4'))
+            else:
+                output_path = Path(output_file)
+                if output_path.suffix != '.mp4':
+                    output_file = str(output_path.with_suffix('.mp4'))
+
+            print(f"MP4変換中: {input_file} → {output_file}")
+
+            # ffmpegコマンドを実行（HLS/m3u8対応）
+            cmd = [
+                self.ffmpeg_path,
+                "-i", input_file,
+                "-c", "copy",  # コーデックをコピー（再エンコードなし）
+                "-bsf:a", "aac_adtstoasc",  # AACストリームの修正
+                "-y",  # 上書き確認なし
+                output_file
+            ]
+
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            if Path(output_file).exists():
+                file_size = Path(output_file).stat().st_size / (1024 * 1024)  # MB
+                print(f"[OK] MP4変換完了: {output_file} ({file_size:.2f} MB)")
+                return output_file
+            else:
+                print("[ERROR] 出力ファイルが生成されませんでした")
+                return None
+
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] MP4変換エラー: {e}")
+            print(f"stderr: {e.stderr}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] 予期しないエラー: {e}")
+            return None
+
     def extract_audio(
         self,
         input_file: str,

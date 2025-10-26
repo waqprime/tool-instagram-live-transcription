@@ -190,7 +190,8 @@ ipcMain.handle('start-processing', async (event, config) => {
       config.urls,
       config.outputDir,
       config.language,
-      config.model
+      config.model,
+      config.keepVideo || false
     );
 
     return { success: true, results };

@@ -75,13 +75,15 @@ class AudioTranscriptionProcessor:
         self,
         output_dir: Optional[str] = None,
         whisper_model: str = "base",
-        language: str = "ja"
+        language: str = "ja",
+        keep_video: bool = False
     ):
         """
         Args:
             output_dir: 出力ディレクトリ（Noneの場合はOSごとのデフォルト）
             whisper_model: Whisperモデルサイズ
             language: 言語コード
+            keep_video: 動画ファイルを保持するかどうか
         """
         # output_dirが指定されていない場合はOSごとのデフォルトを使用
         if output_dir is None:
@@ -89,6 +91,7 @@ class AudioTranscriptionProcessor:
 
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.keep_video = keep_video
 
         print("=" * 60)
         print("音声文字起こしシステム")
@@ -96,7 +99,7 @@ class AudioTranscriptionProcessor:
         print("=" * 60)
 
         # 各コンポーネントを初期化
-        self.downloader = VideoDownloader(str(self.output_dir))
+        self.downloader = VideoDownloader(str(self.output_dir), keep_video=keep_video)
         self.converter = AudioConverter()
         self.transcriber = AudioTranscriber(whisper_model, language)
 
@@ -134,13 +137,16 @@ class AudioTranscriptionProcessor:
             print("[ERROR] 音声抽出失敗")
             return False
 
-        # 元の動画ファイルを削除（オプション）
-        try:
-            if video_file != mp3_file:
-                os.remove(video_file)
-                print(f"[OK] 元の動画ファイルを削除: {video_file}")
-        except Exception as e:
-            print(f"[WARNING] 動画ファイル削除時の警告: {e}")
+        # 動画ファイルの処理（保持 or 削除）
+        if self.keep_video:
+            print(f"[OK] 動画ファイルを保持: {video_file}")
+        else:
+            try:
+                if video_file != mp3_file:
+                    os.remove(video_file)
+                    print(f"[OK] 元の動画ファイルを削除: {video_file}")
+            except Exception as e:
+                print(f"[WARNING] 動画ファイル削除時の警告: {e}")
 
         # ステップ3: 音声を文字起こし
         print(f"\n【ステップ3/3】文字起こし")
@@ -280,6 +286,11 @@ def main():
         default=None,
         help="出力ディレクトリ（デフォルト: macOSは~/Downloads/InstagramTranscripts, Windowsは~/Downloads/InstagramTranscripts または ~/Desktop/InstagramTranscripts）"
     )
+    parser.add_argument(
+        "-k", "--keep-video",
+        action="store_true",
+        help="動画ファイルを保持する（削除せずにMP4として保存）"
+    )
 
     args = parser.parse_args()
 
@@ -287,7 +298,8 @@ def main():
     processor = AudioTranscriptionProcessor(
         output_dir=args.output_dir,
         whisper_model=args.model,
-        language=args.language
+        language=args.language,
+        keep_video=args.keep_video
     )
 
     # 単一URL処理 or ファイル一括処理
