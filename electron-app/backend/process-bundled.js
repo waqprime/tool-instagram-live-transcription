@@ -127,7 +127,8 @@ class ProcessManager {
         '--url', url,
         '--model', model,
         '--language', language,
-        '--output-dir', outputDir
+        '--output-dir', outputDir,
+        '--all'  // Always process all videos on UTAGE pages
       ];
 
       // Add --keep-video flag if enabled
