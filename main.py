@@ -103,13 +103,14 @@ class AudioTranscriptionProcessor:
         self.converter = AudioConverter()
         self.transcriber = AudioTranscriber(whisper_model, language)
 
-    def process_url(self, url: str, filename_prefix: Optional[str] = None) -> bool:
+    def process_url(self, url: str, filename_prefix: Optional[str] = None, process_all: bool = False) -> bool:
         """
-        単一のURLを処理
+        単一のURLを処理（複数動画対応）
 
         Args:
             url: 動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）
             filename_prefix: ファイル名のプレフィックス
+            process_all: UTAGEページで複数動画がある場合、全てを処理するか
 
         Returns:
             成功した場合True
@@ -122,6 +123,10 @@ class AudioTranscriptionProcessor:
         if not filename_prefix:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename_prefix = f"video_{timestamp}"
+
+        # UTAGEページで複数動画がある場合の処理
+        if process_all and self.downloader.utage_extractor.is_utage_url(url):
+            return self._process_multiple_videos(url, filename_prefix)
 
         # ステップ1: 動画をダウンロード
         print("【ステップ1/3】動画ダウンロード")
@@ -163,6 +168,77 @@ class AudioTranscriptionProcessor:
         print(f"詳細情報: {Path(mp3_file).stem}_transcript.json")
 
         return True
+
+    def _process_multiple_videos(self, url: str, filename_prefix: str) -> bool:
+        """
+        複数動画があるページを処理（UTAGEページ用）
+
+        Args:
+            url: UTAGEページのURL
+            filename_prefix: ファイル名のプレフィックス
+
+        Returns:
+            全ての動画処理が成功した場合True
+        """
+        print(f"\n{'=' * 60}")
+        print(f"複数動画の処理を開始")
+        print(f"{'=' * 60}\n")
+
+        # ステップ1: 全動画をダウンロード
+        print("【ステップ1/3】全動画ダウンロード")
+        video_files = self.downloader.download_multiple(url, filename_prefix)
+        if not video_files:
+            print("[ERROR] ダウンロード失敗")
+            return False
+
+        print(f"\n[INFO] {len(video_files)}個の動画をダウンロード完了")
+
+        # 各動画を処理
+        success_count = 0
+        for i, video_file in enumerate(video_files, 1):
+            print(f"\n{'=' * 60}")
+            print(f"動画 {i}/{len(video_files)} の処理")
+            print(f"{'=' * 60}\n")
+
+            # ステップ2: 音声をMP3に変換
+            print(f"【ステップ2/3】音声抽出 ({i}/{len(video_files)})")
+            mp3_file = self.converter.extract_audio(video_file)
+            if not mp3_file:
+                print(f"[ERROR] 動画 {i} の音声抽出失敗")
+                continue
+
+            # 動画ファイルの処理（保持 or 削除）
+            if self.keep_video:
+                print(f"[OK] 動画ファイルを保持: {video_file}")
+            else:
+                try:
+                    if video_file != mp3_file:
+                        os.remove(video_file)
+                        print(f"[OK] 元の動画ファイルを削除: {video_file}")
+                except Exception as e:
+                    print(f"[WARNING] 動画ファイル削除時の警告: {e}")
+
+            # ステップ3: 音声を文字起こし
+            print(f"\n【ステップ3/3】文字起こし ({i}/{len(video_files)})")
+            result = self.transcriber.transcribe(mp3_file, str(self.output_dir))
+            if not result:
+                print(f"[ERROR] 動画 {i} の文字起こし失敗")
+                continue
+
+            print(f"\n[OK] 動画 {i} の処理完了!")
+            print(f"MP3ファイル: {mp3_file}")
+            print(f"文字起こし: {Path(mp3_file).stem}_transcript.txt")
+            success_count += 1
+
+        # 最終結果
+        print(f"\n{'=' * 60}")
+        print(f"全体の処理結果")
+        print(f"{'=' * 60}")
+        print(f"合計: {len(video_files)} 個")
+        print(f"成功: {success_count} 個")
+        print(f"失敗: {len(video_files) - success_count} 個")
+
+        return success_count == len(video_files)
 
     def process_urls_from_file(self, file_path: str) -> dict:
         """
@@ -256,6 +332,9 @@ def main():
   # 単一URLを処理（X Spaces）
   python main.py --url "https://twitter.com/i/spaces/..."
 
+  # UTAGEページで複数動画を全て処理
+  python main.py --url "https://example.utage-system.com/..." --all
+
   # モデルとオプションを指定
   python main.py --model medium --language ja --output-dir ./results
         """
@@ -291,6 +370,11 @@ def main():
         action="store_true",
         help="動画ファイルを保持する（削除せずにMP4として保存）"
     )
+    parser.add_argument(
+        "-a", "--all",
+        action="store_true",
+        help="UTAGEページで複数動画がある場合、全てを処理する"
+    )
 
     args = parser.parse_args()
 
@@ -304,7 +388,7 @@ def main():
 
     # 単一URL処理 or ファイル一括処理
     if args.url:
-        success = processor.process_url(args.url)
+        success = processor.process_url(args.url, process_all=args.all)
         return 0 if success else 1
     else:
         if not Path(args.file).exists():
