@@ -2,12 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 UTAGE動画URL抽出モジュール
-UTAGEページからHLS(.m3u8)動画URLを抽出
+UTAGEページからHLS(.m3u8)動画URLを抽出（複数動画対応）
 """
 
 import re
 import sys
-from typing import Optional
+from typing import Optional, List
 from urllib.parse import urljoin, urlparse
 
 # Windows環境での文字化け対策
@@ -65,16 +65,16 @@ class UtageExtractor:
 
         return False
 
-    def extract_video_url(self, page_url: str) -> Optional[str]:
+    def extract_video_urls(self, page_url: str) -> List[str]:
         """
-        UTAGEページから動画のm3u8 URLを抽出
+        UTAGEページから動画のm3u8 URLを抽出（複数対応）
         Seleniumを使用してブラウザを自動化し、ネットワークリクエストから動画URLを取得
 
         Args:
             page_url: UTAGEページのURL
 
         Returns:
-            video.m3u8のURL、失敗時はNone
+            video.m3u8のURLリスト、失敗時は空リスト
         """
         try:
             from selenium import webdriver
@@ -124,9 +124,10 @@ class UtageExtractor:
                 # 少し待機して動画リクエストが発生するのを待つ
                 time.sleep(5)
 
-                # ネットワークログから.m3u8 URLを抽出
+                # ネットワークログから.m3u8 URLを抽出（複数対応）
                 logs = driver.get_log('performance')
-                video_url = None
+                video_urls = []
+                seen_urls = set()  # 重複を避けるためのセット
 
                 for log in logs:
                     import json
@@ -136,12 +137,12 @@ class UtageExtractor:
                         url = message['message']['params']['request']['url']
 
                         # video.m3u8を含むURLを探す
-                        if 'video.m3u8' in url or '.m3u8' in url:
-                            video_url = url
-                            print(f"[OK] 動画URL発見: {video_url}")
-                            break
+                        if ('video.m3u8' in url or '.m3u8' in url) and url not in seen_urls:
+                            video_urls.append(url)
+                            seen_urls.add(url)
+                            print(f"[OK] 動画URL発見 #{len(video_urls)}: {url}")
 
-                if not video_url:
+                if not video_urls:
                     # ページソースから直接検索（フォールバック）
                     print("[INFO] ネットワークログから見つからず、ページソースを検索中...")
                     page_source = driver.page_source
@@ -151,19 +152,26 @@ class UtageExtractor:
                     matches = re.findall(m3u8_pattern, page_source)
 
                     if matches:
-                        video_url = matches[0]
-                        print(f"[OK] ページソースから動画URL発見: {video_url}")
+                        # 重複を除去
+                        unique_matches = list(dict.fromkeys(matches))
+                        video_urls.extend(unique_matches)
+                        for i, url in enumerate(unique_matches, 1):
+                            print(f"[OK] ページソースから動画URL発見 #{i}: {url}")
                     else:
                         # Wasabi S3のベースURLから構築を試みる
                         wasabi_pattern = r'https://s3\.ap-northeast-1\.wasabisys\.com/utagesystem-video/([^/\s"\']+)/([^/\s"\']+)'
                         matches = re.findall(wasabi_pattern, page_source)
 
                         if matches:
-                            folder1, folder2 = matches[0]
-                            video_url = f"https://s3.ap-northeast-1.wasabisys.com/utagesystem-video/{folder1}/{folder2}/video.m3u8"
-                            print(f"[INFO] S3パスから構築: {video_url}")
+                            # 重複を除去
+                            unique_matches = list(dict.fromkeys(matches))
+                            for folder1, folder2 in unique_matches:
+                                video_url = f"https://s3.ap-northeast-1.wasabisys.com/utagesystem-video/{folder1}/{folder2}/video.m3u8"
+                                video_urls.append(video_url)
+                                print(f"[INFO] S3パスから構築 #{len(video_urls)}: {video_url}")
 
-                return video_url
+                print(f"[INFO] 合計 {len(video_urls)} 個の動画URLを検出")
+                return video_urls
 
             finally:
                 driver.quit()
@@ -172,19 +180,32 @@ class UtageExtractor:
         except ImportError as e:
             print(f"[ERROR] Seleniumがインストールされていません: {e}")
             print("[INFO] pip install selenium でインストールしてください")
-            return None
+            return []
         except Exception as e:
             print(f"[ERROR] 予期しないエラー: {e}")
             import traceback
             traceback.print_exc()
-            return None
+            return []
+
+    def extract_video_url(self, page_url: str) -> Optional[str]:
+        """
+        UTAGEページから最初の動画のm3u8 URLを抽出（後方互換性用）
+
+        Args:
+            page_url: UTAGEページのURL
+
+        Returns:
+            video.m3u8のURL、失敗時はNone
+        """
+        urls = self.extract_video_urls(page_url)
+        return urls[0] if urls else None
 
 
 def main():
     """テスト用のメイン関数"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="UTAGE動画URL抽出ツール")
+    parser = argparse.ArgumentParser(description="UTAGE動画URL抽出ツール（複数動画対応）")
     parser.add_argument("url", help="UTAGEページのURL")
 
     args = parser.parse_args()
@@ -194,12 +215,15 @@ def main():
     if not extractor.is_utage_url(args.url):
         print("[WARNING] このURLはUTAGEページではない可能性があります")
 
-    video_url = extractor.extract_video_url(args.url)
+    video_urls = extractor.extract_video_urls(args.url)
 
-    if video_url:
-        print(f"\n動画URL: {video_url}")
+    if video_urls:
+        print(f"\n検出された動画: {len(video_urls)}個")
+        for i, url in enumerate(video_urls, 1):
+            print(f"\n動画 #{i}: {url}")
         print("\nyt-dlpでダウンロード:")
-        print(f"yt-dlp '{video_url}'")
+        for i, url in enumerate(video_urls, 1):
+            print(f"yt-dlp -o 'video_{i}.mp4' '{url}'")
         return 0
     else:
         print("\n動画URLの抽出に失敗しました")
