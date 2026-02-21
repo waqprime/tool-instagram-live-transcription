@@ -38,6 +38,9 @@ if sys.platform == 'win32':
 from downloader import VideoDownloader
 from audio_converter import AudioConverter
 from transcriber import AudioTranscriber
+from title_generator import TitleGenerator
+from obsidian_writer import ObsidianWriter
+from diarizer import SpeakerDiarizer
 
 
 def get_default_output_dir() -> str:
@@ -76,14 +79,24 @@ class AudioTranscriptionProcessor:
         output_dir: Optional[str] = None,
         whisper_model: str = "base",
         language: str = "ja",
-        keep_video: bool = False
+        keep_video: bool = False,
+        engine: str = "faster-whisper",
+        api_key: Optional[str] = None,
+        diarize: bool = False,
+        obsidian_vault: Optional[str] = None,
+        obsidian_folder: str = "",
     ):
         """
         Args:
             output_dir: 出力ディレクトリ（Noneの場合はOSごとのデフォルト）
-            whisper_model: Whisperモデルサイズ
+            whisper_model: Whisperモデル名
             language: 言語コード
             keep_video: 動画ファイルを保持するかどうか
+            engine: 文字起こしエンジン (faster-whisper / openai-api / local-whisper)
+            api_key: OpenAI APIキー (openai-api エンジン用)
+            diarize: 話者分離を実行するかどうか
+            obsidian_vault: Obsidian Vaultのルートパス
+            obsidian_folder: Vault内のサブフォルダパス
         """
         # output_dirが指定されていない場合はOSごとのデフォルトを使用
         if output_dir is None:
@@ -92,16 +105,163 @@ class AudioTranscriptionProcessor:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.keep_video = keep_video
+        self.diarize = diarize
+        self.api_key = api_key
 
         print("=" * 60)
         print("音声文字起こしシステム")
+        print(f"エンジン: {engine}")
+        if diarize:
+            print("話者分離: 有効")
+        if obsidian_vault:
+            print(f"Obsidian Vault: {obsidian_vault}")
         print("対応: Instagram, YouTube, X Spaces, Voicy等")
         print("=" * 60)
 
         # 各コンポーネントを初期化
         self.downloader = VideoDownloader(str(self.output_dir), keep_video=keep_video)
         self.converter = AudioConverter()
-        self.transcriber = AudioTranscriber(whisper_model, language)
+        self.transcriber = AudioTranscriber(whisper_model, language, engine=engine, api_key=api_key)
+        self.title_generator = TitleGenerator(api_key=api_key)
+
+        # 話者分離（オプション）
+        self.diarizer = None
+        if diarize:
+            self.diarizer = SpeakerDiarizer()
+
+        # Obsidian（オプション）
+        self.obsidian_writer = None
+        if obsidian_vault:
+            self.obsidian_writer = ObsidianWriter(obsidian_vault, obsidian_folder)
+
+    def process_file(self, file_path: str) -> bool:
+        """
+        ローカルファイル（MP4/MP3）を処理
+
+        Args:
+            file_path: MP4またはMP3ファイルのパス
+
+        Returns:
+            成功した場合True
+        """
+        print(f"\n{'=' * 60}")
+        print(f"ファイル処理開始: {file_path}")
+        print(f"{'=' * 60}\n")
+
+        file_path_obj = Path(file_path)
+
+        # ファイルの存在確認
+        if not file_path_obj.exists():
+            print(f"[ERROR] ファイルが見つかりません: {file_path}")
+            return False
+
+        # ファイル拡張子の確認
+        file_ext = file_path_obj.suffix.lower()
+        if file_ext not in ['.mp4', '.mp3', '.m4a', '.wav', '.webm', '.mkv', '.mov']:
+            print(f"[ERROR] サポートされていないファイル形式: {file_ext}")
+            print("[INFO] 対応形式: .mp4, .mp3, .m4a, .wav, .webm, .mkv, .mov")
+            return False
+
+        # MP3ファイルの場合はそのまま文字起こし
+        if file_ext == '.mp3':
+            print("【ステップ1/2】MP3ファイルを検出")
+            mp3_file = str(file_path_obj)
+
+            # 出力ディレクトリにコピー
+            output_mp3 = self.output_dir / file_path_obj.name
+            if str(file_path_obj) != str(output_mp3):
+                import shutil
+                shutil.copy2(file_path_obj, output_mp3)
+                mp3_file = str(output_mp3)
+                print(f"[OK] MP3をコピー: {output_mp3}")
+
+            # ステップ2: 文字起こし
+            print(f"\n【ステップ2/2】文字起こし")
+            result = self.transcriber.transcribe(mp3_file, str(self.output_dir))
+            if not result:
+                print("[ERROR] 文字起こし失敗")
+                return False
+
+            # 話者分離（オプション）
+            if self.diarizer and result:
+                result = self._apply_diarization(mp3_file, result)
+
+            # タイトル生成（GPT、ローカルファイル用）
+            title = self.title_generator.generate_title_from_text(result.get('text', ''))
+
+            # Obsidian保存（オプション）
+            if self.obsidian_writer and result:
+                note_title = title or file_path_obj.stem
+                self.obsidian_writer.save_note(
+                    title=note_title,
+                    text=result.get('text', ''),
+                    segments=result.get('segments'),
+                )
+
+            print(f"\n[OK] 処理完了!")
+            print(f"MP3ファイル: {mp3_file}")
+            print(f"文字起こし: {Path(mp3_file).stem}_transcript.txt")
+            return True
+
+        # MP4等の動画ファイルの場合は音声抽出してから文字起こし
+        else:
+            print(f"【ステップ1/3】{file_ext}ファイルを検出")
+
+            # 出力ディレクトリにコピー
+            output_video = self.output_dir / file_path_obj.name
+            if str(file_path_obj) != str(output_video):
+                import shutil
+                shutil.copy2(file_path_obj, output_video)
+                video_file = str(output_video)
+                print(f"[OK] 動画ファイルをコピー: {output_video}")
+            else:
+                video_file = str(file_path_obj)
+
+            # ステップ2: 音声をMP3に変換
+            print(f"\n【ステップ2/3】音声抽出")
+            mp3_file = self.converter.extract_audio(video_file)
+            if not mp3_file:
+                print("[ERROR] 音声抽出失敗")
+                return False
+
+            # 動画ファイルの処理（保持 or 削除）
+            if self.keep_video:
+                print(f"[OK] 動画ファイルを保持: {video_file}")
+            else:
+                try:
+                    if video_file != str(file_path_obj):  # コピーした場合のみ削除
+                        os.remove(video_file)
+                        print(f"[OK] 元の動画ファイルを削除: {video_file}")
+                except Exception as e:
+                    print(f"[WARNING] 動画ファイル削除時の警告: {e}")
+
+            # ステップ3: 文字起こし
+            print(f"\n【ステップ3/3】文字起こし")
+            result = self.transcriber.transcribe(mp3_file, str(self.output_dir))
+            if not result:
+                print("[ERROR] 文字起こし失敗")
+                return False
+
+            # 話者分離（オプション）
+            if self.diarizer and result:
+                result = self._apply_diarization(mp3_file, result)
+
+            # タイトル生成（GPT、ローカルファイル用）
+            title = self.title_generator.generate_title_from_text(result.get('text', ''))
+
+            # Obsidian保存（オプション）
+            if self.obsidian_writer and result:
+                note_title = title or file_path_obj.stem
+                self.obsidian_writer.save_note(
+                    title=note_title,
+                    text=result.get('text', ''),
+                    segments=result.get('segments'),
+                )
+
+            print(f"\n[OK] 処理完了!")
+            print(f"MP3ファイル: {mp3_file}")
+            print(f"文字起こし: {Path(mp3_file).stem}_transcript.txt")
+            return True
 
     def process_url(self, url: str, filename_prefix: Optional[str] = None, process_all: bool = False) -> bool:
         """
@@ -127,6 +287,13 @@ class AudioTranscriptionProcessor:
         # UTAGEページで複数動画がある場合の処理
         if process_all and self.downloader.utage_extractor.is_utage_url(url):
             return self._process_multiple_videos(url, filename_prefix)
+
+        # タイトル取得（yt-dlpメタデータ）
+        title = None
+        try:
+            title = self.title_generator.get_title_from_url(url, self.downloader)
+        except Exception as e:
+            print(f"[WARNING] タイトル取得失敗（処理は続行）: {e}")
 
         # ステップ1: 動画をダウンロード
         print("【ステップ1/3】動画ダウンロード")
@@ -160,6 +327,22 @@ class AudioTranscriptionProcessor:
             print("[ERROR] 文字起こし失敗")
             return False
 
+        # 話者分離（オプション）
+        if self.diarizer and result:
+            result = self._apply_diarization(mp3_file, result)
+
+        # Obsidian保存（オプション）
+        if self.obsidian_writer and result:
+            note_title = title or filename_prefix or Path(mp3_file).stem
+            source = self._detect_source(url)
+            self.obsidian_writer.save_note(
+                title=note_title,
+                text=result.get('text', ''),
+                segments=result.get('segments'),
+                url=url,
+                source=source,
+            )
+
         print(f"\n{'=' * 60}")
         print("[OK] 処理完了!")
         print(f"{'=' * 60}")
@@ -168,6 +351,78 @@ class AudioTranscriptionProcessor:
         print(f"詳細情報: {Path(mp3_file).stem}_transcript.json")
 
         return True
+
+    def _apply_diarization(self, mp3_file: str, result: dict) -> dict:
+        """
+        話者分離を実行し、結果をマージ。detailedファイルを再保存する。
+
+        Args:
+            mp3_file: 音声ファイルパス
+            result: 文字起こし結果
+
+        Returns:
+            話者情報が付与された結果辞書
+        """
+        try:
+            print("\n【追加ステップ】話者分離")
+            diarization_segments = self.diarizer.diarize(mp3_file)
+            if diarization_segments:
+                merged_segments = self.diarizer.merge_with_transcription(
+                    result['segments'], diarization_segments
+                )
+                result['segments'] = merged_segments
+
+                # detailed テキストを再保存（speaker付き）
+                from transcriber import TranscriberBase
+                base_name = Path(mp3_file).stem
+                detailed_file = self.output_dir / f"{base_name}_transcript_detailed.txt"
+                with open(detailed_file, 'w', encoding='utf-8') as f:
+                    for seg in merged_segments:
+                        start = TranscriberBase._format_timestamp(seg['start'])
+                        end = TranscriberBase._format_timestamp(seg['end'])
+                        text = seg['text'].strip()
+                        speaker = seg.get('speaker', '')
+                        if speaker:
+                            f.write(f"[{start} -> {end}] [{speaker}] {text}\n")
+                        else:
+                            f.write(f"[{start} -> {end}] {text}\n")
+                print(f"[OK] 話者情報付きdetailedテキスト再保存: {detailed_file}")
+        except Exception as e:
+            print(f"[WARNING] 話者分離失敗（処理は続行）: {e}")
+
+        return result
+
+    def _detect_source(self, url: str) -> str:
+        """
+        URLからソースプラットフォームを検出
+
+        Args:
+            url: 動画・音声のURL
+
+        Returns:
+            ソース名（例: "YouTube", "Instagram"）
+        """
+        url_lower = url.lower()
+        if 'instagram.com' in url_lower:
+            return 'Instagram'
+        elif 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+            return 'YouTube'
+        elif 'twitter.com' in url_lower or 'x.com' in url_lower:
+            return 'X (Twitter)'
+        elif 'voicy.jp' in url_lower:
+            return 'Voicy'
+        elif 'radiko.jp' in url_lower:
+            return 'Radiko'
+        elif 'stand.fm' in url_lower:
+            return 'stand.fm'
+        elif 'utage' in url_lower:
+            return 'UTAGE'
+        elif 'tiktok.com' in url_lower:
+            return 'TikTok'
+        elif 'nicovideo.jp' in url_lower or 'nico.ms' in url_lower:
+            return 'niconico'
+        else:
+            return 'Web'
 
     def _process_multiple_videos(self, url: str, filename_prefix: str) -> bool:
         """
@@ -335,6 +590,10 @@ def main():
   # UTAGEページで複数動画を全て処理
   python main.py --url "https://example.utage-system.com/..." --all
 
+  # ローカルファイルを処理（MP4/MP3）
+  python main.py --local-file "/path/to/video.mp4"
+  python main.py --local-file "/path/to/audio.mp3"
+
   # モデルとオプションを指定
   python main.py --model medium --language ja --output-dir ./results
         """
@@ -345,15 +604,29 @@ def main():
         help="動画・音声のURL（Instagram, YouTube, X Spaces, Voicy等）"
     )
     parser.add_argument(
+        "-lf", "--local-file",
+        help="処理するローカルファイルのパス（MP4, MP3, M4A, WAV, WebM, MKV）"
+    )
+    parser.add_argument(
         "-f", "--file",
         default="link.txt",
         help="URLリストファイル（デフォルト: link.txt）"
     )
     parser.add_argument(
+        "-e", "--engine",
+        default="faster-whisper",
+        choices=["faster-whisper", "openai-api", "local-whisper", "kotoba-whisper"],
+        help="文字起こしエンジン（デフォルト: faster-whisper）"
+    )
+    parser.add_argument(
         "-m", "--model",
-        default="base",
-        choices=AudioTranscriber.MODELS,
-        help="Whisperモデルサイズ（デフォルト: base）"
+        default=None,
+        help="Whisperモデル名（デフォルト: エンジンに依存。faster-whisper=large-v3-turbo, local-whisper=base）"
+    )
+    parser.add_argument(
+        "--api-key",
+        default=None,
+        help="OpenAI APIキー（openai-api エンジン使用時に必要。環境変数 OPENAI_API_KEY でも指定可）"
     )
     parser.add_argument(
         "-l", "--language",
@@ -375,6 +648,21 @@ def main():
         action="store_true",
         help="UTAGEページで複数動画がある場合、全てを処理する"
     )
+    parser.add_argument(
+        "--diarize",
+        action="store_true",
+        help="話者分離を実行する（SpeechBrain使用、追加APIキー不要）"
+    )
+    parser.add_argument(
+        "--obsidian-vault",
+        default=None,
+        help="Obsidian Vaultのルートパス（指定すると文字起こし結果をMarkdownノートとして保存）"
+    )
+    parser.add_argument(
+        "--obsidian-folder",
+        default="",
+        help="Obsidian Vault内のサブフォルダパス"
+    )
 
     args = parser.parse_args()
 
@@ -383,17 +671,25 @@ def main():
         output_dir=args.output_dir,
         whisper_model=args.model,
         language=args.language,
-        keep_video=args.keep_video
+        keep_video=args.keep_video,
+        engine=args.engine,
+        api_key=args.api_key,
+        diarize=args.diarize,
+        obsidian_vault=args.obsidian_vault,
+        obsidian_folder=args.obsidian_folder,
     )
 
-    # 単一URL処理 or ファイル一括処理
+    # 単一URL処理、ローカルファイル処理、またはファイル一括処理
     if args.url:
         success = processor.process_url(args.url, process_all=args.all)
+        return 0 if success else 1
+    elif args.local_file:
+        success = processor.process_file(args.local_file)
         return 0 if success else 1
     else:
         if not Path(args.file).exists():
             print(f"[ERROR] エラー: ファイルが見つかりません: {args.file}")
-            print(f"使い方: python main.py --url <動画・音声URL>")
+            print(f"使い方: python main.py --url <動画・音声URL> または python main.py --local-file <ファイルパス>")
             return 1
 
         stats = processor.process_urls_from_file(args.file)
