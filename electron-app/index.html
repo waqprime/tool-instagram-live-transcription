@@ -28,6 +28,21 @@
         </div>
       </section>
 
+      <!-- File Upload Section -->
+      <section class="glass-card section-card">
+        <div class="section-header">
+          <h2 class="section-title">ローカルファイル</h2>
+          <button id="add-file-btn" class="btn btn-add">+ ファイル選択</button>
+        </div>
+        <p class="hint-text">対応形式: MP4, MP3, M4A, WAV, WebM, MKV, MOV</p>
+        <div id="file-list" class="file-list">
+          <div id="drop-zone" class="drop-zone">
+            ここにファイルをドラッグ&ドロップ
+          </div>
+          <!-- File items will be added here dynamically -->
+        </div>
+      </section>
+
       <!-- Settings Section -->
       <section class="glass-card section-card">
         <h2 class="section-title">設定</h2>
@@ -60,15 +75,44 @@
             </div>
           </div>
 
+          <!-- Engine Selection -->
+          <div class="setting-item">
+            <label class="setting-label" for="engine-select">文字起こしエンジン</label>
+            <select id="engine-select" class="glass-select">
+              <option value="faster-whisper" selected>faster-whisper (高速・高精度)</option>
+              <option value="openai-api">OpenAI API (クラウド・最高精度)</option>
+              <option value="local-whisper">Whisper (従来版)</option>
+              <option value="kotoba-whisper">Kotoba-Whisper (日本語特化)</option>
+            </select>
+          </div>
+
+          <!-- API Key Section (shown only for openai-api) -->
+          <div class="setting-item" id="api-key-section" style="display: none;">
+            <label class="setting-label" for="api-key-input">OpenAI APIキー</label>
+            <div class="input-with-button">
+              <input
+                type="password"
+                id="api-key-input"
+                class="glass-input"
+                placeholder="sk-..."
+              >
+              <button id="toggle-api-key-btn" class="btn btn-secondary" type="button">表示</button>
+            </div>
+            <p class="hint-text-small">環境変数 OPENAI_API_KEY でも設定可能です</p>
+          </div>
+
           <!-- Whisper Model Selection -->
           <div class="setting-item">
-            <label class="setting-label" for="model-select">Whisperモデル</label>
+            <label class="setting-label" for="model-select">モデル</label>
             <select id="model-select" class="glass-select">
-              <option value="tiny">Tiny - 最速（精度は低め）</option>
-              <option value="base" selected>Base - 高速でバランス良い（推奨）</option>
-              <option value="small">Small - 高精度</option>
-              <option value="medium">Medium - より高精度（処理時間長め）</option>
-              <option value="large">Large - 最高精度（要高性能PC/長時間）</option>
+              <!-- Options are dynamically set by renderer.js based on engine -->
+              <option value="large-v3-turbo" selected>large-v3-turbo - 高速・高精度（推奨）</option>
+              <option value="large-v3">large-v3 - 最高精度</option>
+              <option value="large-v2">large-v2 - 高精度</option>
+              <option value="medium">medium - バランス型</option>
+              <option value="small">small - 軽量・高速</option>
+              <option value="base">base - 軽量</option>
+              <option value="tiny">tiny - 最速（精度は低め）</option>
             </select>
           </div>
 
@@ -82,6 +126,57 @@
                 <span class="hint-text-small">※ UTAGE動画はローカル再生可能なMP4に自動変換されます</span>
               </label>
             </div>
+          </div>
+
+          <!-- Speaker Diarization Option -->
+          <div class="setting-item">
+            <label class="setting-label">話者分離</label>
+            <div class="checkbox-container">
+              <input type="checkbox" id="diarize-checkbox" class="glass-checkbox">
+              <label for="diarize-checkbox" class="checkbox-label">
+                話者分離を実行する
+                <span class="hint-text-small">※ 音声中の話者を自動識別（追加APIキー不要・初回はモデル自動DL）</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Obsidian Vault Option -->
+          <div class="setting-item">
+            <label class="setting-label">Obsidian連携</label>
+            <div class="checkbox-container">
+              <input type="checkbox" id="obsidian-enabled-checkbox" class="glass-checkbox">
+              <label for="obsidian-enabled-checkbox" class="checkbox-label">
+                Obsidian Vaultにノートを保存する
+                <span class="hint-text-small">※ 文字起こし結果をYAMLフロントマター付きMarkdownとして保存</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Obsidian Vault Directory (shown only when obsidian is enabled) -->
+          <div class="setting-item" id="obsidian-vault-section" style="display: none;">
+            <label class="setting-label" for="obsidian-vault-dir">Vault フォルダ</label>
+            <div class="input-with-button">
+              <input
+                type="text"
+                id="obsidian-vault-dir"
+                class="glass-input"
+                readonly
+                placeholder="Obsidian Vaultフォルダを選択..."
+              >
+              <button id="select-vault-btn" class="btn btn-secondary">選択</button>
+            </div>
+          </div>
+
+          <!-- Obsidian Subfolder (shown only when obsidian is enabled) -->
+          <div class="setting-item" id="obsidian-subfolder-section" style="display: none;">
+            <label class="setting-label" for="obsidian-subfolder-input">サブフォルダ（省略可）</label>
+            <input
+              type="text"
+              id="obsidian-subfolder-input"
+              class="glass-input"
+              placeholder="例: Transcripts"
+            >
+            <p class="hint-text-small">Vault内のサブフォルダパス（空欄の場合はVaultルートに保存）</p>
           </div>
         </div>
       </section>
@@ -99,6 +194,9 @@
         <button id="open-folder-btn" class="btn btn-secondary" disabled>
           <span class="btn-icon">📁</span>
           フォルダを開く
+        </button>
+        <button id="clear-btn" class="btn btn-secondary">
+          クリア
         </button>
       </section>
 

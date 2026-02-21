@@ -33,7 +33,7 @@
   },
   "build": {
     "appId": "com.transcription.tool",
-    "productName": "Transcription Tool",
+    "productName": "文字起こしツール",
     "icon": "build/icon.png",
     "directories": {
       "output": "dist"
@@ -92,7 +92,7 @@
       "artifactName": "${productName}-${version}-portable.${ext}"
     },
     "dmg": {
-      "title": "Transcription Tool"
+      "title": "文字起こしツール"
     },
     "nsis": {
       "oneClick": false,

@@ -37,13 +37,20 @@ class ProcessManager {
     }
   }
 
-  async processUrls(urls, outputDir, language, model, keepVideo = false) {
+  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false) {
     this.stopped = false;
+    this.engine = engine;
+    this.apiKey = apiKey;
+    this.obsidianVault = obsidianVault;
+    this.obsidianFolder = obsidianFolder;
+    this.diarize = diarize;
     const results = [];
-    const totalUrls = urls.length;
+    const totalItems = urls.length + (files ? files.length : 0);
 
     // Validate URLs before processing
     console.log('Processing URLs:', urls);
+    console.log('Processing Files:', files);
+
     for (let i = 0; i < urls.length; i++) {
       const url = urls[i];
       if (typeof url !== 'string') {
@@ -60,6 +67,9 @@ class ProcessManager {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
+    let processedCount = 0;
+
+    // Process URLs
     for (let i = 0; i < urls.length; i++) {
       if (this.stopped) {
         this.log('warning', '処理が中断されました');
@@ -85,35 +95,234 @@ class ProcessManager {
         fs.mkdirSync(urlOutputDir, { recursive: true });
       }
 
-      this.log('info', `[${urlNum}/${totalUrls}] 処理開始: ${url}`);
-      this.log('info', `[${urlNum}/${totalUrls}] 保存先: ${folderName}/`);
-      this.updateProgress((i / totalUrls) * 100, `URL ${urlNum}/${totalUrls} を処理中...`);
+      this.log('info', `[${urlNum}/${totalItems}] 処理開始: ${url}`);
+      this.log('info', `[${urlNum}/${totalItems}] 保存先: ${folderName}/`);
+      this.updateProgress((i / totalItems) * 100, `URL ${urlNum}/${totalItems} を処理中...`);
 
       try {
         // Run the bundled binary with URL
-        const result = await this.processSingleUrl(url, urlOutputDir, language, model, keepVideo, urlNum, totalUrls);
+        const result = await this.processSingleUrl(url, urlOutputDir, language, model, keepVideo, urlNum, totalItems);
 
         if (result.success) {
-          this.log('success', `[${urlNum}/${totalUrls}] 完了`);
+          this.log('success', `[${urlNum}/${totalItems}] 完了`);
           results.push({ url, success: true, output: result.output });
         } else {
-          this.log('error', `[${urlNum}/${totalUrls}] 失敗: ${result.error}`);
+          this.log('error', `[${urlNum}/${totalItems}] 失敗: ${result.error}`);
           results.push({ url, success: false, error: result.error });
         }
 
       } catch (error) {
-        this.log('error', `[${urlNum}/${totalUrls}] エラー: ${error.message}`);
+        this.log('error', `[${urlNum}/${totalItems}] エラー: ${error.message}`);
         results.push({ url, success: false, error: error.message });
       }
 
       // Update progress
-      this.updateProgress(((i + 1) / totalUrls) * 100, `${urlNum}/${totalUrls} 完了`);
+      processedCount++;
+      this.updateProgress((processedCount / totalItems) * 100, `${processedCount}/${totalItems} 完了`);
+    }
+
+    // Process Files
+    if (files && files.length > 0) {
+      for (let i = 0; i < files.length; i++) {
+        if (this.stopped) {
+          this.log('warning', '処理が中断されました');
+          break;
+        }
+
+        const filePath = files[i];
+        const fileNum = i + 1 + urls.length;
+
+        // Create dedicated folder for this file
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const fileName = path.basename(filePath, path.extname(filePath));
+        const folderName = `file_${fileName}_${timestamp}`;
+        const fileOutputDir = path.join(outputDir, folderName);
+
+        if (!fs.existsSync(fileOutputDir)) {
+          fs.mkdirSync(fileOutputDir, { recursive: true });
+        }
+
+        this.log('info', `[${fileNum}/${totalItems}] ファイル処理開始: ${path.basename(filePath)}`);
+        this.log('info', `[${fileNum}/${totalItems}] 保存先: ${folderName}/`);
+        this.updateProgress((processedCount / totalItems) * 100, `ファイル ${fileNum}/${totalItems} を処理中...`);
+
+        try {
+          // Run the bundled binary with local file
+          const result = await this.processSingleFile(filePath, fileOutputDir, language, model, keepVideo, fileNum, totalItems);
+
+          if (result.success) {
+            this.log('success', `[${fileNum}/${totalItems}] 完了`);
+            results.push({ file: filePath, success: true, output: result.output });
+          } else {
+            this.log('error', `[${fileNum}/${totalItems}] 失敗: ${result.error}`);
+            results.push({ file: filePath, success: false, error: result.error });
+          }
+
+        } catch (error) {
+          this.log('error', `[${fileNum}/${totalItems}] エラー: ${error.message}`);
+          results.push({ file: filePath, success: false, error: error.message });
+        }
+
+        // Update progress
+        processedCount++;
+        this.updateProgress((processedCount / totalItems) * 100, `${processedCount}/${totalItems} 完了`);
+      }
     }
 
     return results;
   }
 
-  async processSingleUrl(url, outputDir, language, model, keepVideo, urlNum, totalUrls) {
+  async processSingleFile(filePath, outputDir, language, model, keepVideo, fileNum, totalItems) {
+    return new Promise((resolve, reject) => {
+      // Verify binary exists
+      if (!fs.existsSync(this.binaryPath)) {
+        const error = `Backend binary not found: ${this.binaryPath}`;
+        this.log('error', error);
+        reject(new Error(error));
+        return;
+      }
+
+      const args = [
+        '--local-file', filePath,
+        '--model', model,
+        '--language', language,
+        '--output-dir', outputDir,
+        '--engine', this.engine || 'faster-whisper'
+      ];
+
+      // Add --keep-video flag if enabled
+      if (keepVideo) {
+        args.push('--keep-video');
+      }
+
+      // Add Obsidian vault path if specified
+      if (this.obsidianVault) {
+        args.push('--obsidian-vault', this.obsidianVault);
+        if (this.obsidianFolder) {
+          args.push('--obsidian-folder', this.obsidianFolder);
+        }
+      }
+
+      // Add --diarize flag if enabled
+      if (this.diarize) {
+        args.push('--diarize');
+      }
+
+      // Set ffmpeg path and unbuffered output as environment variables
+      const env = { ...process.env };
+      env.PYTHONUNBUFFERED = '1';
+      if (this.ffmpegPath) {
+        env.FFMPEG_BINARY = this.ffmpegPath;
+      }
+      // Pass OpenAI API key via environment variable (not CLI args for security)
+      if (this.apiKey) {
+        env.OPENAI_API_KEY = this.apiKey;
+      }
+
+      // ログにはセンシティブな引数を除外して出力
+      const safeArgs = args.filter((a, i, arr) => a !== '--api-key' && (i === 0 || arr[i - 1] !== '--api-key'));
+      this.log('info', `[${fileNum}/${totalItems}] バイナリ実行: ${this.binaryPath}`);
+      this.log('info', `[${fileNum}/${totalItems}] 引数: ${safeArgs.join(' ')}`);
+
+      // Create log file
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
+      const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+      const writeLog = (message) => {
+        const timestampStr = new Date().toISOString();
+        logStream.write(`[${timestampStr}] ${message}\n`);
+      };
+
+      writeLog('='.repeat(60));
+      writeLog(`Processing file: ${filePath}`);
+      writeLog(`Binary: ${this.binaryPath}`);
+      writeLog(`Args: ${args.join(' ')}`);
+      writeLog('='.repeat(60));
+
+      this.currentProcess = spawn(this.binaryPath, args, { env });
+
+      let outputData = '';
+      let errorData = '';
+
+      this.currentProcess.stdout.on('data', (data) => {
+        const text = data.toString();
+        outputData += text;
+
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          writeLog(`STDOUT: ${line.trim()}`);
+
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]')) {
+            this.log('info', line.trim());
+          }
+        }
+      });
+
+      this.currentProcess.stderr.on('data', (data) => {
+        const text = data.toString();
+        errorData += text;
+
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          writeLog(`STDERR: ${line.trim()}`);
+        }
+      });
+
+      this.currentProcess.on('close', (code) => {
+        this.currentProcess = null;
+
+        writeLog('='.repeat(60));
+        writeLog(`Process finished with exit code: ${code}`);
+        writeLog('='.repeat(60));
+
+        if (code === 0) {
+          // Find the output files
+          const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
+          const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
+
+          if (mp3Files.length > 0 && transcriptFiles.length > 0) {
+            writeLog(`SUCCESS: Found output files`);
+            writeLog(`Log file saved to: ${logFilePath}`);
+            logStream.end();
+            resolve({
+              success: true,
+              output: path.join(outputDir, transcriptFiles[0])
+            });
+          } else {
+            writeLog(`ERROR: Output files not found`);
+            writeLog(`Log file saved to: ${logFilePath}`);
+            logStream.end();
+            resolve({
+              success: false,
+              error: '出力ファイルが見つかりませんでした'
+            });
+          }
+        } else {
+          writeLog(`ERROR: Process failed with exit code ${code}`);
+          writeLog(`Log file saved to: ${logFilePath}`);
+          logStream.end();
+          resolve({
+            success: false,
+            error: `処理が失敗しました (exit code: ${code})`
+          });
+        }
+      });
+
+      this.currentProcess.on('error', (error) => {
+        this.currentProcess = null;
+        writeLog('='.repeat(60));
+        writeLog(`FATAL ERROR: ${error.message}`);
+        writeLog('='.repeat(60));
+        logStream.end();
+        reject(error);
+      });
+    });
+  }
+
+  async processSingleUrl(url, outputDir, language, model, keepVideo, urlNum, totalItems) {
     return new Promise((resolve, reject) => {
       // Verify binary exists
       if (!fs.existsSync(this.binaryPath)) {
@@ -128,12 +337,26 @@ class ProcessManager {
         '--model', model,
         '--language', language,
         '--output-dir', outputDir,
+        '--engine', this.engine || 'faster-whisper',
         '--all'  // Always process all videos on UTAGE pages
       ];
 
       // Add --keep-video flag if enabled
       if (keepVideo) {
         args.push('--keep-video');
+      }
+
+      // Add Obsidian vault path if specified
+      if (this.obsidianVault) {
+        args.push('--obsidian-vault', this.obsidianVault);
+        if (this.obsidianFolder) {
+          args.push('--obsidian-folder', this.obsidianFolder);
+        }
+      }
+
+      // Add --diarize flag if enabled
+      if (this.diarize) {
+        args.push('--diarize');
       }
 
       // Set ffmpeg path and unbuffered output as environment variables
@@ -143,10 +366,16 @@ class ProcessManager {
         env.FFMPEG_BINARY = this.ffmpegPath;
         this.log('info', `Using ffmpeg: ${this.ffmpegPath}`);
       }
+      // Pass OpenAI API key via environment variable (not CLI args for security)
+      if (this.apiKey) {
+        env.OPENAI_API_KEY = this.apiKey;
+      }
 
-      this.log('info', `[${urlNum}/${totalUrls}] バイナリ実行: ${this.binaryPath}`);
-      this.log('info', `[${urlNum}/${totalUrls}] 引数: ${args.join(' ')}`);
-      this.log('info', `[${urlNum}/${totalUrls}] 出力先: ${outputDir}`);
+      // ログにはセンシティブな引数を除外して出力
+      const safeArgs = args.filter((a, i, arr) => a !== '--api-key' && (i === 0 || arr[i - 1] !== '--api-key'));
+      this.log('info', `[${urlNum}/${totalItems}] バイナリ実行: ${this.binaryPath}`);
+      this.log('info', `[${urlNum}/${totalItems}] 引数: ${safeArgs.join(' ')}`);
+      this.log('info', `[${urlNum}/${totalItems}] 出力先: ${outputDir}`);
 
       // Create log file for this processing session
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -192,8 +421,8 @@ class ProcessManager {
             // Calculate overall progress based on task
             // Task weights: Download 33%, Audio 33%, Transcribe 34%
             const currentUrlIndex = urlNum - 1;  // Convert to 0-based index
-            let overallPercent = (currentUrlIndex / totalUrls) * 100;  // Base progress for this URL
-            const urlProgress = 100 / totalUrls;  // Progress allocated for one URL
+            let overallPercent = (currentUrlIndex / totalItems) * 100;  // Base progress for this URL
+            const urlProgress = 100 / totalItems;  // Progress allocated for one URL
 
             if (taskName.includes('ダウンロード')) {
               overallPercent += (percent / 100) * (urlProgress * 0.33);
@@ -206,7 +435,7 @@ class ProcessManager {
             this.updateProgress(
               Math.min(100, overallPercent),
               `${taskName}中... (${percent.toFixed(1)}%)`,
-              `URL ${urlNum}/${totalUrls}`
+              `URL ${urlNum}/${totalItems}`
             );
             this.log('info', `${taskName}: ${percent.toFixed(1)}%`);
             lastProgressUpdate = Date.now();
@@ -221,7 +450,7 @@ class ProcessManager {
           // Update progress for long operations (fallback)
           const now = Date.now();
           if (now - lastProgressUpdate > 2000) {
-            this.updateProgress(null, `処理中: URL ${urlNum}/${totalUrls}`, line.substring(0, 100));
+            this.updateProgress(null, `処理中: URL ${urlNum}/${totalItems}`, line.substring(0, 100));
             lastProgressUpdate = now;
           }
         }

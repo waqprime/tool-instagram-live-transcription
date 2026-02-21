@@ -1,5 +1,7 @@
 // State management
 let urlCount = 1;
+let fileCount = 0;
+let selectedFiles = [];  // Store selected file paths
 let outputDirectory = '';
 let isProcessing = false;
 let startTime = null;
@@ -7,18 +9,64 @@ let timerInterval = null;
 
 // DOM Elements
 const urlList = document.getElementById('url-list');
+const fileList = document.getElementById('file-list');
 const addUrlBtn = document.getElementById('add-url-btn');
+const addFileBtn = document.getElementById('add-file-btn');
 const selectDirBtn = document.getElementById('select-dir-btn');
 const outputDirInput = document.getElementById('output-dir');
 const languageSelect = document.getElementById('language-select');
+const engineSelect = document.getElementById('engine-select');
+const apiKeySection = document.getElementById('api-key-section');
+const apiKeyInput = document.getElementById('api-key-input');
+const toggleApiKeyBtn = document.getElementById('toggle-api-key-btn');
 const modelSelect = document.getElementById('model-select');
 const keepVideoCheckbox = document.getElementById('keep-video-checkbox');
+const diarizeCheckbox = document.getElementById('diarize-checkbox');
+const obsidianEnabledCheckbox = document.getElementById('obsidian-enabled-checkbox');
+const obsidianVaultSection = document.getElementById('obsidian-vault-section');
+const obsidianVaultDirInput = document.getElementById('obsidian-vault-dir');
+const selectVaultBtn = document.getElementById('select-vault-btn');
+const obsidianSubfolderSection = document.getElementById('obsidian-subfolder-section');
+const obsidianSubfolderInput = document.getElementById('obsidian-subfolder-input');
 const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
 const openFolderBtn = document.getElementById('open-folder-btn');
+const clearBtn = document.getElementById('clear-btn');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
 const progressDetails = document.getElementById('progress-details');
+const dropZone = document.getElementById('drop-zone');
+
+// Supported file extensions for drag & drop
+const SUPPORTED_EXTENSIONS = ['.mp4', '.mp3', '.m4a', '.wav', '.webm', '.mkv', '.mov'];
+
+// Engine-specific model options
+const ENGINE_MODELS = {
+  'faster-whisper': [
+    { value: 'large-v3-turbo', label: 'large-v3-turbo - 高速・高精度（推奨）', selected: true },
+    { value: 'large-v3', label: 'large-v3 - 最高精度' },
+    { value: 'large-v2', label: 'large-v2 - 高精度' },
+    { value: 'medium', label: 'medium - バランス型' },
+    { value: 'small', label: 'small - 軽量・高速' },
+    { value: 'base', label: 'base - 軽量' },
+    { value: 'tiny', label: 'tiny - 最速（精度は低め）' },
+  ],
+  'openai-api': [
+    { value: 'gpt-4o-transcribe', label: 'gpt-4o-transcribe - 最高精度（推奨）', selected: true },
+    { value: 'gpt-4o-mini-transcribe', label: 'gpt-4o-mini-transcribe - 高速・低コスト' },
+    { value: 'whisper-1', label: 'whisper-1 - 従来モデル' },
+  ],
+  'local-whisper': [
+    { value: 'tiny', label: 'Tiny - 最速（精度は低め）' },
+    { value: 'base', label: 'Base - 高速でバランス良い（推奨）', selected: true },
+    { value: 'small', label: 'Small - 高精度' },
+    { value: 'medium', label: 'Medium - より高精度（処理時間長め）' },
+    { value: 'large', label: 'Large - 最高精度（要高性能PC/長時間）' },
+  ],
+  'kotoba-whisper': [
+    { value: 'kotoba-whisper-v2.0', label: 'Kotoba-Whisper v2.0 - 日本語特化（推奨）', selected: true },
+  ],
+};
 
 // Initialize
 async function init() {
@@ -30,12 +78,63 @@ async function init() {
   // Add initial URL input
   addUrlInput();
 
+  // Setup engine-related UI
+  engineSelect.addEventListener('change', onEngineChange);
+  toggleApiKeyBtn.addEventListener('click', toggleApiKeyVisibility);
+
+  // Load settings from file
+  const settings = await window.electronAPI.loadSettings();
+
+  // Restore saved settings
+  if (settings.apiKey) {
+    apiKeyInput.value = settings.apiKey;
+  }
+  if (settings.diarize) {
+    diarizeCheckbox.checked = true;
+  }
+  if (settings.obsidianVault) {
+    obsidianVaultDirInput.value = settings.obsidianVault;
+    obsidianEnabledCheckbox.checked = true;
+    obsidianVaultSection.style.display = '';
+    obsidianSubfolderSection.style.display = '';
+  }
+  if (settings.obsidianSubfolder) {
+    obsidianSubfolderInput.value = settings.obsidianSubfolder;
+  }
+  if (settings.outputDir) {
+    outputDirectory = settings.outputDir;
+    outputDirInput.value = settings.outputDir;
+  }
+  if (settings.engine) {
+    engineSelect.value = settings.engine;
+  }
+  if (settings.language) {
+    languageSelect.value = settings.language;
+  }
+
+  // Setup Obsidian checkbox handler
+  obsidianEnabledCheckbox.addEventListener('change', onObsidianChange);
+  selectVaultBtn.addEventListener('click', selectObsidianVault);
+
+  // Initialize model options based on engine (after restoring engine setting)
+  onEngineChange();
+
+  // Restore model after onEngineChange populated options
+  if (settings.model) {
+    modelSelect.value = settings.model;
+  }
+
   // Setup event listeners
   addUrlBtn.addEventListener('click', () => addUrlInput());
+  addFileBtn.addEventListener('click', () => selectFiles());
   selectDirBtn.addEventListener('click', selectOutputDirectory);
   startBtn.addEventListener('click', startProcessing);
   stopBtn.addEventListener('click', stopProcessing);
   openFolderBtn.addEventListener('click', openOutputFolder);
+  clearBtn.addEventListener('click', clearAll);
+
+  // Setup drag & drop
+  setupDragAndDrop();
 
   // Setup IPC listeners
   window.electronAPI.onProcessingLog(handleLog);
@@ -142,9 +241,10 @@ function getUrls() {
 // Start processing
 async function startProcessing() {
   const urls = getUrls();
+  const files = selectedFiles;
 
-  if (urls.length === 0) {
-    alert('URLを入力してください');
+  if (urls.length === 0 && files.length === 0) {
+    alert('URLまたはファイルを追加してください');
     return;
   }
 
@@ -153,33 +253,79 @@ async function startProcessing() {
     return;
   }
 
+  const engine = engineSelect.value;
+  const apiKey = apiKeyInput.value.trim();
+
+  // Validate API key when OpenAI API engine is selected
+  if (engine === 'openai-api' && !apiKey) {
+    alert('OpenAI API エンジンを使用するにはAPIキーを入力してください');
+    apiKeyInput.focus();
+    return;
+  }
+
+  // Save settings to file
+  const obsidianVault = obsidianVaultDirInput.value.trim();
+  const obsidianSubfolder = obsidianSubfolderInput.value.trim();
+
+  const settingsToSave = {
+    apiKey: apiKey || undefined,
+    diarize: diarizeCheckbox.checked,
+    obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : undefined,
+    obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : undefined,
+    outputDir: outputDirectory,
+    engine: engine,
+    model: modelSelect.value,
+    language: languageSelect.value,
+  };
+  window.electronAPI.saveSettings(settingsToSave);
+
   // Update UI
   isProcessing = true;
   startBtn.disabled = true;
   stopBtn.disabled = false;
   openFolderBtn.disabled = true;
+  clearBtn.disabled = true;
   addUrlBtn.disabled = true;
+  addFileBtn.disabled = true;
   selectDirBtn.disabled = true;
   languageSelect.disabled = true;
+  engineSelect.disabled = true;
+  apiKeyInput.disabled = true;
+  toggleApiKeyBtn.disabled = true;
   modelSelect.disabled = true;
   keepVideoCheckbox.disabled = true;
+  diarizeCheckbox.disabled = true;
+  obsidianEnabledCheckbox.disabled = true;
+  selectVaultBtn.disabled = true;
+  obsidianSubfolderInput.disabled = true;
 
   // Disable all URL inputs
   const inputs = urlList.querySelectorAll('input');
   inputs.forEach(input => input.disabled = true);
 
+  // Disable file remove buttons
+  const fileRemoveBtns = fileList.querySelectorAll('.btn-remove-small');
+  fileRemoveBtns.forEach(btn => btn.disabled = true);
+
   // Reset progress and start timer
   startTime = Date.now();
-  updateProgress(0, '処理を開始しています...', `${urls.length}件のURLを処理します`);
+  const totalItems = urls.length + files.length;
+  updateProgress(0, '処理を開始しています...', `${totalItems}件のアイテムを処理します`);
   startTimer();
 
   // Start processing
   const config = {
     urls: urls,
+    files: files,
     outputDir: outputDirectory,
     language: languageSelect.value,
     model: modelSelect.value,
-    keepVideo: keepVideoCheckbox.checked
+    keepVideo: keepVideoCheckbox.checked,
+    engine: engine,
+    apiKey: engine === 'openai-api' ? apiKey : '',
+    diarize: diarizeCheckbox.checked,
+    obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : '',
+    obsidianFolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : '',
   };
 
   try {
@@ -201,13 +347,25 @@ async function startProcessing() {
     isProcessing = false;
     startBtn.disabled = false;
     stopBtn.disabled = true;
+    clearBtn.disabled = false;
     addUrlBtn.disabled = false;
+    addFileBtn.disabled = false;
     selectDirBtn.disabled = false;
     languageSelect.disabled = false;
+    engineSelect.disabled = false;
+    apiKeyInput.disabled = false;
+    toggleApiKeyBtn.disabled = false;
     modelSelect.disabled = false;
     keepVideoCheckbox.disabled = false;
+    diarizeCheckbox.disabled = false;
+    obsidianEnabledCheckbox.disabled = false;
+    selectVaultBtn.disabled = false;
+    obsidianSubfolderInput.disabled = false;
 
     inputs.forEach(input => input.disabled = false);
+
+    const fileRemoveBtns = fileList.querySelectorAll('.btn-remove-small');
+    fileRemoveBtns.forEach(btn => btn.disabled = false);
   }
 }
 
@@ -275,6 +433,8 @@ function handleLog(log) {
     updateProgress(null, '動画をダウンロード中...', message);
   } else if (message.includes('音声') || message.includes('MP3')) {
     updateProgress(null, 'MP3を抽出中...', message);
+  } else if (message.includes('話者分離')) {
+    updateProgress(null, '話者分離中...', message);
   } else if (message.includes('文字起こし') || message.includes('Whisper')) {
     updateProgress(null, '文字起こし中...', message);
   } else if (message.includes('完了')) {
@@ -314,6 +474,197 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
+}
+
+// File selection and management
+async function selectFiles() {
+  const filePaths = await window.electronAPI.selectFiles();
+
+  if (filePaths && filePaths.length > 0) {
+    filePaths.forEach(filePath => {
+      if (!selectedFiles.includes(filePath)) {
+        selectedFiles.push(filePath);
+        addFileItem(filePath);
+      }
+    });
+  }
+}
+
+// Add file item to the list
+function addFileItem(filePath) {
+  const fileItem = document.createElement('div');
+  fileItem.className = 'file-item';
+  fileItem.dataset.path = filePath;
+
+  // Extract filename from path
+  const fileName = filePath.split(/[\\/]/).pop();
+
+  const fileInfo = document.createElement('div');
+  fileInfo.className = 'file-info';
+
+  const fileNameSpan = document.createElement('span');
+  fileNameSpan.className = 'file-name';
+  fileNameSpan.textContent = fileName;
+
+  const filePathSpan = document.createElement('span');
+  filePathSpan.className = 'file-path';
+  filePathSpan.textContent = filePath;
+
+  fileInfo.appendChild(fileNameSpan);
+  fileInfo.appendChild(filePathSpan);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn btn-remove-small';
+  removeBtn.textContent = '×';
+  removeBtn.addEventListener('click', () => removeFileItem(fileItem, filePath));
+
+  fileItem.appendChild(fileInfo);
+  fileItem.appendChild(removeBtn);
+  fileList.appendChild(fileItem);
+
+  // Hide drop zone placeholder when files exist
+  dropZone.classList.add('has-files');
+}
+
+// Remove file item
+function removeFileItem(fileItem, filePath) {
+  const index = selectedFiles.indexOf(filePath);
+  if (index > -1) {
+    selectedFiles.splice(index, 1);
+  }
+  fileItem.remove();
+
+  // Show drop zone placeholder when no files remain
+  if (selectedFiles.length === 0) {
+    dropZone.classList.remove('has-files');
+  }
+}
+
+// Engine change handler
+function onEngineChange() {
+  const engine = engineSelect.value;
+
+  // Show/hide API key section
+  apiKeySection.style.display = engine === 'openai-api' ? '' : 'none';
+
+  // Update model dropdown options
+  const models = ENGINE_MODELS[engine] || [];
+  modelSelect.innerHTML = '';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.value;
+    opt.textContent = m.label;
+    if (m.selected) opt.selected = true;
+    modelSelect.appendChild(opt);
+  });
+
+  // Disable model select when only one model available
+  modelSelect.disabled = models.length <= 1;
+}
+
+// Toggle API key visibility
+function toggleApiKeyVisibility() {
+  if (apiKeyInput.type === 'password') {
+    apiKeyInput.type = 'text';
+    toggleApiKeyBtn.textContent = '非表示';
+  } else {
+    apiKeyInput.type = 'password';
+    toggleApiKeyBtn.textContent = '表示';
+  }
+}
+
+// Obsidian checkbox change handler
+function onObsidianChange() {
+  const enabled = obsidianEnabledCheckbox.checked;
+  obsidianVaultSection.style.display = enabled ? '' : 'none';
+  obsidianSubfolderSection.style.display = enabled ? '' : 'none';
+}
+
+// Select Obsidian Vault directory
+async function selectObsidianVault() {
+  const dir = await window.electronAPI.selectDirectory();
+  if (dir) {
+    obsidianVaultDirInput.value = dir;
+  }
+}
+
+// Clear all inputs, files, and progress
+function clearAll() {
+  if (isProcessing) return;
+
+  // Clear URL list and add one empty input
+  urlList.innerHTML = '';
+  urlCount = 1;
+  addUrlInput();
+
+  // Clear selected files
+  selectedFiles = [];
+  // Remove all file items (keep drop zone)
+  const fileItems = fileList.querySelectorAll('.file-item');
+  fileItems.forEach(item => item.remove());
+
+  // Show drop zone placeholder
+  dropZone.classList.remove('has-files');
+
+  // Reset progress
+  updateProgress(0, '待機中...', '');
+
+  // Reset open folder button
+  openFolderBtn.disabled = true;
+}
+
+// Setup drag & drop for file section
+function setupDragAndDrop() {
+  const fileSection = fileList.closest('section');
+
+  // Prevent default browser behavior for drag & drop on the whole window
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+  });
+
+  // Drag over the file section
+  fileSection.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (!isProcessing) {
+      dropZone.classList.add('drag-over');
+    }
+  });
+
+  fileSection.addEventListener('dragleave', (e) => {
+    // Only remove highlight when leaving the section entirely
+    if (!fileSection.contains(e.relatedTarget)) {
+      dropZone.classList.remove('drag-over');
+    }
+  });
+
+  fileSection.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+
+    if (isProcessing) return;
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of files) {
+      const ext = '.' + file.name.split('.').pop().toLowerCase();
+      if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
+
+      const filePath = file.path;
+      if (!filePath || selectedFiles.includes(filePath)) continue;
+
+      selectedFiles.push(filePath);
+      addFileItem(filePath);
+    }
+
+    // Hide drop zone placeholder if files exist
+    if (selectedFiles.length > 0) {
+      dropZone.classList.add('has-files');
+    }
+  });
 }
 
 // Cleanup on unload

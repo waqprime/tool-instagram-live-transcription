@@ -1,15 +1,70 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require('electron');
 const path = require('path');
+const os = require('os');
 const { ProcessManager } = require('./backend/process-bundled');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 
 // Set application name
-app.setName('Instagram Live Transcription');
+app.setName('文字起こしツール');
 
 let mainWindow;
 let processManager;
 const isDev = process.argv.includes('--dev');
+
+// Settings file path (in user data directory)
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+// Load settings from file
+function loadSettings() {
+  try {
+    const settingsPath = getSettingsPath();
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf-8');
+      const settings = JSON.parse(data);
+
+      // Decrypt API key if encrypted
+      if (settings._apiKeyEncrypted && settings.apiKey) {
+        try {
+          const encrypted = Buffer.from(settings.apiKey, 'base64');
+          settings.apiKey = safeStorage.decryptString(encrypted);
+        } catch (decryptError) {
+          console.error('Failed to decrypt API key:', decryptError);
+          settings.apiKey = '';
+        }
+        delete settings._apiKeyEncrypted;
+      }
+
+      return settings;
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error);
+  }
+  return {};
+}
+
+// Save settings to file
+function saveSettings(settings) {
+  try {
+    const settingsPath = getSettingsPath();
+    const toSave = { ...settings };
+
+    // Encrypt API key if safeStorage is available
+    if (toSave.apiKey && safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(toSave.apiKey);
+      toSave.apiKey = encrypted.toString('base64');
+      toSave._apiKeyEncrypted = true;
+    }
+
+    fs.writeFileSync(settingsPath, JSON.stringify(toSave, null, 2), 'utf-8');
+    return true;
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    return false;
+  }
+}
 
 // Get bundled backend binary path
 function getBackendBinaryPath() {
@@ -55,7 +110,7 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    backgroundColor: '#0f1729',
+    backgroundColor: '#f5f5f7',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -132,6 +187,14 @@ ipcMain.handle('get-default-output-dir', async () => {
   return getDefaultOutputDirectory();
 });
 
+ipcMain.handle('load-settings', async () => {
+  return loadSettings();
+});
+
+ipcMain.handle('save-settings', async (event, settings) => {
+  return saveSettings(settings);
+});
+
 ipcMain.handle('select-directory', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory', 'createDirectory']
@@ -141,6 +204,21 @@ ipcMain.handle('select-directory', async () => {
     return result.filePaths[0];
   }
   return null;
+});
+
+ipcMain.handle('select-files', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [
+      { name: 'Video/Audio Files', extensions: ['mp4', 'mp3', 'm4a', 'wav', 'webm', 'mkv', 'mov'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths;
+  }
+  return [];
 });
 
 ipcMain.handle('start-processing', async (event, config) => {
@@ -188,10 +266,16 @@ ipcMain.handle('start-processing', async (event, config) => {
     // Start processing
     const results = await processManager.processUrls(
       config.urls,
+      config.files || [],
       config.outputDir,
       config.language,
       config.model,
-      config.keepVideo || false
+      config.keepVideo || false,
+      config.engine || 'faster-whisper',
+      config.apiKey || '',
+      config.obsidianVault || '',
+      config.obsidianFolder || '',
+      config.diarize || false
     );
 
     return { success: true, results };
@@ -210,8 +294,28 @@ ipcMain.handle('stop-processing', async () => {
 });
 
 ipcMain.handle('open-folder', async (event, folderPath) => {
+  const resolved = path.resolve(String(folderPath));
+
+  // 絶対パスのみ許可
+  if (!path.isAbsolute(resolved)) {
+    console.error('Blocked open-folder: non-absolute path:', resolved);
+    return;
+  }
+
+  // パスが存在しディレクトリであることを確認
+  try {
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) {
+      console.error('Blocked open-folder: path is not a directory:', resolved);
+      return;
+    }
+  } catch (err) {
+    console.error('Blocked open-folder: path does not exist:', resolved);
+    return;
+  }
+
   const { shell } = require('electron');
-  shell.openPath(folderPath);
+  shell.openPath(resolved);
 });
 
 // Auto-update functions
@@ -278,7 +382,20 @@ async function checkPortableUpdate() {
 
           console.log(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
 
-          if (latestVersion > currentVersion) {
+          // semver比較: "1.10.0" > "1.9.0" を正しく判定
+          const compareSemver = (a, b) => {
+            const pa = a.split('.').map(Number);
+            const pb = b.split('.').map(Number);
+            for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+              const na = pa[i] || 0;
+              const nb = pb[i] || 0;
+              if (na > nb) return 1;
+              if (na < nb) return -1;
+            }
+            return 0;
+          };
+
+          if (compareSemver(latestVersion, currentVersion) > 0) {
             // Find portable asset
             const portableAsset = release.assets.find(asset =>
               asset.name.includes('portable') && asset.name.endsWith('.exe')
@@ -309,6 +426,18 @@ ipcMain.handle('install-update', () => {
 });
 
 ipcMain.handle('open-download-page', (event, url) => {
+  // Validate that the URL is from github.com
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== 'github.com' && !parsed.hostname.endsWith('.github.com')) {
+      console.error('Blocked open-download-page: non-GitHub URL:', url);
+      return;
+    }
+  } catch (e) {
+    console.error('Blocked open-download-page: invalid URL:', url);
+    return;
+  }
+
   const { shell } = require('electron');
   shell.openExternal(url);
 });

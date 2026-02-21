@@ -6,8 +6,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Get default output directory
   getDefaultOutputDir: () => ipcRenderer.invoke('get-default-output-dir'),
 
+  // Settings management
+  loadSettings: () => ipcRenderer.invoke('load-settings'),
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+
   // Directory selection
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
+
+  // File selection
+  selectFiles: () => ipcRenderer.invoke('select-files'),
 
   // Processing control
   startProcessing: (config) => ipcRenderer.invoke('start-processing', config),
@@ -49,6 +56,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Remove listeners (for cleanup)
   removeAllListeners: (channel) => {
-    ipcRenderer.removeAllListeners(channel);
+    const allowedChannels = ['processing-log', 'processing-progress', 'update-available', 'update-downloaded', 'update-progress', 'update-available-portable'];
+    if (allowedChannels.includes(channel)) {
+      ipcRenderer.removeAllListeners(channel);
+    }
   }
 });
