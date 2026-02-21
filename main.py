@@ -136,10 +136,10 @@ class AudioTranscriptionProcessor:
 
     def process_file(self, file_path: str) -> bool:
         """
-        ローカルファイル（MP4/MP3）を処理
+        ローカルファイル（動画・音声）を処理
 
         Args:
-            file_path: MP4またはMP3ファイルのパス
+            file_path: ローカルの動画・音声ファイルのパス（MP4, MP3, M4A, WAV, WebM, MKV, MOV）
 
         Returns:
             成功した場合True

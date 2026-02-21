@@ -294,11 +294,23 @@ ipcMain.handle('stop-processing', async () => {
 });
 
 ipcMain.handle('open-folder', async (event, folderPath) => {
-  // Validate that the path is under the user's home directory
-  const resolved = path.resolve(folderPath);
-  const homeDir = os.homedir();
-  if (!resolved.startsWith(homeDir)) {
-    console.error('Blocked open-folder: path outside home directory:', resolved);
+  const resolved = path.resolve(String(folderPath));
+
+  // 絶対パスのみ許可
+  if (!path.isAbsolute(resolved)) {
+    console.error('Blocked open-folder: non-absolute path:', resolved);
+    return;
+  }
+
+  // パスが存在しディレクトリであることを確認
+  try {
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) {
+      console.error('Blocked open-folder: path is not a directory:', resolved);
+      return;
+    }
+  } catch (err) {
+    console.error('Blocked open-folder: path does not exist:', resolved);
     return;
   }
 

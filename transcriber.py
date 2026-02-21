@@ -324,9 +324,9 @@ class OpenAIAPITranscriber(TranscriberBase):
                 if hasattr(response, 'segments') and response.segments:
                     for seg in response.segments:
                         segments.append({
-                            'start': seg.get('start', seg.start) if hasattr(seg, 'start') else seg.get('start', 0),
-                            'end': seg.get('end', seg.end) if hasattr(seg, 'end') else seg.get('end', 0),
-                            'text': seg.get('text', seg.text) if hasattr(seg, 'text') else seg.get('text', ''),
+                            'start': seg.get('start', 0) if isinstance(seg, dict) else getattr(seg, 'start', 0),
+                            'end': seg.get('end', 0) if isinstance(seg, dict) else getattr(seg, 'end', 0),
+                            'text': seg.get('text', '') if isinstance(seg, dict) else getattr(seg, 'text', ''),
                         })
                 else:
                     # gpt-4o系など segments が返らないモデル用フォールバック
@@ -574,7 +574,12 @@ def create_transcriber(
     faster-whisper のインポートに失敗した場合は local-whisper にフォールバック。
     """
     if engine == "openai-api":
-        return OpenAIAPITranscriber(model_name=model, language=language, api_key=api_key)
+        try:
+            return OpenAIAPITranscriber(model_name=model, language=language, api_key=api_key)
+        except ImportError:
+            print("[ERROR] openai パッケージが見つかりません。", flush=True)
+            print("[ERROR] インストール: pip install openai", flush=True)
+            raise
 
     if engine == "faster-whisper":
         try:
@@ -588,7 +593,12 @@ def create_transcriber(
         return LocalWhisperTranscriber(model_name=model, language=language)
 
     if engine == "kotoba-whisper":
-        return KotobaWhisperTranscriber(model_name=model, language=language)
+        try:
+            return KotobaWhisperTranscriber(model_name=model, language=language)
+        except ImportError:
+            print("[ERROR] transformers パッケージが見つかりません。", flush=True)
+            print("[ERROR] インストール: pip install transformers accelerate", flush=True)
+            raise
 
     raise ValueError(f"不明なエンジン: {engine}  (選択肢: faster-whisper, openai-api, local-whisper, kotoba-whisper)")
 
