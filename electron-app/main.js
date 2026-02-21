@@ -370,7 +370,20 @@ async function checkPortableUpdate() {
 
           console.log(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
 
-          if (latestVersion > currentVersion) {
+          // semver比較: "1.10.0" > "1.9.0" を正しく判定
+          const compareSemver = (a, b) => {
+            const pa = a.split('.').map(Number);
+            const pb = b.split('.').map(Number);
+            for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+              const na = pa[i] || 0;
+              const nb = pb[i] || 0;
+              if (na > nb) return 1;
+              if (na < nb) return -1;
+            }
+            return 0;
+          };
+
+          if (compareSemver(latestVersion, currentVersion) > 0) {
             // Find portable asset
             const portableAsset = release.assets.find(asset =>
               asset.name.includes('portable') && asset.name.endsWith('.exe')

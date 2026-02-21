@@ -353,6 +353,7 @@ class OpenAIAPITranscriber(TranscriberBase):
     def _transcribe_chunked(self, audio_path: str) -> Optional[Dict]:
         """大きなファイルを分割して送信"""
         from pydub import AudioSegment
+        import tempfile
 
         audio = AudioSegment.from_file(audio_path)
         duration_ms = len(audio)
@@ -369,17 +370,18 @@ class OpenAIAPITranscriber(TranscriberBase):
         full_text_parts: List[str] = []
         all_segments: List[Dict] = []
         time_offset = 0.0
+        failed_chunks = 0
 
         for idx, chunk in enumerate(chunks):
             print(f"[openai-api] チャンク {idx + 1}/{len(chunks)} を送信中...", flush=True)
 
-            # 一時ファイルに書き出し
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
-                tmp_path = tmp.name
-                chunk.export(tmp_path, format='mp3')
-
+            tmp_path = None
             try:
+                # 一時ファイルに書き出し
+                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+                    tmp_path = tmp.name
+                    chunk.export(tmp_path, format='mp3')
+
                 result = self._transcribe_single(tmp_path)
                 if result:
                     full_text_parts.append(result['text'])
@@ -389,10 +391,20 @@ class OpenAIAPITranscriber(TranscriberBase):
                             'end': seg['end'] + time_offset,
                             'text': seg['text'],
                         })
+            except Exception as e:
+                failed_chunks += 1
+                print(f"[WARNING] チャンク {idx + 1}/{len(chunks)} の処理に失敗（スキップ）: {e}", flush=True)
             finally:
-                os.unlink(tmp_path)
+                if tmp_path and os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
             time_offset += len(chunk) / 1000.0
+
+        if failed_chunks > 0:
+            print(f"[WARNING] {failed_chunks}/{len(chunks)} チャンクが失敗しました", flush=True)
+
+        if not full_text_parts:
+            return None
 
         return {
             'text': ''.join(full_text_parts),
