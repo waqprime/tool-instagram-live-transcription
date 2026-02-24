@@ -41,6 +41,7 @@ from transcriber import AudioTranscriber
 from title_generator import TitleGenerator
 from obsidian_writer import ObsidianWriter
 from diarizer import SpeakerDiarizer
+from summarizer import ContentSummarizer, DEFAULT_SUMMARY_PROMPT
 
 
 def get_default_output_dir() -> str:
@@ -85,6 +86,11 @@ class AudioTranscriptionProcessor:
         diarize: bool = False,
         obsidian_vault: Optional[str] = None,
         obsidian_folder: str = "",
+        summarize: bool = False,
+        summary_prompt: Optional[str] = None,
+        summary_provider: str = "openai",
+        ollama_url: Optional[str] = None,
+        summary_model: Optional[str] = None,
     ):
         """
         Args:
@@ -97,6 +103,11 @@ class AudioTranscriptionProcessor:
             diarize: 話者分離を実行するかどうか
             obsidian_vault: Obsidian Vaultのルートパス
             obsidian_folder: Vault内のサブフォルダパス
+            summarize: 内容要約を実行するかどうか
+            summary_prompt: 要約プロンプト（カスタム）
+            summary_provider: 要約プロバイダ ("openai" or "ollama")
+            ollama_url: OllamaのAPIエンドポイント
+            summary_model: 要約に使用するモデル名
         """
         # output_dirが指定されていない場合はOSごとのデフォルトを使用
         if output_dir is None:
@@ -113,6 +124,8 @@ class AudioTranscriptionProcessor:
         print(f"エンジン: {engine}")
         if diarize:
             print("話者分離: 有効")
+        if summarize:
+            print("内容要約: 有効")
         if obsidian_vault:
             print(f"Obsidian Vault: {obsidian_vault}")
         print("対応: Instagram, YouTube, X Spaces, Voicy等")
@@ -133,6 +146,18 @@ class AudioTranscriptionProcessor:
         self.obsidian_writer = None
         if obsidian_vault:
             self.obsidian_writer = ObsidianWriter(obsidian_vault, obsidian_folder)
+
+        # 内容要約（オプション）
+        self.summarizer = None
+        if summarize:
+            if summary_provider == "ollama" or api_key:
+                self.summarizer = ContentSummarizer(
+                    provider=summary_provider,
+                    api_key=api_key,
+                    prompt=summary_prompt,
+                    ollama_url=ollama_url,
+                    summary_model=summary_model,
+                )
 
     def process_file(self, file_path: str) -> bool:
         """
@@ -188,6 +213,9 @@ class AudioTranscriptionProcessor:
 
             # タイトル生成（GPT、ローカルファイル用）
             title = self.title_generator.generate_title_from_text(result.get('text', ''))
+
+            # 内容要約（オプション）
+            self._apply_summarization(mp3_file, result)
 
             # Obsidian保存（オプション）
             if self.obsidian_writer and result:
@@ -248,6 +276,9 @@ class AudioTranscriptionProcessor:
 
             # タイトル生成（GPT、ローカルファイル用）
             title = self.title_generator.generate_title_from_text(result.get('text', ''))
+
+            # 内容要約（オプション）
+            self._apply_summarization(mp3_file, result)
 
             # Obsidian保存（オプション）
             if self.obsidian_writer and result:
@@ -331,6 +362,9 @@ class AudioTranscriptionProcessor:
         if self.diarizer and result:
             result = self._apply_diarization(mp3_file, result)
 
+        # 内容要約（オプション）
+        self._apply_summarization(mp3_file, result)
+
         # Obsidian保存（オプション）
         if self.obsidian_writer and result:
             note_title = title or filename_prefix or Path(mp3_file).stem
@@ -351,6 +385,37 @@ class AudioTranscriptionProcessor:
         print(f"詳細情報: {Path(mp3_file).stem}_transcript.json")
 
         return True
+
+    def _apply_summarization(self, mp3_file: str, result: dict) -> Optional[str]:
+        """
+        要約を実行しファイルに保存
+
+        Args:
+            mp3_file: 音声ファイルパス（ファイル名生成用）
+            result: 文字起こし結果
+
+        Returns:
+            要約テキスト、失敗時はNone
+        """
+        if not self.summarizer:
+            return None
+
+        text = result.get('text', '')
+        if not text:
+            return None
+
+        try:
+            print("\n【追加ステップ】内容要約")
+            summary = self.summarizer.summarize(text)
+            if summary:
+                base_name = Path(mp3_file).stem
+                summary_file = self.output_dir / f"{base_name}_summary.txt"
+                self.summarizer.save_summary(summary, str(summary_file))
+                return summary
+        except Exception as e:
+            print(f"[WARNING] 内容要約失敗（処理は続行）: {e}", flush=True)
+
+        return None
 
     def _apply_diarization(self, mp3_file: str, result: dict) -> dict:
         """
@@ -479,6 +544,9 @@ class AudioTranscriptionProcessor:
             if not result:
                 print(f"[ERROR] 動画 {i} の文字起こし失敗")
                 continue
+
+            # 内容要約（オプション）
+            self._apply_summarization(mp3_file, result)
 
             print(f"\n[OK] 動画 {i} の処理完了!")
             print(f"MP3ファイル: {mp3_file}")
@@ -663,6 +731,32 @@ def main():
         default="",
         help="Obsidian Vault内のサブフォルダパス"
     )
+    parser.add_argument(
+        "--summarize",
+        action="store_true",
+        help="内容要約を実行する（OpenAI API または Ollama使用）"
+    )
+    parser.add_argument(
+        "--summary-prompt",
+        default=None,
+        help="要約プロンプト（カスタム、省略時はデフォルトプロンプト使用）"
+    )
+    parser.add_argument(
+        "--summary-provider",
+        default="openai",
+        choices=["openai", "ollama"],
+        help="要約プロバイダ（デフォルト: openai）"
+    )
+    parser.add_argument(
+        "--ollama-url",
+        default=None,
+        help="OllamaのAPIエンドポイント（デフォルト: http://localhost:11434/v1）"
+    )
+    parser.add_argument(
+        "--summary-model",
+        default=None,
+        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3 がデフォルト）"
+    )
 
     args = parser.parse_args()
 
@@ -677,6 +771,11 @@ def main():
         diarize=args.diarize,
         obsidian_vault=args.obsidian_vault,
         obsidian_folder=args.obsidian_folder,
+        summarize=args.summarize,
+        summary_prompt=args.summary_prompt,
+        summary_provider=args.summary_provider,
+        ollama_url=args.ollama_url,
+        summary_model=args.summary_model,
     )
 
     # 単一URL処理、ローカルファイル処理、またはファイル一括処理

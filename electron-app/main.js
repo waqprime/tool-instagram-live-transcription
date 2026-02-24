@@ -12,15 +12,31 @@ let mainWindow;
 let processManager;
 const isDev = process.argv.includes('--dev');
 
-// Settings file path (in user data directory)
+// Settings file path (in user home directory, survives app upgrades)
+const SETTINGS_DIR = path.join(os.homedir(), '.transcription-tool');
+const SETTINGS_FILE = path.join(SETTINGS_DIR, 'settings.json');
+
 function getSettingsPath() {
-  return path.join(app.getPath('userData'), 'settings.json');
+  return SETTINGS_FILE;
 }
 
 // Load settings from file
 function loadSettings() {
   try {
     const settingsPath = getSettingsPath();
+
+    // Migrate from old location if needed
+    if (!fs.existsSync(settingsPath)) {
+      const oldPath = path.join(app.getPath('userData'), 'settings.json');
+      if (fs.existsSync(oldPath)) {
+        if (!fs.existsSync(SETTINGS_DIR)) {
+          fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+        }
+        fs.copyFileSync(oldPath, settingsPath);
+        console.log('Migrated settings from', oldPath, 'to', settingsPath);
+      }
+    }
+
     if (fs.existsSync(settingsPath)) {
       const data = fs.readFileSync(settingsPath, 'utf-8');
       const settings = JSON.parse(data);
@@ -48,6 +64,9 @@ function loadSettings() {
 // Save settings to file
 function saveSettings(settings) {
   try {
+    if (!fs.existsSync(SETTINGS_DIR)) {
+      fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+    }
     const settingsPath = getSettingsPath();
     const toSave = { ...settings };
 
@@ -275,7 +294,12 @@ ipcMain.handle('start-processing', async (event, config) => {
       config.apiKey || '',
       config.obsidianVault || '',
       config.obsidianFolder || '',
-      config.diarize || false
+      config.diarize || false,
+      config.summarize || false,
+      config.summaryPrompt || '',
+      config.summaryProvider || 'openai',
+      config.ollamaUrl || '',
+      config.summaryModel || ''
     );
 
     return { success: true, results };

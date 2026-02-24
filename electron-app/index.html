@@ -43,9 +43,52 @@
         </div>
       </section>
 
-      <!-- Settings Section -->
-      <section class="glass-card section-card">
-        <h2 class="section-title">設定</h2>
+      <!-- Action Buttons -->
+      <section class="action-buttons">
+        <button id="start-btn" class="btn btn-primary">
+          <span class="btn-icon">▶</span>
+          開始
+        </button>
+        <button id="stop-btn" class="btn btn-danger" disabled>
+          <span class="btn-icon">■</span>
+          停止
+        </button>
+        <button id="open-folder-btn" class="btn btn-secondary" disabled>
+          <span class="btn-icon">📁</span>
+          フォルダを開く
+        </button>
+        <button id="clear-btn" class="btn btn-secondary">
+          クリア
+        </button>
+        <button id="settings-btn" class="btn btn-secondary">
+          <span class="btn-icon">⚙</span>
+          設定
+        </button>
+      </section>
+
+      <!-- Progress Section -->
+      <section class="glass-card section-card progress-section">
+        <h2 class="section-title">進行状況</h2>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+          </div>
+          <div id="progress-text" class="progress-text">待機中...</div>
+          <div id="progress-details" class="progress-details"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">設定</h2>
+        <button id="settings-close-btn" class="btn-modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
         <div class="settings-grid">
           <!-- Language Selection -->
           <div class="setting-item">
@@ -86,8 +129,16 @@
             </select>
           </div>
 
-          <!-- API Key Section (shown only for openai-api) -->
-          <div class="setting-item" id="api-key-section" style="display: none;">
+          <!-- Whisper Model Selection -->
+          <div class="setting-item">
+            <label class="setting-label" for="model-select">モデル</label>
+            <select id="model-select" class="glass-select">
+              <option value="large-v3-turbo" selected>large-v3-turbo - 高速・高精度（推奨）</option>
+            </select>
+          </div>
+
+          <!-- OpenAI API Key -->
+          <div class="setting-item setting-item-full">
             <label class="setting-label" for="api-key-input">OpenAI APIキー</label>
             <div class="input-with-button">
               <input
@@ -98,61 +149,108 @@
               >
               <button id="toggle-api-key-btn" class="btn btn-secondary" type="button">表示</button>
             </div>
-            <p class="hint-text-small">環境変数 OPENAI_API_KEY でも設定可能です</p>
+            <p class="hint-text-small">OpenAI API エンジン・内容要約・タイトル生成に使用。環境変数 OPENAI_API_KEY でも設定可能</p>
           </div>
+        </div>
 
-          <!-- Whisper Model Selection -->
-          <div class="setting-item">
-            <label class="setting-label" for="model-select">モデル</label>
-            <select id="model-select" class="glass-select">
-              <!-- Options are dynamically set by renderer.js based on engine -->
-              <option value="large-v3-turbo" selected>large-v3-turbo - 高速・高精度（推奨）</option>
-              <option value="large-v3">large-v3 - 最高精度</option>
-              <option value="large-v2">large-v2 - 高精度</option>
-              <option value="medium">medium - バランス型</option>
-              <option value="small">small - 軽量・高速</option>
-              <option value="base">base - 軽量</option>
-              <option value="tiny">tiny - 最速（精度は低め）</option>
-            </select>
-          </div>
-
+        <hr class="modal-divider">
+        <h3 class="modal-section-title">オプション</h3>
+        <div class="settings-grid">
           <!-- Keep Video Option -->
           <div class="setting-item">
-            <label class="setting-label">動画ファイル</label>
             <div class="checkbox-container">
               <input type="checkbox" id="keep-video-checkbox" class="glass-checkbox">
               <label for="keep-video-checkbox" class="checkbox-label">
                 動画ファイルを保持する（MP4として保存）
-                <span class="hint-text-small">※ UTAGE動画はローカル再生可能なMP4に自動変換されます</span>
               </label>
             </div>
           </div>
 
           <!-- Speaker Diarization Option -->
           <div class="setting-item">
-            <label class="setting-label">話者分離</label>
             <div class="checkbox-container">
               <input type="checkbox" id="diarize-checkbox" class="glass-checkbox">
               <label for="diarize-checkbox" class="checkbox-label">
                 話者分離を実行する
-                <span class="hint-text-small">※ 音声中の話者を自動識別（追加APIキー不要・初回はモデル自動DL）</span>
+                <span class="hint-text-small">※ 追加APIキー不要・初回はモデル自動DL</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <hr class="modal-divider">
+        <h3 class="modal-section-title">内容要約</h3>
+        <div class="settings-grid">
+          <div class="setting-item">
+            <div class="checkbox-container">
+              <input type="checkbox" id="summarize-checkbox" class="glass-checkbox">
+              <label for="summarize-checkbox" class="checkbox-label">
+                文字起こし後に内容を要約する
               </label>
             </div>
           </div>
 
-          <!-- Obsidian Vault Option -->
+          <!-- Summary Provider -->
+          <div class="setting-item" id="summary-provider-section" style="display: none;">
+            <label class="setting-label" for="summary-provider-select">要約エンジン</label>
+            <select id="summary-provider-select" class="glass-select">
+              <option value="openai" selected>OpenAI API (gpt-4o-mini)</option>
+              <option value="ollama">ローカルLLM (Ollama)</option>
+            </select>
+          </div>
+
+          <!-- Summary Model -->
+          <div class="setting-item" id="summary-model-section" style="display: none;">
+            <label class="setting-label" for="summary-model-select">要約モデル</label>
+            <div class="input-with-button">
+              <select id="summary-model-select" class="glass-select">
+                <option value="gpt-4o-mini" selected>gpt-4o-mini（推奨）</option>
+                <option value="gpt-4o">gpt-4o</option>
+              </select>
+              <button id="fetch-models-btn" class="btn btn-secondary" style="display: none;" type="button">取得</button>
+            </div>
+          </div>
+
+          <!-- Ollama URL -->
+          <div class="setting-item" id="ollama-url-section" style="display: none;">
+            <label class="setting-label" for="ollama-url-input">Ollama URL</label>
+            <input
+              type="text"
+              id="ollama-url-input"
+              class="glass-input"
+              value="http://localhost:11434/v1"
+            >
+            <p class="hint-text-small">OllamaのAPIエンドポイント（通常は変更不要）</p>
+          </div>
+
+          <!-- Summary Prompt -->
+          <div class="setting-item setting-item-full" id="summary-prompt-section" style="display: none;">
+            <label class="setting-label" for="summary-prompt-input">要約プロンプト</label>
+            <textarea
+              id="summary-prompt-input"
+              class="glass-textarea"
+              rows="4"
+              placeholder="要約の指示を入力..."
+            >以下の文字起こしテキストの内容を要約してください。
+重要なポイントを箇条書きでまとめ、最後に全体のまとめを記載してください。</textarea>
+            <p class="hint-text-small">要約時にAIに送るプロンプトをカスタマイズできます</p>
+          </div>
+        </div>
+
+        <hr class="modal-divider">
+        <h3 class="modal-section-title">Obsidian連携</h3>
+        <div class="settings-grid">
           <div class="setting-item">
-            <label class="setting-label">Obsidian連携</label>
             <div class="checkbox-container">
               <input type="checkbox" id="obsidian-enabled-checkbox" class="glass-checkbox">
               <label for="obsidian-enabled-checkbox" class="checkbox-label">
                 Obsidian Vaultにノートを保存する
-                <span class="hint-text-small">※ 文字起こし結果をYAMLフロントマター付きMarkdownとして保存</span>
+                <span class="hint-text-small">※ YAMLフロントマター付きMarkdownとして保存</span>
               </label>
             </div>
           </div>
 
-          <!-- Obsidian Vault Directory (shown only when obsidian is enabled) -->
+          <!-- Obsidian Vault Directory -->
           <div class="setting-item" id="obsidian-vault-section" style="display: none;">
             <label class="setting-label" for="obsidian-vault-dir">Vault フォルダ</label>
             <div class="input-with-button">
@@ -167,7 +265,7 @@
             </div>
           </div>
 
-          <!-- Obsidian Subfolder (shown only when obsidian is enabled) -->
+          <!-- Obsidian Subfolder -->
           <div class="setting-item" id="obsidian-subfolder-section" style="display: none;">
             <label class="setting-label" for="obsidian-subfolder-input">サブフォルダ（省略可）</label>
             <input
@@ -176,43 +274,14 @@
               class="glass-input"
               placeholder="例: Transcripts"
             >
-            <p class="hint-text-small">Vault内のサブフォルダパス（空欄の場合はVaultルートに保存）</p>
           </div>
         </div>
-      </section>
+      </div>
 
-      <!-- Action Buttons -->
-      <section class="action-buttons">
-        <button id="start-btn" class="btn btn-primary">
-          <span class="btn-icon">▶</span>
-          開始
-        </button>
-        <button id="stop-btn" class="btn btn-danger" disabled>
-          <span class="btn-icon">■</span>
-          停止
-        </button>
-        <button id="open-folder-btn" class="btn btn-secondary" disabled>
-          <span class="btn-icon">📁</span>
-          フォルダを開く
-        </button>
-        <button id="clear-btn" class="btn btn-secondary">
-          クリア
-        </button>
-      </section>
-
-      <!-- Progress Section -->
-      <section class="glass-card section-card progress-section">
-        <h2 class="section-title">進行状況</h2>
-        <div class="progress-container">
-          <div class="progress-bar">
-            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
-          </div>
-          <div id="progress-text" class="progress-text">待機中...</div>
-          <div id="progress-details" class="progress-details"></div>
-        </div>
-      </section>
-
-    </main>
+      <div class="modal-footer">
+        <button id="settings-save-btn" class="btn btn-primary">保存して閉じる</button>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>
