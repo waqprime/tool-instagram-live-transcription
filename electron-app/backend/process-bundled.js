@@ -37,13 +37,18 @@ class ProcessManager {
     }
   }
 
-  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false) {
+  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'openai', ollamaUrl = '', summaryModel = '') {
     this.stopped = false;
     this.engine = engine;
     this.apiKey = apiKey;
     this.obsidianVault = obsidianVault;
     this.obsidianFolder = obsidianFolder;
     this.diarize = diarize;
+    this.summarize = summarize;
+    this.summaryPrompt = summaryPrompt;
+    this.summaryProvider = summaryProvider;
+    this.ollamaUrl = ollamaUrl;
+    this.summaryModel = summaryModel;
     const results = [];
     const totalItems = urls.length + (files ? files.length : 0);
 
@@ -208,6 +213,21 @@ class ProcessManager {
         args.push('--diarize');
       }
 
+      // Add --summarize flag if enabled
+      if (this.summarize) {
+        args.push('--summarize');
+        args.push('--summary-provider', this.summaryProvider || 'openai');
+        if (this.summaryPrompt) {
+          args.push('--summary-prompt', this.summaryPrompt);
+        }
+        if (this.summaryModel) {
+          args.push('--summary-model', this.summaryModel);
+        }
+        if (this.ollamaUrl) {
+          args.push('--ollama-url', this.ollamaUrl);
+        }
+      }
+
       // Set ffmpeg path and unbuffered output as environment variables
       const env = { ...process.env };
       env.PYTHONUNBUFFERED = '1';
@@ -357,6 +377,21 @@ class ProcessManager {
       // Add --diarize flag if enabled
       if (this.diarize) {
         args.push('--diarize');
+      }
+
+      // Add --summarize flag if enabled
+      if (this.summarize) {
+        args.push('--summarize');
+        args.push('--summary-provider', this.summaryProvider || 'openai');
+        if (this.summaryPrompt) {
+          args.push('--summary-prompt', this.summaryPrompt);
+        }
+        if (this.summaryModel) {
+          args.push('--summary-model', this.summaryModel);
+        }
+        if (this.ollamaUrl) {
+          args.push('--ollama-url', this.ollamaUrl);
+        }
       }
 
       // Set ffmpeg path and unbuffered output as environment variables

@@ -16,12 +16,21 @@ const selectDirBtn = document.getElementById('select-dir-btn');
 const outputDirInput = document.getElementById('output-dir');
 const languageSelect = document.getElementById('language-select');
 const engineSelect = document.getElementById('engine-select');
-const apiKeySection = document.getElementById('api-key-section');
 const apiKeyInput = document.getElementById('api-key-input');
 const toggleApiKeyBtn = document.getElementById('toggle-api-key-btn');
 const modelSelect = document.getElementById('model-select');
 const keepVideoCheckbox = document.getElementById('keep-video-checkbox');
 const diarizeCheckbox = document.getElementById('diarize-checkbox');
+const summarizeCheckbox = document.getElementById('summarize-checkbox');
+const summaryProviderSection = document.getElementById('summary-provider-section');
+const summaryProviderSelect = document.getElementById('summary-provider-select');
+const summaryModelSection = document.getElementById('summary-model-section');
+const summaryModelSelect = document.getElementById('summary-model-select');
+const fetchModelsBtn = document.getElementById('fetch-models-btn');
+const ollamaUrlSection = document.getElementById('ollama-url-section');
+const ollamaUrlInput = document.getElementById('ollama-url-input');
+const summaryPromptSection = document.getElementById('summary-prompt-section');
+const summaryPromptInput = document.getElementById('summary-prompt-input');
 const obsidianEnabledCheckbox = document.getElementById('obsidian-enabled-checkbox');
 const obsidianVaultSection = document.getElementById('obsidian-vault-section');
 const obsidianVaultDirInput = document.getElementById('obsidian-vault-dir');
@@ -32,6 +41,10 @@ const startBtn = document.getElementById('start-btn');
 const stopBtn = document.getElementById('stop-btn');
 const openFolderBtn = document.getElementById('open-folder-btn');
 const clearBtn = document.getElementById('clear-btn');
+const settingsBtn = document.getElementById('settings-btn');
+const settingsModal = document.getElementById('settings-modal');
+const settingsCloseBtn = document.getElementById('settings-close-btn');
+const settingsSaveBtn = document.getElementById('settings-save-btn');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
 const progressDetails = document.getElementById('progress-details');
@@ -68,6 +81,21 @@ const ENGINE_MODELS = {
   ],
 };
 
+// Summary provider model options
+const SUMMARY_MODELS = {
+  'openai': [
+    { value: 'gpt-4o-mini', label: 'gpt-4o-mini（推奨）', selected: true },
+    { value: 'gpt-4o', label: 'gpt-4o' },
+  ],
+  'ollama': [
+    { value: 'gemma3', label: 'gemma3（推奨）', selected: true },
+    { value: 'llama3.1', label: 'llama3.1' },
+    { value: 'qwen2.5', label: 'qwen2.5' },
+    { value: 'phi4', label: 'phi4' },
+    { value: 'mistral', label: 'mistral' },
+  ],
+};
+
 // Initialize
 async function init() {
   // Get default output directory based on OS (via IPC)
@@ -92,6 +120,29 @@ async function init() {
   if (settings.diarize) {
     diarizeCheckbox.checked = true;
   }
+  if (settings.summarize) {
+    summarizeCheckbox.checked = true;
+    summaryProviderSection.style.display = '';
+    summaryModelSection.style.display = '';
+    summaryPromptSection.style.display = '';
+  }
+  if (settings.summaryProvider) {
+    summaryProviderSelect.value = settings.summaryProvider;
+    populateSummaryModels(settings.summaryProvider);
+    if (settings.summaryProvider === 'ollama') {
+      ollamaUrlSection.style.display = '';
+      fetchModelsBtn.style.display = '';
+    }
+  }
+  if (settings.summaryModel) {
+    summaryModelSelect.value = settings.summaryModel;
+  }
+  if (settings.ollamaUrl) {
+    ollamaUrlInput.value = settings.ollamaUrl;
+  }
+  if (settings.summaryPrompt) {
+    summaryPromptInput.value = settings.summaryPrompt;
+  }
   if (settings.obsidianVault) {
     obsidianVaultDirInput.value = settings.obsidianVault;
     obsidianEnabledCheckbox.checked = true;
@@ -112,6 +163,11 @@ async function init() {
     languageSelect.value = settings.language;
   }
 
+  // Setup summarize checkbox and provider handlers
+  summarizeCheckbox.addEventListener('change', onSummarizeChange);
+  summaryProviderSelect.addEventListener('change', onSummaryProviderChange);
+  fetchModelsBtn.addEventListener('click', fetchOllamaModels);
+
   // Setup Obsidian checkbox handler
   obsidianEnabledCheckbox.addEventListener('change', onObsidianChange);
   selectVaultBtn.addEventListener('click', selectObsidianVault);
@@ -123,6 +179,14 @@ async function init() {
   if (settings.model) {
     modelSelect.value = settings.model;
   }
+
+  // Setup settings modal
+  settingsBtn.addEventListener('click', openSettingsModal);
+  settingsCloseBtn.addEventListener('click', closeSettingsModal);
+  settingsSaveBtn.addEventListener('click', saveAndCloseSettings);
+  settingsModal.addEventListener('click', (e) => {
+    if (e.target === settingsModal) closeSettingsModal();
+  });
 
   // Setup event listeners
   addUrlBtn.addEventListener('click', () => addUrlInput());
@@ -263,13 +327,26 @@ async function startProcessing() {
     return;
   }
 
+  // Validate API key when summarize with OpenAI is enabled
+  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'openai' && !apiKey) {
+    alert('OpenAIでの内容要約を使用するにはAPIキーを入力してください');
+    apiKeyInput.focus();
+    return;
+  }
+
   // Save settings to file
   const obsidianVault = obsidianVaultDirInput.value.trim();
   const obsidianSubfolder = obsidianSubfolderInput.value.trim();
 
+  const isSummarize = summarizeCheckbox.checked;
   const settingsToSave = {
     apiKey: apiKey || undefined,
     diarize: diarizeCheckbox.checked,
+    summarize: isSummarize,
+    summaryProvider: isSummarize ? summaryProviderSelect.value : undefined,
+    summaryModel: isSummarize ? summaryModelSelect.value : undefined,
+    summaryPrompt: isSummarize ? summaryPromptInput.value.trim() : undefined,
+    ollamaUrl: isSummarize && summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : undefined,
     outputDir: outputDirectory,
@@ -295,6 +372,11 @@ async function startProcessing() {
   modelSelect.disabled = true;
   keepVideoCheckbox.disabled = true;
   diarizeCheckbox.disabled = true;
+  summarizeCheckbox.disabled = true;
+  summaryProviderSelect.disabled = true;
+  summaryModelSelect.disabled = true;
+  ollamaUrlInput.disabled = true;
+  summaryPromptInput.disabled = true;
   obsidianEnabledCheckbox.disabled = true;
   selectVaultBtn.disabled = true;
   obsidianSubfolderInput.disabled = true;
@@ -322,8 +404,13 @@ async function startProcessing() {
     model: modelSelect.value,
     keepVideo: keepVideoCheckbox.checked,
     engine: engine,
-    apiKey: engine === 'openai-api' ? apiKey : '',
+    apiKey: apiKey,
     diarize: diarizeCheckbox.checked,
+    summarize: summarizeCheckbox.checked,
+    summaryProvider: summarizeCheckbox.checked ? summaryProviderSelect.value : 'openai',
+    summaryModel: summarizeCheckbox.checked ? summaryModelSelect.value : '',
+    summaryPrompt: summarizeCheckbox.checked ? summaryPromptInput.value.trim() : '',
+    ollamaUrl: summarizeCheckbox.checked ? ollamaUrlInput.value.trim() : '',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : '',
     obsidianFolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : '',
   };
@@ -358,6 +445,11 @@ async function startProcessing() {
     modelSelect.disabled = false;
     keepVideoCheckbox.disabled = false;
     diarizeCheckbox.disabled = false;
+    summarizeCheckbox.disabled = false;
+    summaryProviderSelect.disabled = false;
+    summaryModelSelect.disabled = false;
+    ollamaUrlInput.disabled = false;
+    summaryPromptInput.disabled = false;
     obsidianEnabledCheckbox.disabled = false;
     selectVaultBtn.disabled = false;
     obsidianSubfolderInput.disabled = false;
@@ -435,6 +527,8 @@ function handleLog(log) {
     updateProgress(null, 'MP3を抽出中...', message);
   } else if (message.includes('話者分離')) {
     updateProgress(null, '話者分離中...', message);
+  } else if (message.includes('内容要約') || message.includes('要約')) {
+    updateProgress(null, '内容要約中...', message);
   } else if (message.includes('文字起こし') || message.includes('Whisper')) {
     updateProgress(null, '文字起こし中...', message);
   } else if (message.includes('完了')) {
@@ -544,9 +638,6 @@ function removeFileItem(fileItem, filePath) {
 function onEngineChange() {
   const engine = engineSelect.value;
 
-  // Show/hide API key section
-  apiKeySection.style.display = engine === 'openai-api' ? '' : 'none';
-
   // Update model dropdown options
   const models = ENGINE_MODELS[engine] || [];
   modelSelect.innerHTML = '';
@@ -573,6 +664,73 @@ function toggleApiKeyVisibility() {
   }
 }
 
+// Summarize checkbox change handler
+function onSummarizeChange() {
+  const enabled = summarizeCheckbox.checked;
+  summaryProviderSection.style.display = enabled ? '' : 'none';
+  summaryModelSection.style.display = enabled ? '' : 'none';
+  summaryPromptSection.style.display = enabled ? '' : 'none';
+  if (enabled) {
+    onSummaryProviderChange();
+  } else {
+    ollamaUrlSection.style.display = 'none';
+  }
+}
+
+// Summary provider change handler
+function onSummaryProviderChange() {
+  const provider = summaryProviderSelect.value;
+  ollamaUrlSection.style.display = provider === 'ollama' ? '' : 'none';
+  fetchModelsBtn.style.display = provider === 'ollama' ? '' : 'none';
+  populateSummaryModels(provider);
+}
+
+// Populate summary model select based on provider
+function populateSummaryModels(provider) {
+  const models = SUMMARY_MODELS[provider] || [];
+  summaryModelSelect.innerHTML = '';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.value;
+    opt.textContent = m.label;
+    if (m.selected) opt.selected = true;
+    summaryModelSelect.appendChild(opt);
+  });
+}
+
+// Fetch installed Ollama models from API
+async function fetchOllamaModels() {
+  const baseUrl = (ollamaUrlInput.value.trim() || 'http://localhost:11434/v1').replace(/\/v1\/?$/, '');
+  fetchModelsBtn.disabled = true;
+  fetchModelsBtn.textContent = '取得中...';
+  try {
+    const response = await fetch(`${baseUrl}/api/tags`);
+    const data = await response.json();
+    const models = (data.models || []).map(m => m.name);
+    if (models.length === 0) {
+      alert('Ollamaにモデルが見つかりませんでした。\nollama pull gemma3 等でモデルをインストールしてください。');
+      return;
+    }
+    const saved = summaryModelSelect.value;
+    summaryModelSelect.innerHTML = '';
+    models.forEach((name, i) => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      summaryModelSelect.appendChild(opt);
+    });
+    // Restore previous selection if still available
+    if (models.includes(saved)) {
+      summaryModelSelect.value = saved;
+    }
+  } catch (e) {
+    alert('Ollamaに接続できませんでした。\nOllamaが起動しているか確認してください。\n\n' + e.message);
+  } finally {
+    fetchModelsBtn.disabled = false;
+    fetchModelsBtn.textContent = '取得';
+  }
+}
+
 // Obsidian checkbox change handler
 function onObsidianChange() {
   const enabled = obsidianEnabledCheckbox.checked;
@@ -586,6 +744,36 @@ async function selectObsidianVault() {
   if (dir) {
     obsidianVaultDirInput.value = dir;
   }
+}
+
+// Settings modal functions
+function openSettingsModal() {
+  settingsModal.style.display = '';
+}
+
+function closeSettingsModal() {
+  settingsModal.style.display = 'none';
+}
+
+async function saveAndCloseSettings() {
+  const isSummarize = summarizeCheckbox.checked;
+  const settingsToSave = {
+    apiKey: apiKeyInput.value.trim() || undefined,
+    diarize: diarizeCheckbox.checked,
+    summarize: isSummarize,
+    summaryProvider: isSummarize ? summaryProviderSelect.value : undefined,
+    summaryModel: isSummarize ? summaryModelSelect.value : undefined,
+    summaryPrompt: isSummarize ? summaryPromptInput.value.trim() : undefined,
+    ollamaUrl: isSummarize && summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
+    obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVaultDirInput.value.trim() : undefined,
+    obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolderInput.value.trim() : undefined,
+    outputDir: outputDirectory,
+    engine: engineSelect.value,
+    model: modelSelect.value,
+    language: languageSelect.value,
+  };
+  await window.electronAPI.saveSettings(settingsToSave);
+  closeSettingsModal();
 }
 
 // Clear all inputs, files, and progress
