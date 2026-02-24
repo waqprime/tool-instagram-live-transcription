@@ -8,13 +8,29 @@ block_cipher = None
 whisper_path = os.path.dirname(whisper.__file__)
 whisper_assets = os.path.join(whisper_path, 'assets')
 
+# Collect faster-whisper / ctranslate2 data and binaries
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+
+faster_whisper_datas = []
+ctranslate2_datas = []
+ctranslate2_binaries = []
+try:
+    faster_whisper_datas = collect_data_files('faster_whisper')
+except Exception:
+    pass
+try:
+    ctranslate2_datas = collect_data_files('ctranslate2')
+    ctranslate2_binaries = collect_dynamic_libs('ctranslate2')
+except Exception:
+    pass
+
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=ctranslate2_binaries,
     datas=[
         (whisper_assets, 'whisper/assets'),
-    ],
+    ] + faster_whisper_datas + ctranslate2_datas,
     hiddenimports=[
         'whisper',
         'whisper.model',
@@ -30,6 +46,28 @@ a = Analysis(
         'pydub',
         'certifi',
         'urllib3',
+        # faster-whisper / ctranslate2
+        'faster_whisper',
+        'ctranslate2',
+        'huggingface_hub',
+        'huggingface_hub.utils',
+        'tokenizers',
+        # openai API client
+        'openai',
+        'httpx',
+        'httpcore',
+        'anyio',
+        'sniffio',
+        'h11',
+        'socksio',
+        'distro',
+        # SpeechBrain speaker diarization
+        'speechbrain',
+        'speechbrain.inference',
+        'speechbrain.inference.speaker',
+        'sklearn',
+        'sklearn.cluster',
+        'torchaudio',
     ],
     hookspath=[],
     hooksconfig={},
