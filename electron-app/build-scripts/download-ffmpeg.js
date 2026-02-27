@@ -197,7 +197,7 @@ async function downloadFFmpeg(platform, arch) {
 
 // Main
 const platform = process.platform;
-const arch = process.arch;
+const arch = process.env.TARGET_ARCH || process.arch;
 
 console.log(`Platform: ${platform} ${arch}`);
 

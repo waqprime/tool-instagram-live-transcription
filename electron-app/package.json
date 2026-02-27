@@ -10,7 +10,12 @@
     "prebuild": "node build-scripts/build-backend.js",
     "build": "electron-builder",
     "build:mac": "npm run prebuild && electron-builder --mac --publish never",
-    "build:win": "npm run prebuild && electron-builder --win --publish never"
+    "build:mac-arm64": "TARGET_ARCH=arm64 node build-scripts/build-backend.js && electron-builder --mac --arm64 --publish never",
+    "build:mac-x64": "TARGET_ARCH=x64 node build-scripts/build-backend.js && electron-builder --mac --x64 --publish never",
+    "build:mac-arm64-lite": "TARGET_ARCH=arm64 BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --mac --arm64 --publish never",
+    "build:mac-x64-lite": "TARGET_ARCH=x64 BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --mac --x64 --publish never",
+    "build:win": "npm run prebuild && electron-builder --win --publish never",
+    "build:win-lite": "BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --win --publish never"
   },
   "keywords": [
     "transcription",
@@ -65,6 +70,7 @@
     ],
     "afterSign": "build-scripts/notarize.js",
     "mac": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "category": "public.app-category.utilities",
       "target": [
         "dmg",

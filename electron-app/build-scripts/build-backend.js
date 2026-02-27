@@ -6,8 +6,14 @@ const ROOT_DIR = path.join(__dirname, '..', '..');
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
 const BACKEND_DIR = path.join(RESOURCES_DIR, 'backend');
 
+// Build configuration from environment variables
+const TARGET_ARCH = process.env.TARGET_ARCH; // 'arm64' or 'x64'
+const BUILD_VARIANT = process.env.BUILD_VARIANT || 'full'; // 'full' or 'lite'
+
 console.log('='.repeat(60));
 console.log('Building Backend for Distribution');
+console.log(`  Architecture: ${TARGET_ARCH || process.arch} (${TARGET_ARCH ? 'override' : 'native'})`);
+console.log(`  Variant: ${BUILD_VARIANT}`);
 console.log('='.repeat(60));
 
 // Step 1: Create resources directory
@@ -50,12 +56,37 @@ try {
   }
 }
 
+// Select spec file based on build variant
+const specFile = BUILD_VARIANT === 'lite'
+  ? 'instagram-transcriber-lite.spec'
+  : 'instagram-transcriber.spec';
+console.log(`Using spec file: ${specFile}`);
+
+// Build environment: pass PYINSTALLER_TARGET_ARCH if TARGET_ARCH is set
+const buildEnv = { ...process.env };
+if (TARGET_ARCH) {
+  // Map Node.js arch names to PyInstaller/macOS arch names
+  const archMap = { 'arm64': 'arm64', 'x64': 'x86_64' };
+  const pyinstallerArch = archMap[TARGET_ARCH] || TARGET_ARCH;
+  buildEnv.PYINSTALLER_TARGET_ARCH = pyinstallerArch;
+  console.log(`Target architecture: ${TARGET_ARCH} → PyInstaller: ${pyinstallerArch}`);
+}
+
+// On macOS arm64 host building for x64, use arch -x86_64 prefix
+const isCrossCompileX64 = platform === 'darwin' && TARGET_ARCH === 'x64' && process.arch === 'arm64';
+const cmdPrefix = isCrossCompileX64 ? 'arch -x86_64 ' : '';
+
+if (isCrossCompileX64) {
+  console.log('Cross-compiling: arm64 host → x86_64 target (using arch -x86_64)');
+}
+
 // Build with PyInstaller
 try {
   console.log('Running PyInstaller...');
-  execSync(`${pythonCmd} -m PyInstaller instagram-transcriber.spec --clean`, {
+  execSync(`${cmdPrefix}${pythonCmd} -m PyInstaller ${specFile} --clean`, {
     stdio: 'inherit',
-    cwd: ROOT_DIR
+    cwd: ROOT_DIR,
+    env: buildEnv
   });
 
   // Check if binary was created
@@ -83,7 +114,8 @@ console.log('\n[3/4] Downloading ffmpeg...');
 try {
   execSync('node build-scripts/download-ffmpeg.js', {
     stdio: 'inherit',
-    cwd: path.join(__dirname, '..')
+    cwd: path.join(__dirname, '..'),
+    env: buildEnv
   });
   console.log('✓ ffmpeg downloaded');
 } catch (error) {

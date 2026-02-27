@@ -1,15 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import whisper
 
 block_cipher = None
 
 # Support cross-architecture builds (e.g., arm64 host building for x86_64)
 target_arch = os.environ.get('PYINSTALLER_TARGET_ARCH', None)
-
-# Get Whisper assets path
-whisper_path = os.path.dirname(whisper.__file__)
-whisper_assets = os.path.join(whisper_path, 'assets')
 
 # Collect faster-whisper / ctranslate2 data and binaries
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
@@ -31,18 +26,8 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=ctranslate2_binaries,
-    datas=[
-        (whisper_assets, 'whisper/assets'),
-    ] + faster_whisper_datas + ctranslate2_datas,
+    datas=faster_whisper_datas + ctranslate2_datas,
     hiddenimports=[
-        'whisper',
-        'whisper.model',
-        'whisper.audio',
-        'whisper.decoding',
-        'whisper.timing',
-        'whisper.tokenizer',
-        'tiktoken_ext',
-        'tiktoken_ext.openai_public',
         'yt_dlp',
         'yt_dlp.extractor',
         'yt_dlp.extractor.instagram',
@@ -75,7 +60,24 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        # Exclude openai-whisper and kotoba-whisper dependencies
+        'whisper',
+        'tiktoken',
+        'tiktoken_ext',
+        'transformers',
+        'accelerate',
+        # Exclude unused torch submodules to reduce size
+        'torch.distributed',
+        'torch.testing',
+        'torch.utils.tensorboard',
+        'torch.optim',
+        'torch.onnx',
+        'torch.jit',
+        'torch.cuda',
+        'torch.backends.cudnn',
+        'torch.backends.cuda',
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
