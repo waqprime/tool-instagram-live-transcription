@@ -1,6 +1,6 @@
 {
   "name": "transcription-tool",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Multi-platform audio/video transcription with Whisper AI - Supports Instagram, YouTube, X Spaces, Voicy, UTAGE (multiple videos), etc.",
   "main": "main.js",
   "scripts": {
