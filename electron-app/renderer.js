@@ -738,6 +738,16 @@ async function selectObsidianVault() {
 
 // Settings modal functions
 function openSettingsModal() {
+  // Sync summary detail sections with current checkbox state
+  const enabled = summarizeCheckbox.checked;
+  summaryProviderSection.style.display = enabled ? '' : 'none';
+  summaryModelSection.style.display = enabled ? '' : 'none';
+  summaryPromptSection.style.display = enabled ? '' : 'none';
+  if (enabled) {
+    onSummaryProviderChange();
+  } else {
+    ollamaUrlSection.style.display = 'none';
+  }
   settingsModal.style.display = '';
 }
 

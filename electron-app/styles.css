@@ -376,6 +376,14 @@ body {
   font-size: 1rem;
 }
 
+/* ===== Quick Options ===== */
+.quick-options {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* ===== Action Buttons ===== */
 .action-buttons {
   display: flex;

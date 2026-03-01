@@ -43,6 +43,18 @@
         </div>
       </section>
 
+      <!-- Quick Options -->
+      <section class="quick-options">
+        <div class="checkbox-container">
+          <input type="checkbox" id="keep-video-checkbox" class="glass-checkbox">
+          <label for="keep-video-checkbox" class="checkbox-label">動画を保存</label>
+        </div>
+        <div class="checkbox-container">
+          <input type="checkbox" id="summarize-checkbox" class="glass-checkbox">
+          <label for="summarize-checkbox" class="checkbox-label">内容要約</label>
+        </div>
+      </section>
+
       <!-- Action Buttons -->
       <section class="action-buttons">
         <button id="start-btn" class="btn btn-primary">
@@ -151,43 +163,14 @@
           </div>
         </div>
 
-        <hr class="modal-divider">
-        <h3 class="modal-section-title">オプション</h3>
-        <div class="settings-grid">
-          <!-- Keep Video Option -->
-          <div class="setting-item">
-            <div class="checkbox-container">
-              <input type="checkbox" id="keep-video-checkbox" class="glass-checkbox">
-              <label for="keep-video-checkbox" class="checkbox-label">
-                動画ファイルを保持する（MP4として保存）
-              </label>
-            </div>
-          </div>
-
-          <!-- Speaker Diarization Option (hidden - not supported in this build) -->
-          <div class="setting-item" style="display: none;">
-            <div class="checkbox-container">
-              <input type="checkbox" id="diarize-checkbox" class="glass-checkbox">
-              <label for="diarize-checkbox" class="checkbox-label">
-                話者分離を実行する
-                <span class="hint-text-small">※ 追加APIキー不要・初回はモデル自動DL</span>
-              </label>
-            </div>
-          </div>
+        <!-- Speaker Diarization Option (hidden - not supported in this build) -->
+        <div style="display: none;">
+          <input type="checkbox" id="diarize-checkbox" class="glass-checkbox">
         </div>
 
         <hr class="modal-divider">
-        <h3 class="modal-section-title">内容要約</h3>
+        <h3 class="modal-section-title">内容要約の詳細設定</h3>
         <div class="settings-grid">
-          <div class="setting-item">
-            <div class="checkbox-container">
-              <input type="checkbox" id="summarize-checkbox" class="glass-checkbox">
-              <label for="summarize-checkbox" class="checkbox-label">
-                文字起こし後に内容を要約する
-              </label>
-            </div>
-          </div>
-
           <!-- Summary Provider -->
           <div class="setting-item" id="summary-provider-section" style="display: none;">
             <label class="setting-label" for="summary-provider-select">要約エンジン</label>
