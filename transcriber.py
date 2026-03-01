@@ -585,22 +585,23 @@ def create_transcriber(
         try:
             return FasterWhisperTranscriber(model_name=model, language=language)
         except ImportError:
-            print("[WARNING] faster-whisper が見つかりません。local-whisper にフォールバックします。", flush=True)
-            print("[WARNING] インストール: pip install faster-whisper", flush=True)
-            return LocalWhisperTranscriber(model_name=model, language=language)
-
-    if engine == "local-whisper":
-        return LocalWhisperTranscriber(model_name=model, language=language)
-
-    if engine == "kotoba-whisper":
-        try:
-            return KotobaWhisperTranscriber(model_name=model, language=language)
-        except ImportError:
-            print("[ERROR] transformers パッケージが見つかりません。", flush=True)
-            print("[ERROR] インストール: pip install transformers accelerate", flush=True)
+            print("[ERROR] faster-whisper が見つかりません。", flush=True)
+            print("[ERROR] インストール: pip install faster-whisper", flush=True)
             raise
 
-    raise ValueError(f"不明なエンジン: {engine}  (選択肢: faster-whisper, openai-api, local-whisper, kotoba-whisper)")
+    if engine == "local-whisper":
+        raise ValueError(
+            "local-whisper エンジンはこのビルドではサポートされていません。"
+            " faster-whisper または openai-api を使用してください。"
+        )
+
+    if engine == "kotoba-whisper":
+        raise ValueError(
+            "kotoba-whisper エンジンはこのビルドではサポートされていません。"
+            " faster-whisper または openai-api を使用してください。"
+        )
+
+    raise ValueError(f"不明なエンジン: {engine}  (選択肢: faster-whisper, openai-api)")
 
 
 # ---------------------------------------------------------------------------

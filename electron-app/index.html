@@ -124,8 +124,6 @@
             <select id="engine-select" class="glass-select">
               <option value="faster-whisper" selected>faster-whisper (高速・高精度)</option>
               <option value="openai-api">OpenAI API (クラウド・最高精度)</option>
-              <option value="local-whisper">Whisper (従来版)</option>
-              <option value="kotoba-whisper">Kotoba-Whisper (日本語特化)</option>
             </select>
           </div>
 
@@ -166,8 +164,8 @@
             </div>
           </div>
 
-          <!-- Speaker Diarization Option -->
-          <div class="setting-item">
+          <!-- Speaker Diarization Option (hidden - not supported in this build) -->
+          <div class="setting-item" style="display: none;">
             <div class="checkbox-container">
               <input type="checkbox" id="diarize-checkbox" class="glass-checkbox">
               <label for="diarize-checkbox" class="checkbox-label">

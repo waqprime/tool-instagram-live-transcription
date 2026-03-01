@@ -40,7 +40,6 @@ from audio_converter import AudioConverter
 from transcriber import AudioTranscriber
 from title_generator import TitleGenerator
 from obsidian_writer import ObsidianWriter
-from diarizer import SpeakerDiarizer
 from summarizer import ContentSummarizer, DEFAULT_SUMMARY_PROMPT
 
 
@@ -140,7 +139,11 @@ class AudioTranscriptionProcessor:
         # 話者分離（オプション）
         self.diarizer = None
         if diarize:
-            self.diarizer = SpeakerDiarizer()
+            try:
+                from diarizer import SpeakerDiarizer
+                self.diarizer = SpeakerDiarizer()
+            except ImportError:
+                print("[WARNING] 話者分離モジュール (diarizer) が見つかりません。話者分離をスキップします。", flush=True)
 
         # Obsidian（オプション）
         self.obsidian_writer = None
@@ -322,12 +325,13 @@ class AudioTranscriptionProcessor:
         # タイトル取得（yt-dlpメタデータ）
         title = None
         try:
+            print("タイトル取得中...", flush=True)
             title = self.title_generator.get_title_from_url(url, self.downloader)
         except Exception as e:
-            print(f"[WARNING] タイトル取得失敗（処理は続行）: {e}")
+            print(f"[WARNING] タイトル取得失敗（処理は続行）: {e}", flush=True)
 
         # ステップ1: 動画をダウンロード
-        print("【ステップ1/3】動画ダウンロード")
+        print("【ステップ1/3】動画ダウンロード", flush=True)
         video_file = self.downloader.download(url, filename_prefix)
         if not video_file:
             print("[ERROR] ダウンロード失敗")

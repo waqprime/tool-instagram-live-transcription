@@ -121,6 +121,8 @@ class VideoDownloader:
                     'quiet': False,
                     'no_warnings': False,
                     'progress_hooks': [self._progress_hook],
+                    'socket_timeout': 30,
+                    'noplaylist': True,
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -355,19 +357,31 @@ class VideoDownloader:
         """
         try:
             import yt_dlp
+            import concurrent.futures
 
             ydl_opts = {
                 'quiet': True,
                 'no_warnings': True,
                 'nocheckcertificate': True,
+                'socket_timeout': 15,
+                'noplaylist': True,
             }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
+            def _extract():
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    return ydl.extract_info(url, download=False)
+
+            # タイムアウト付きで実行（30秒）
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_extract)
+                info = future.result(timeout=30)
                 return info
 
+        except concurrent.futures.TimeoutError:
+            print(f"[WARNING] 情報取得タイムアウト（30秒）: {url}", flush=True)
+            return None
         except Exception as e:
-            print(f"[ERROR] 情報取得エラー: {e}")
+            print(f"[ERROR] 情報取得エラー: {e}", flush=True)
             return None
 
 

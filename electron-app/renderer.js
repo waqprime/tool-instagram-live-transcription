@@ -69,16 +69,6 @@ const ENGINE_MODELS = {
     { value: 'gpt-4o-mini-transcribe', label: 'gpt-4o-mini-transcribe - 高速・低コスト' },
     { value: 'whisper-1', label: 'whisper-1 - 従来モデル' },
   ],
-  'local-whisper': [
-    { value: 'tiny', label: 'Tiny - 最速（精度は低め）' },
-    { value: 'base', label: 'Base - 高速でバランス良い（推奨）', selected: true },
-    { value: 'small', label: 'Small - 高精度' },
-    { value: 'medium', label: 'Medium - より高精度（処理時間長め）' },
-    { value: 'large', label: 'Large - 最高精度（要高性能PC/長時間）' },
-  ],
-  'kotoba-whisper': [
-    { value: 'kotoba-whisper-v2.0', label: 'Kotoba-Whisper v2.0 - 日本語特化（推奨）', selected: true },
-  ],
 };
 
 // Summary provider model options

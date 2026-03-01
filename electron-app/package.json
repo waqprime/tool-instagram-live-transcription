@@ -56,8 +56,7 @@
       "index.html",
       "renderer.js",
       "styles.css",
-      "backend/**/*",
-      "resources/**/*"
+      "backend/**/*"
     ],
     "extraResources": [
       {

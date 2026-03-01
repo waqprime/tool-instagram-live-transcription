@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require('electron');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 const { ProcessManager } = require('./backend/process-bundled');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
@@ -107,6 +108,39 @@ function getBackendBinaryPath() {
   return binaryPath;
 }
 
+// Check if ffmpeg is available on system PATH
+function findSystemFFmpeg() {
+  const isWindows = process.platform === 'win32';
+  const ffmpegName = isWindows ? 'ffmpeg.exe' : 'ffmpeg';
+
+  try {
+    // Try running ffmpeg -version to see if it's on PATH
+    execFileSync(ffmpegName, ['-version'], { stdio: 'ignore', timeout: 5000 });
+    console.log('Found ffmpeg on system PATH');
+    return ffmpegName;
+  } catch (e) {
+    // Not on PATH
+  }
+
+  // Check common installation locations on Windows
+  if (isWindows) {
+    const commonPaths = [
+      path.join(os.homedir(), 'scoop', 'shims', 'ffmpeg.exe'),
+      'C:\\ffmpeg\\bin\\ffmpeg.exe',
+      'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+      'C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe',
+    ];
+    for (const p of commonPaths) {
+      if (fs.existsSync(p)) {
+        console.log('Found ffmpeg at:', p);
+        return p;
+      }
+    }
+  }
+
+  return null;
+}
+
 // Get ffmpeg binary path
 function getFFmpegPath() {
   const isWindows = process.platform === 'win32';
@@ -117,10 +151,26 @@ function getFFmpegPath() {
     if (fs.existsSync(devFFmpegPath)) {
       return devFFmpegPath;
     }
-    return null;
+    // Fallback to system ffmpeg in dev mode
+    return findSystemFFmpeg();
   }
 
-  return path.join(process.resourcesPath, 'resources', 'ffmpeg', ffmpegName);
+  // In production, try the bundled binary first
+  const bundledPath = path.join(process.resourcesPath, 'resources', 'ffmpeg', ffmpegName);
+  if (fs.existsSync(bundledPath)) {
+    return bundledPath;
+  }
+
+  // Bundled ffmpeg not found - try system PATH as fallback
+  console.warn('Bundled ffmpeg not found at:', bundledPath);
+  console.warn('Falling back to system ffmpeg...');
+  const systemFFmpeg = findSystemFFmpeg();
+  if (systemFFmpeg) {
+    return systemFFmpeg;
+  }
+
+  console.error('ffmpeg not found anywhere. Please install ffmpeg.');
+  return null;
 }
 
 function createWindow() {
@@ -262,8 +312,11 @@ ipcMain.handle('start-processing', async (event, config) => {
 
     // Get ffmpeg path
     const ffmpegPath = getFFmpegPath();
-    if (ffmpegPath && !fs.existsSync(ffmpegPath)) {
-      console.warn('ffmpeg not found at:', ffmpegPath);
+    if (!ffmpegPath) {
+      return {
+        success: false,
+        error: 'ffmpegが見つかりません。ffmpegをインストールしてください。\nWindows: https://ffmpeg.org/download.html\nまたは: winget install ffmpeg'
+      };
     }
 
     console.log('Backend binary:', binaryPath);

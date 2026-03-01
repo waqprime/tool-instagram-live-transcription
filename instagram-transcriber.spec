@@ -1,15 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import whisper
 
 block_cipher = None
 
 # Support cross-architecture builds (e.g., arm64 host building for x86_64)
 target_arch = os.environ.get('PYINSTALLER_TARGET_ARCH', None)
-
-# Get Whisper assets path
-whisper_path = os.path.dirname(whisper.__file__)
-whisper_assets = os.path.join(whisper_path, 'assets')
 
 # Collect faster-whisper / ctranslate2 data and binaries
 from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
@@ -31,16 +26,8 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=ctranslate2_binaries,
-    datas=[
-        (whisper_assets, 'whisper/assets'),
-    ] + faster_whisper_datas + ctranslate2_datas,
+    datas=faster_whisper_datas + ctranslate2_datas,
     hiddenimports=[
-        'whisper',
-        'whisper.model',
-        'whisper.audio',
-        'whisper.decoding',
-        'whisper.timing',
-        'whisper.tokenizer',
         'tiktoken_ext',
         'tiktoken_ext.openai_public',
         'yt_dlp',
@@ -64,18 +51,60 @@ a = Analysis(
         'h11',
         'socksio',
         'distro',
-        # SpeechBrain speaker diarization
-        'speechbrain',
-        'speechbrain.inference',
-        'speechbrain.inference.speaker',
-        'sklearn',
-        'sklearn.cluster',
-        'torchaudio',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        # PyTorch / ML
+        'torch',
+        'torchaudio',
+        'torchvision',
+        'torchsde',
+        'torchdiffeq',
+        'torchmetrics',
+        'pytorch_lightning',
+        'whisper',
+        'speechbrain',
+        'transformers',
+        'accelerate',
+        'sklearn',
+        'scikit-learn',
+        'scipy',
+        'sympy',
+        # Data / Visualization
+        'matplotlib',
+        'pandas',
+        'pyarrow',
+        'altair',
+        # Image processing (not needed)
+        'skimage',
+        'cv2',
+        'opencv-python',
+        'imageio',
+        'PIL',
+        # GUI / misc
+        'tkinter',
+        '_tkinter',
+        'tcl',
+        # Dev / test
+        'numpy.testing',
+        'IPython',
+        'jupyter',
+        'notebook',
+        'pytest',
+        # Other heavy unused
+        'pygments',
+        'lxml',
+        'onnxruntime',
+        'open_clip_torch',
+        'uvicorn',
+        'starlette',
+        'fastapi',
+        'pydantic',
+        'jsonschema',
+        'narwhals',
+    ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

@@ -35,12 +35,20 @@ class AudioConverter:
             ffmpeg_path: ffmpegバイナリのパス（Noneの場合はシステムのffmpegを使用）
         """
         # ffmpegパスを環境変数または引数から取得
-        self.ffmpeg_path = ffmpeg_path or os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+        env_ffmpeg = ffmpeg_path or os.environ.get('FFMPEG_BINARY', '')
+
+        # バンドル版パスが指定されているが存在しない場合、システムのffmpegにフォールバック
+        if env_ffmpeg and not os.path.isfile(env_ffmpeg):
+            print(f"[WARNING] バンドル版ffmpegが見つかりません: {env_ffmpeg}")
+            print("[WARNING] システムのffmpegにフォールバックします...")
+            env_ffmpeg = ''
+
+        self.ffmpeg_path = env_ffmpeg or 'ffmpeg'
         self.ffprobe_path = os.environ.get('FFPROBE_BINARY', 'ffprobe')
 
         # バンドル版の場合、ffprobeもffmpegと同じディレクトリにあると仮定
-        if ffmpeg_path and os.path.isfile(ffmpeg_path):
-            ffmpeg_dir = os.path.dirname(ffmpeg_path)
+        if self.ffmpeg_path != 'ffmpeg' and os.path.isfile(self.ffmpeg_path):
+            ffmpeg_dir = os.path.dirname(self.ffmpeg_path)
             ffprobe_name = 'ffprobe.exe' if sys.platform == 'win32' else 'ffprobe'
             possible_ffprobe = os.path.join(ffmpeg_dir, ffprobe_name)
             if os.path.isfile(possible_ffprobe):
