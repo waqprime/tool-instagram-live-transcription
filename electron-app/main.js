@@ -212,10 +212,10 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Check for updates (only in production)
-  if (!isDev) {
-    checkForUpdates();
-  }
+  // Auto-update disabled (private repository)
+  // if (!isDev) {
+  //   checkForUpdates();
+  // }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

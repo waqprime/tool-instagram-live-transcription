@@ -112,9 +112,6 @@ async function init() {
   }
   if (settings.summarize) {
     summarizeCheckbox.checked = true;
-    summaryProviderSection.style.display = '';
-    summaryModelSection.style.display = '';
-    summaryPromptSection.style.display = '';
   }
   if (settings.summaryProvider) {
     summaryProviderSelect.value = settings.summaryProvider;
@@ -328,15 +325,14 @@ async function startProcessing() {
   const obsidianVault = obsidianVaultDirInput.value.trim();
   const obsidianSubfolder = obsidianSubfolderInput.value.trim();
 
-  const isSummarize = summarizeCheckbox.checked;
   const settingsToSave = {
     apiKey: apiKey || undefined,
     diarize: diarizeCheckbox.checked,
-    summarize: isSummarize,
-    summaryProvider: isSummarize ? summaryProviderSelect.value : undefined,
-    summaryModel: isSummarize ? summaryModelSelect.value : undefined,
-    summaryPrompt: isSummarize ? summaryPromptInput.value.trim() : undefined,
-    ollamaUrl: isSummarize && summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
+    summarize: summarizeCheckbox.checked,
+    summaryProvider: summaryProviderSelect.value,
+    summaryModel: summaryModelSelect.value,
+    summaryPrompt: summaryPromptInput.value.trim() || undefined,
+    ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : undefined,
     outputDir: outputDirectory,
@@ -656,15 +652,7 @@ function toggleApiKeyVisibility() {
 
 // Summarize checkbox change handler
 function onSummarizeChange() {
-  const enabled = summarizeCheckbox.checked;
-  summaryProviderSection.style.display = enabled ? '' : 'none';
-  summaryModelSection.style.display = enabled ? '' : 'none';
-  summaryPromptSection.style.display = enabled ? '' : 'none';
-  if (enabled) {
-    onSummaryProviderChange();
-  } else {
-    ollamaUrlSection.style.display = 'none';
-  }
+  // No-op: detail settings are always visible in the settings modal
 }
 
 // Summary provider change handler
@@ -738,16 +726,6 @@ async function selectObsidianVault() {
 
 // Settings modal functions
 function openSettingsModal() {
-  // Sync summary detail sections with current checkbox state
-  const enabled = summarizeCheckbox.checked;
-  summaryProviderSection.style.display = enabled ? '' : 'none';
-  summaryModelSection.style.display = enabled ? '' : 'none';
-  summaryPromptSection.style.display = enabled ? '' : 'none';
-  if (enabled) {
-    onSummaryProviderChange();
-  } else {
-    ollamaUrlSection.style.display = 'none';
-  }
   settingsModal.style.display = '';
 }
 
@@ -756,15 +734,14 @@ function closeSettingsModal() {
 }
 
 async function saveAndCloseSettings() {
-  const isSummarize = summarizeCheckbox.checked;
   const settingsToSave = {
     apiKey: apiKeyInput.value.trim() || undefined,
     diarize: diarizeCheckbox.checked,
-    summarize: isSummarize,
-    summaryProvider: isSummarize ? summaryProviderSelect.value : undefined,
-    summaryModel: isSummarize ? summaryModelSelect.value : undefined,
-    summaryPrompt: isSummarize ? summaryPromptInput.value.trim() : undefined,
-    ollamaUrl: isSummarize && summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
+    summarize: summarizeCheckbox.checked,
+    summaryProvider: summaryProviderSelect.value,
+    summaryModel: summaryModelSelect.value,
+    summaryPrompt: summaryPromptInput.value.trim() || undefined,
+    ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVaultDirInput.value.trim() : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolderInput.value.trim() : undefined,
     outputDir: outputDirectory,
