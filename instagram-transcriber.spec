@@ -96,7 +96,6 @@ a = Analysis(
         # Other heavy unused
         'pygments',
         'lxml',
-        'onnxruntime',
         'open_clip_torch',
         'uvicorn',
         'starlette',
