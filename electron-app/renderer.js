@@ -678,7 +678,18 @@ function populateSummaryModels(provider) {
 
 // Fetch installed Ollama models from API
 async function fetchOllamaModels() {
-  const baseUrl = (ollamaUrlInput.value.trim() || 'http://localhost:11434/v1').replace(/\/v1\/?$/, '');
+  const rawUrl = ollamaUrlInput.value.trim() || 'http://localhost:11434/v1';
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      alert('Ollama URLはhttpまたはhttpsで始まる必要があります');
+      return;
+    }
+  } catch (e) {
+    alert('Ollama URLが不正です: ' + rawUrl);
+    return;
+  }
+  const baseUrl = rawUrl.replace(/\/v1\/?$/, '');
   fetchModelsBtn.disabled = true;
   fetchModelsBtn.textContent = '取得中...';
   try {

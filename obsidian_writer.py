@@ -35,6 +35,11 @@ class ObsidianWriter:
             output_dir = self.vault_path / self.subfolder
         else:
             output_dir = self.vault_path
+        # パストラバーサル防止: vault_path の外に出ないことを確認
+        resolved = output_dir.resolve()
+        vault_resolved = self.vault_path.resolve()
+        if not str(resolved).startswith(str(vault_resolved)):
+            raise ValueError(f"サブフォルダがVaultの外を指定しています: {self.subfolder}")
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
 

@@ -197,12 +197,14 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
-  // F12 to toggle DevTools
-  mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'F12') {
-      mainWindow.webContents.toggleDevTools();
-    }
-  });
+  // F12 to toggle DevTools (development only)
+  if (isDev) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      if (input.key === 'F12') {
+        mainWindow.webContents.toggleDevTools();
+      }
+    });
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -292,7 +294,8 @@ ipcMain.handle('select-files', async () => {
 
 ipcMain.handle('start-processing', async (event, config) => {
   try {
-    console.log('Starting processing with config:', config);
+    const safeConfig = { ...config, apiKey: config.apiKey ? '[REDACTED]' : '' };
+    console.log('Starting processing with config:', safeConfig);
 
     // Get bundled backend binary
     const binaryPath = getBackendBinaryPath();
