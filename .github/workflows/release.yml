@@ -35,10 +35,10 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
             python -m pip install --upgrade pip
-            python -m pip install -r requirements.txt
+            python -m pip install -r requirements-light.txt
           else
             python3 -m pip install --upgrade pip
-            python3 -m pip install -r requirements.txt
+            python3 -m pip install -r requirements-light.txt
           fi
 
       - name: Install Electron dependencies
@@ -94,28 +94,5 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          body: |
-            ## 🎯 主な変更点
-
-            ### デフォルト出力先の変更
-            - macOS/Windows/Linux全てで `~/Downloads/InstagramTranscripts` に統一
-            - Windowsのファイルアクセス権限エラー（WinError 5）を回避
-
-            ### URL検証の強化
-            - `[object PointerEvent]` エラーを防止
-            - フロントエンド: http/https で始まるURLのみ許可
-            - バックエンド: 無効なURLをスキップして処理継続
-            - 詳細なエラーログを追加
-
-            ## 🐛 修正されたバグ
-            - Windowsでのダウンロードファイルリネーム失敗（WinError 5）
-            - イベントオブジェクトがURLとして渡される問題
-
-            ## 📦 ダウンロード
-            - **Windows (NSIS Installer)**: 自動アップロードされます
-            - **Windows (Portable)**: 自動アップロードされます
-            - **macOS**: 手動でアップロードします
-
-            🤖 Generated with [Claude Code](https://claude.com/claude-code)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
