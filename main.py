@@ -153,14 +153,17 @@ class AudioTranscriptionProcessor:
         # 内容要約（オプション）
         self.summarizer = None
         if summarize:
-            if summary_provider == "ollama" or api_key:
+            effective_api_key = api_key or os.environ.get('OPENAI_API_KEY')
+            if summary_provider == "ollama" or effective_api_key:
                 self.summarizer = ContentSummarizer(
                     provider=summary_provider,
-                    api_key=api_key,
+                    api_key=effective_api_key,
                     prompt=summary_prompt,
                     ollama_url=ollama_url,
                     summary_model=summary_model,
                 )
+            else:
+                print("[WARNING] 内容要約: OpenAI APIキーが設定されていません。要約をスキップします。", flush=True)
 
     def process_file(self, file_path: str) -> bool:
         """
