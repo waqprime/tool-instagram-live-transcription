@@ -48,31 +48,39 @@ jobs:
             !electron-app/dist/*.blockmap
 
   build-macos:
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-latest
     strategy:
       matrix:
         include:
           - arch: arm64
-            runner: macos-latest
+            python_cmd: python3
           - arch: x64
-            runner: macos-12
+            python_cmd: arch -x86_64 python3
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python (arm64)
+        if: matrix.arch == 'arm64'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      - name: Setup Python (x64 via Homebrew x86_64)
+        if: matrix.arch == 'x64'
+        run: |
+          # Install x86_64 Homebrew and Python via Rosetta2
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" < /dev/null
+          arch -x86_64 /usr/local/bin/brew install python@3.11
+
       - name: Install Python dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements-light.txt
+          ${{ matrix.python_cmd }} -m pip install --upgrade pip
+          ${{ matrix.python_cmd }} -m pip install -r requirements-light.txt
 
       - name: Build binary
         run: |
-          pyinstaller instagram-transcriber.spec --clean
+          ${{ matrix.python_cmd }} -m PyInstaller instagram-transcriber.spec --clean
 
       - name: Install Apple Certificate
         env:
