@@ -34,6 +34,13 @@ jobs:
           cd electron-app
           npm install
 
+      - name: Update version in package.json
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd electron-app
+          npm version $VERSION --no-git-tag-version
+
       - name: Build for Windows
         run: |
           cd electron-app
@@ -62,6 +69,12 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements-light.txt
+
+      - name: Update version in package.json
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd electron-app
+          npm version $VERSION --no-git-tag-version
 
       - name: Build binary
         run: |
