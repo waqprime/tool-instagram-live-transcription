@@ -82,6 +82,7 @@
       "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "win": {
+      "artifactName": "TranscriptionTool-${version}-Setup.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -94,7 +95,7 @@
       ]
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "TranscriptionTool-${version}-portable.${ext}"
     },
     "dmg": {
       "title": "文字起こしツール"
