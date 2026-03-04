@@ -205,11 +205,17 @@ class FasterWhisperTranscriber(TranscriberBase):
         except ImportError:
             pass
 
+        # Windowsのシンボリックリンク権限問題を回避するため、
+        # HuggingFaceのキャッシュを使わずアプリ専用ディレクトリに直接ダウンロード
+        model_cache_dir = Path.home() / ".cache" / "transcription-tool" / "models"
+        model_cache_dir.mkdir(parents=True, exist_ok=True)
+
         try:
             self.model = WhisperModel(
                 self.model_name,
                 device=device,
                 compute_type=compute_type,
+                download_root=str(model_cache_dir),
             )
             print(f"[OK] faster-whisper モデル読み込み完了: {self.model_name} (device={device}, compute={compute_type})", flush=True)
         except Exception as e:
@@ -219,6 +225,7 @@ class FasterWhisperTranscriber(TranscriberBase):
                     self.model_name,
                     device="cpu",
                     compute_type="int8",
+                    download_root=str(model_cache_dir),
                 )
                 print(f"[OK] faster-whisper モデル読み込み完了: {self.model_name} (device=cpu, compute=int8)", flush=True)
             else:
