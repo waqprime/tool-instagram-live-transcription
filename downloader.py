@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List
 from utage_extractor import UtageExtractor
+from voicy_extractor import VoicyExtractor
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -43,6 +44,7 @@ class VideoDownloader:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
         self.utage_extractor = UtageExtractor()
+        self.voicy_extractor = VoicyExtractor()
         self.keep_video = keep_video
         self.is_utage_video = False  # UTAGE動画かどうかのフラグ
 
@@ -82,6 +84,12 @@ class VideoDownloader:
             ダウンロードしたファイルのパス、失敗時はNone
         """
         try:
+            # Voicyの場合、専用エクストラクタで音声URLを取得
+            if self.voicy_extractor.is_voicy_url(url):
+                print(f"[INFO] Voicyページを検出: {url}")
+                self.is_utage_video = False
+                return self._download_voicy(url, output_filename)
+
             # UTAGEページの場合、動画URLを抽出（単一動画のみ処理）
             if self.utage_extractor.is_utage_url(url):
                 print(f"[INFO] UTAGEページを検出: {url}")
@@ -149,7 +157,7 @@ class VideoDownloader:
             downloaded_file = None
             if output_filename:
                 # 可能性のある拡張子をチェック
-                for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
                     filepath = self.output_dir / f"{output_filename}.{ext}"
                     if filepath.exists():
                         print(f"[OK] ダウンロード完了: {filepath}")
@@ -158,7 +166,7 @@ class VideoDownloader:
             else:
                 # 最新の動画ファイルを取得（ログファイルを除外）
                 video_files = []
-                for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
                     video_files.extend(self.output_dir.glob(f"*.{ext}"))
 
                 if video_files:
@@ -203,6 +211,110 @@ class VideoDownloader:
             return None
         except Exception as e:
             print(f"[ERROR] 予期しないエラー: {e}")
+            return None
+
+    def _download_voicy(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
+        """
+        Voicy音声をダウンロード
+
+        Args:
+            url: VoicyのURL
+            output_filename: 出力ファイル名（拡張子なし）
+
+        Returns:
+            ダウンロードしたファイルのパス、失敗時はNone
+        """
+        try:
+            result = self.voicy_extractor.extract_audio_info(url)
+            if not result:
+                print("[ERROR] Voicy音声URLの取得に失敗")
+                return None
+
+            audio_url = result['url']
+
+            if output_filename:
+                safe_name = output_filename
+            else:
+                safe_name = re.sub(r'[\\/:*?"<>|]', '_', result.get('title', 'voicy_audio'))
+
+            print(f"[INFO] Voicy音声をダウンロード中: {audio_url[:100]}...")
+
+            # HLS(.m3u8)の場合はffmpegでMP3に直接変換
+            if '.m3u8' in audio_url:
+                output_path = self.output_dir / f"{safe_name}.mp3"
+                return self._download_hls_to_mp3(audio_url, str(output_path))
+            else:
+                # 通常のファイルダウンロード
+                ext = result.get('ext', 'mp3')
+                output_path = self.output_dir / f"{safe_name}.{ext}"
+
+                import requests
+                response = requests.get(audio_url, stream=True, timeout=60, headers={
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                })
+                response.raise_for_status()
+
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+
+                with open(output_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            percent = (downloaded / total_size) * 100
+                            print(f"[PROGRESS] ダウンロード: {percent:.1f}%", flush=True)
+
+                file_size = output_path.stat().st_size / (1024 * 1024)
+                print(f"[OK] ダウンロード完了: {output_path} ({file_size:.2f} MB)")
+                return str(output_path)
+
+        except Exception as e:
+            print(f"[ERROR] Voicyダウンロードエラー: {e}")
+            return None
+
+    def _download_hls_to_mp3(self, m3u8_url: str, output_path: str) -> Optional[str]:
+        """HLS(.m3u8)をffmpegでMP3に変換してダウンロード"""
+        try:
+            ffmpeg_path = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+            if ffmpeg_path and not os.path.isfile(ffmpeg_path):
+                ffmpeg_path = 'ffmpeg'
+
+            cmd = [
+                ffmpeg_path,
+                "-i", m3u8_url,
+                "-acodec", "libmp3lame",
+                "-b:a", "192k",
+                "-y",
+                output_path
+            ]
+
+            print("[INFO] HLS音声をMP3に変換中...", flush=True)
+            result = subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=300,
+            )
+
+            output = Path(output_path)
+            if output.exists():
+                file_size = output.stat().st_size / (1024 * 1024)
+                print(f"[OK] ダウンロード・変換完了: {output_path} ({file_size:.2f} MB)")
+                return output_path
+
+            print("[ERROR] 出力ファイルが生成されませんでした")
+            return None
+
+        except subprocess.CalledProcessError as e:
+            print(f"[ERROR] HLS変換エラー: {e}")
+            if e.stderr:
+                print(f"stderr: {e.stderr[:500]}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] HLS変換エラー: {e}")
             return None
 
     def download_multiple(self, url: str, output_filename_base: Optional[str] = None) -> List[str]:
@@ -283,7 +395,7 @@ class VideoDownloader:
                     # ダウンロードしたファイルを探す
                     downloaded_file = None
                     if filename:
-                        for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                        for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
                             filepath = self.output_dir / f"{filename}.{ext}"
                             if filepath.exists():
                                 downloaded_file = str(filepath)
@@ -291,7 +403,7 @@ class VideoDownloader:
                     else:
                         # 最新の動画ファイルを取得
                         video_files = []
-                        for ext in ['mp4', 'webm', 'mkv', 'm4a']:
+                        for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
                             video_files.extend(self.output_dir.glob(f"*.{ext}"))
                         if video_files:
                             files = sorted(video_files, key=os.path.getmtime)
@@ -355,6 +467,19 @@ class VideoDownloader:
         Returns:
             動画・音声情報の辞書、失敗時はNone
         """
+        # Voicy URLの場合はAPIから情報取得
+        if self.voicy_extractor.is_voicy_url(url):
+            channel_info = self.voicy_extractor._api_get(
+                f"/channel/{self.voicy_extractor._parse_url(url)['channel_id']}"
+            )
+            if channel_info:
+                return {
+                    'title': channel_info.get('name', 'Voicy'),
+                    'uploader': channel_info.get('personality', {}).get('name', ''),
+                    'id': channel_info.get('id', ''),
+                }
+            return None
+
         try:
             import yt_dlp
             import concurrent.futures

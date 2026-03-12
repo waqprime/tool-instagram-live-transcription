@@ -130,6 +130,6 @@ exe = EXE(
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=target_arch,
-    codesign_identity=None,
+    codesign_identity=os.environ.get('CODESIGN_IDENTITY', None),
     entitlements_file=None,
 )

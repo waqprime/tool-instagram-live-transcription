@@ -340,23 +340,27 @@ class AudioTranscriptionProcessor:
             print("[ERROR] ダウンロード失敗")
             return False
 
-        # ステップ2: 音声をMP3に変換
-        print(f"\n【ステップ2/3】音声抽出")
-        mp3_file = self.converter.extract_audio(video_file)
-        if not mp3_file:
-            print("[ERROR] 音声抽出失敗")
-            return False
-
-        # 動画ファイルの処理（保持 or 削除）
-        if self.keep_video:
-            print(f"[OK] 動画ファイルを保持: {video_file}")
+        # ステップ2: 音声をMP3に変換（すでにMP3の場合はスキップ）
+        if video_file.lower().endswith('.mp3'):
+            print(f"\n【ステップ2/3】音声抽出（MP3のためスキップ）")
+            mp3_file = video_file
         else:
-            try:
-                if video_file != mp3_file:
-                    os.remove(video_file)
-                    print(f"[OK] 元の動画ファイルを削除: {video_file}")
-            except Exception as e:
-                print(f"[WARNING] 動画ファイル削除時の警告: {e}")
+            print(f"\n【ステップ2/3】音声抽出")
+            mp3_file = self.converter.extract_audio(video_file)
+            if not mp3_file:
+                print("[ERROR] 音声抽出失敗")
+                return False
+
+            # 動画ファイルの処理（保持 or 削除）
+            if self.keep_video:
+                print(f"[OK] 動画ファイルを保持: {video_file}")
+            else:
+                try:
+                    if video_file != mp3_file:
+                        os.remove(video_file)
+                        print(f"[OK] 元の動画ファイルを削除: {video_file}")
+                except Exception as e:
+                    print(f"[WARNING] 動画ファイル削除時の警告: {e}")
 
         # ステップ3: 音声を文字起こし
         print(f"\n【ステップ3/3】文字起こし")
