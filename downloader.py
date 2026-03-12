@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional, Dict, List
 from utage_extractor import UtageExtractor
 from voicy_extractor import VoicyExtractor
+from standfm_extractor import StandfmExtractor
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -45,6 +46,7 @@ class VideoDownloader:
         self.output_dir.mkdir(exist_ok=True)
         self.utage_extractor = UtageExtractor()
         self.voicy_extractor = VoicyExtractor()
+        self.standfm_extractor = StandfmExtractor()
         self.keep_video = keep_video
         self.is_utage_video = False  # UTAGE動画かどうかのフラグ
 
@@ -89,6 +91,12 @@ class VideoDownloader:
                 print(f"[INFO] Voicyページを検出: {url}")
                 self.is_utage_video = False
                 return self._download_voicy(url, output_filename)
+
+            # stand.fmの場合、専用エクストラクタで音声URLを取得
+            if self.standfm_extractor.is_standfm_url(url):
+                print(f"[INFO] stand.fmページを検出: {url}")
+                self.is_utage_video = False
+                return self._download_standfm(url, output_filename)
 
             # UTAGEページの場合、動画URLを抽出（単一動画のみ処理）
             if self.utage_extractor.is_utage_url(url):
@@ -317,6 +325,116 @@ class VideoDownloader:
             print(f"[ERROR] HLS変換エラー: {e}")
             return None
 
+    def _download_standfm(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
+        """
+        stand.fm音声をダウンロード
+
+        Args:
+            url: stand.fmのURL
+            output_filename: 出力ファイル名（拡張子なし）
+
+        Returns:
+            ダウンロードしたファイルのパス、失敗時はNone
+        """
+        try:
+            result = self.standfm_extractor.extract_audio_info(url)
+            if not result:
+                print("[ERROR] stand.fm音声URLの取得に失敗")
+                return None
+
+            audio_url = result['url']
+
+            if output_filename:
+                safe_name = output_filename
+            else:
+                safe_name = re.sub(r'[\\/:*?"<>|]', '_', result.get('title', 'standfm_audio'))
+
+            ext = result.get('ext', 'm4a')
+            print(f"[INFO] stand.fm音声をダウンロード中: {audio_url[:100]}...")
+
+            # HLS(.m3u8)の場合はffmpegでMP3に変換
+            if '.m3u8' in audio_url:
+                output_path = self.output_dir / f"{safe_name}.mp3"
+                return self._download_hls_to_mp3(audio_url, str(output_path))
+
+            # M4Aを直接ダウンロード
+            output_path = self.output_dir / f"{safe_name}.{ext}"
+
+            import requests
+            response = requests.get(audio_url, stream=True, timeout=60, headers={
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            })
+            response.raise_for_status()
+
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+
+            with open(output_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0 and downloaded % (8192 * 100) == 0:
+                        percent = (downloaded / total_size) * 100
+                        print(f"\r[PROGRESS] ダウンロード: {percent:.1f}%", end="", flush=True)
+
+            if total_size > 0:
+                print()  # 改行
+
+            file_size = output_path.stat().st_size / (1024 * 1024)
+            print(f"[OK] ダウンロード完了: {output_path} ({file_size:.2f} MB)")
+
+            # M4AをMP3に変換
+            mp3_path = self.output_dir / f"{safe_name}.mp3"
+            return self._convert_m4a_to_mp3(str(output_path), str(mp3_path))
+
+        except Exception as e:
+            print(f"[ERROR] stand.fmダウンロードエラー: {e}")
+            return None
+
+    def _convert_m4a_to_mp3(self, input_path: str, output_path: str) -> Optional[str]:
+        """M4AをMP3に変換"""
+        try:
+            ffmpeg_path = os.environ.get('FFMPEG_BINARY', 'ffmpeg')
+            if ffmpeg_path and not os.path.isfile(ffmpeg_path):
+                ffmpeg_path = 'ffmpeg'
+
+            cmd = [
+                ffmpeg_path,
+                "-i", input_path,
+                "-acodec", "libmp3lame",
+                "-b:a", "192k",
+                "-y",
+                output_path
+            ]
+
+            print("[INFO] M4AをMP3に変換中...", flush=True)
+            subprocess.run(
+                cmd,
+                check=True,
+                capture_output=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=300,
+            )
+
+            output = Path(output_path)
+            if output.exists():
+                # 元のM4Aを削除
+                try:
+                    os.remove(input_path)
+                except Exception:
+                    pass
+                file_size = output.stat().st_size / (1024 * 1024)
+                print(f"[OK] 変換完了: {output_path} ({file_size:.2f} MB)")
+                return output_path
+
+            print("[ERROR] MP3ファイルが生成されませんでした")
+            return input_path  # 変換失敗時はM4Aを返す
+
+        except Exception as e:
+            print(f"[WARNING] MP3変換失敗、M4Aのまま使用: {e}")
+            return input_path
+
     def download_multiple(self, url: str, output_filename_base: Optional[str] = None) -> List[str]:
         """
         UTAGE等の複数動画があるページから全動画をダウンロード
@@ -467,6 +585,10 @@ class VideoDownloader:
         Returns:
             動画・音声情報の辞書、失敗時はNone
         """
+        # stand.fm URLの場合は専用エクストラクタから情報取得
+        if self.standfm_extractor.is_standfm_url(url):
+            return self.standfm_extractor.get_video_info(url)
+
         # Voicy URLの場合はAPIから情報取得
         if self.voicy_extractor.is_voicy_url(url):
             channel_info = self.voicy_extractor._api_get(
