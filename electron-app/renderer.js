@@ -80,9 +80,9 @@ const SUMMARY_MODELS = {
     { value: 'gpt-4o', label: 'gpt-4o' },
   ],
   'gemini': [
-    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash（推奨）', selected: true },
-    { value: 'gemini-2.0-flash-lite', label: 'gemini-2.0-flash-lite（軽量）' },
-    { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash' },
+    { value: 'gemini-2.5-flash', label: 'gemini-2.5-flash（推奨）', selected: true },
+    { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite（軽量・高速）' },
+    { value: 'gemini-2.5-pro', label: 'gemini-2.5-pro（高精度）' },
   ],
   'ollama': [
     { value: 'gemma3', label: 'gemma3（推奨）', selected: true },

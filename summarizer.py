@@ -21,7 +21,7 @@ DEFAULT_SUMMARY_PROMPT = (
 DEFAULT_OLLAMA_URL = "http://localhost:11434/v1"
 DEFAULT_OLLAMA_MODEL = "gemma3"
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 class ContentSummarizer:

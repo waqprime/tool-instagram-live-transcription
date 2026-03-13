@@ -773,7 +773,7 @@ def main():
     parser.add_argument(
         "--summary-model",
         default=None,
-        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3, gemini: gemini-2.0-flash がデフォルト）"
+        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3, gemini: gemini-2.5-flash がデフォルト）"
     )
     parser.add_argument(
         "--gemini-api-key",
