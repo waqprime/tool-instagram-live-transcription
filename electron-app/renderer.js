@@ -66,6 +66,9 @@ const ENGINE_MODELS = {
     { value: 'base', label: 'base - 軽量' },
     { value: 'tiny', label: 'tiny - 最速（精度は低め）' },
   ],
+  'kotoba-whisper': [
+    { value: 'kotoba-whisper-v2.0', label: 'kotoba-whisper-v2.0 - 日本語特化（推奨）', selected: true },
+  ],
   'openai-api': [
     { value: 'gpt-4o-transcribe', label: 'gpt-4o-transcribe - 最高精度（推奨）', selected: true },
     { value: 'gpt-4o-mini-transcribe', label: 'gpt-4o-mini-transcribe - 高速・低コスト' },

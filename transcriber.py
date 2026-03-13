@@ -567,6 +567,188 @@ class KotobaWhisperTranscriber(TranscriberBase):
 
 
 # ---------------------------------------------------------------------------
+# Engine 5: Kotoba-Whisper External (システムPython経由)
+# ---------------------------------------------------------------------------
+class KotobaWhisperExternalTranscriber(TranscriberBase):
+    """システムPythonでkotoba-whisperを実行するトランスクライバー
+
+    PyInstallerビルドではtorch/transformersが除外されているため、
+    システムにインストールされたPythonを使って別プロセスで実行する。
+    必要なパッケージが未インストールの場合は自動インストールを試みる。
+    """
+
+    MODELS = ["kotoba-whisper-v2.0"]
+    DEFAULT_MODEL = "kotoba-whisper-v2.0"
+
+    def __init__(self, model_name: Optional[str] = None, language: str = "ja"):
+        name = model_name or self.DEFAULT_MODEL
+        super().__init__(name, language)
+        self.python_cmd = self._find_system_python()
+        if not self.python_cmd:
+            raise ImportError(
+                "システムにPython 3が見つかりません。\n"
+                "kotoba-whisperを使用するにはPython 3をインストールしてください。\n"
+                "  macOS: brew install python3\n"
+                "  Windows: https://www.python.org/downloads/"
+            )
+        self._ensure_dependencies()
+        print(f"[kotoba-whisper] システムPython経由で実行します: {self.python_cmd}", flush=True)
+
+    def _find_system_python(self) -> Optional[str]:
+        """システムにインストールされたPython 3を探す"""
+        import shutil
+        import subprocess
+
+        candidates = ["python3", "python"]
+        for cmd in candidates:
+            path = shutil.which(cmd)
+            if path:
+                # PyInstallerの内部Pythonではないことを確認
+                try:
+                    result = subprocess.run(
+                        [path, "-c", "import sys; print(sys.executable)"],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    exe = result.stdout.strip()
+                    # _MEI（PyInstaller展開先）を含むものはスキップ
+                    if "_MEI" in exe or "_internal" in exe:
+                        continue
+                    # torchがインポートできるか確認（既にインストール済みなら優先）
+                    return path
+                except Exception:
+                    continue
+        return None
+
+    def _ensure_dependencies(self):
+        """必要なパッケージがインストールされているか確認し、なければインストール"""
+        import subprocess
+
+        # torch + transformers の確認
+        check_script = "import torch; import transformers; print('OK')"
+        try:
+            result = subprocess.run(
+                [self.python_cmd, "-c", check_script],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0 and "OK" in result.stdout:
+                print("[kotoba-whisper] 依存パッケージ確認OK", flush=True)
+                return
+        except Exception:
+            pass
+
+        # 自動インストール
+        print("[kotoba-whisper] 必要なパッケージをインストール中... (初回のみ、数分かかります)", flush=True)
+        packages = ["torch", "transformers", "accelerate"]
+        try:
+            subprocess.run(
+                [self.python_cmd, "-m", "pip", "install", "--quiet"] + packages,
+                check=True, timeout=600,
+            )
+            print("[OK] パッケージのインストール完了", flush=True)
+        except subprocess.CalledProcessError as e:
+            raise ImportError(
+                f"kotoba-whisper の依存パッケージのインストールに失敗しました。\n"
+                f"手動でインストールしてください:\n"
+                f"  {self.python_cmd} -m pip install torch transformers accelerate"
+            )
+
+    def _run_transcription(self, audio_path: str) -> Optional[Dict]:
+        """別プロセスでkotoba-whisperを実行"""
+        import subprocess
+        import tempfile
+
+        # 一時スクリプトを作成して実行
+        script = f'''
+import json, sys
+try:
+    import torch
+    from transformers import pipeline
+
+    device = "cpu"
+    torch_dtype = torch.float32
+    if torch.cuda.is_available():
+        device = "cuda"
+        torch_dtype = torch.float16
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = "mps"
+        torch_dtype = torch.float16
+
+    print(f"[kotoba-whisper] device={{device}}", file=sys.stderr, flush=True)
+
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model="kotoba-tech/kotoba-whisper-v2.0",
+        device=device,
+        torch_dtype=torch_dtype,
+        chunk_length_s=30,
+    )
+
+    result = pipe(
+        "{audio_path.replace(chr(92), '/').replace('"', '\\"')}",
+        return_timestamps=True,
+        generate_kwargs={{"language": "japanese", "task": "transcribe"}},
+    )
+
+    text = result.get("text", "")
+    segments = []
+    for chunk in result.get("chunks", []):
+        ts = chunk.get("timestamp", (0.0, 0.0))
+        start = ts[0] if ts[0] is not None else 0.0
+        end = ts[1] if ts[1] is not None else start
+        segments.append({{"start": float(start), "end": float(end), "text": chunk.get("text", "")}})
+
+    if not segments:
+        segments.append({{"start": 0.0, "end": 0.0, "text": text}})
+
+    print(json.dumps({{"text": text, "segments": segments}}, ensure_ascii=False))
+except Exception as e:
+    print(f"ERROR: {{e}}", file=sys.stderr)
+    sys.exit(1)
+'''
+
+        try:
+            print("[kotoba-whisper] 文字起こしを実行中... (初回はモデルダウンロードのため時間がかかります)", flush=True)
+            result = subprocess.run(
+                [self.python_cmd, "-c", script],
+                capture_output=True, text=True,
+                timeout=1800,  # 30分タイムアウト
+            )
+
+            # stderrのログを表示
+            if result.stderr:
+                for line in result.stderr.strip().split('\n'):
+                    if line.strip():
+                        print(f"  {line}", flush=True)
+
+            if result.returncode != 0:
+                print(f"[ERROR] kotoba-whisper 実行エラー (exit code {result.returncode})", flush=True)
+                return None
+
+            # stdoutからJSON結果をパース
+            output = result.stdout.strip()
+            if not output:
+                print("[ERROR] kotoba-whisper: 出力が空です", flush=True)
+                return None
+
+            # 最後の行がJSONのはず
+            json_line = output.strip().split('\n')[-1]
+            data = json.loads(json_line)
+            print(f"[OK] kotoba-whisper 文字起こし完了", flush=True)
+            return data
+
+        except subprocess.TimeoutExpired:
+            print("[ERROR] kotoba-whisper: タイムアウト (30分)", flush=True)
+            return None
+        except json.JSONDecodeError as e:
+            print(f"[ERROR] kotoba-whisper: 結果のパースに失敗: {e}", flush=True)
+            return None
+        except Exception as e:
+            print(f"[ERROR] kotoba-whisper: {e}", flush=True)
+            traceback.print_exc()
+            return None
+
+
+# ---------------------------------------------------------------------------
 # Factory function
 # ---------------------------------------------------------------------------
 def create_transcriber(
@@ -603,12 +785,15 @@ def create_transcriber(
         )
 
     if engine == "kotoba-whisper":
-        raise ValueError(
-            "kotoba-whisper エンジンはこのビルドではサポートされていません。"
-            " faster-whisper または openai-api を使用してください。"
-        )
+        try:
+            return KotobaWhisperTranscriber(model_name=model, language=language)
+        except ImportError:
+            # PyInstallerビルドではtorch/transformersが除外されている
+            # システムPythonにフォールバック
+            print("[INFO] kotoba-whisper: バンドル版にtorch未同梱。システムPythonで実行します。", flush=True)
+            return KotobaWhisperExternalTranscriber(model_name=model, language=language)
 
-    raise ValueError(f"不明なエンジン: {engine}  (選択肢: faster-whisper, openai-api)")
+    raise ValueError(f"不明なエンジン: {engine}  (選択肢: faster-whisper, openai-api, kotoba-whisper)")
 
 
 # ---------------------------------------------------------------------------
