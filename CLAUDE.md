@@ -119,6 +119,29 @@ python transcriber.py audio.mp3 --model base
 - **webdriver-manager**: ChromeDriverの自動インストール
 - **pydub**: 音声ファイル操作（Whisperの依存関係）
 
+## Build & Release
+
+### 配布形態
+- **macOS / Windows**: Electronアプリ（`electron-app/`）として配布。CLIバイナリ単体ではない
+- **CI (GitHub Actions)**: Windows + macOS arm64 を自動ビルド・署名・公証・リリース
+- **Intel Mac (x64)**: CIでは対応不可。ローカルで手動ビルドする
+  - `venv-x64/` を使用し `--onedir` モードでPyInstallerビルド
+  - 全バイナリに個別署名 + Apple notarization が必要
+  - `--onefile` モードではPython.frameworkの署名問題でIntel Macで実行不可
+
+### Intel Mac 手動ビルド手順
+```bash
+# 1. Electronアプリとしてx64ビルド
+cd electron-app
+TARGET_ARCH=x64 node build-scripts/build-backend.js
+CSC_LINK="..." CSC_KEY_PASSWORD="..." \
+  APPLE_ID="..." APPLE_APP_SPECIFIC_PASSWORD="..." APPLE_TEAM_ID="..." \
+  npm run build:mac-x64
+
+# 2. リリースにアップロード
+gh release upload vX.Y.Z electron-app/dist/TranscriptionTool-*.dmg
+```
+
 ## Known Limitations
 
 - Instagram動画のダウンロードは公開コンテンツに限定される
