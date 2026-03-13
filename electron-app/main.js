@@ -401,46 +401,13 @@ ipcMain.handle('open-folder', async (event, folderPath) => {
 
 // Auto-update functions
 function checkForUpdates() {
-  // Check if running as portable
-  const isPortable = process.env.PORTABLE_EXECUTABLE_DIR !== undefined ||
-                     process.argv.some(arg => arg.includes('portable'));
-
-  if (isPortable) {
-    console.log('Running as portable - checking for updates manually');
-    // For portable version, we'll check GitHub releases manually
-    checkPortableUpdate();
-  } else {
-    // For installed version (NSIS), use electron-updater
-    autoUpdater.checkForUpdatesAndNotify();
-
-    autoUpdater.on('update-available', (info) => {
-      console.log('Update available:', info.version);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-available', info);
-      }
-    });
-
-    autoUpdater.on('update-downloaded', (info) => {
-      console.log('Update downloaded:', info.version);
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-downloaded', info);
-      }
-    });
-
-    autoUpdater.on('error', (error) => {
-      console.error('Auto-updater error:', error);
-    });
-
-    autoUpdater.on('download-progress', (progressObj) => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-progress', progressObj);
-      }
-    });
-  }
+  // 全プラットフォーム共通: GitHub APIでリリースをチェック
+  console.log('Checking for updates via GitHub API...');
+  checkGitHubUpdate();
 }
 
-// Check for updates for portable version
-async function checkPortableUpdate() {
+// GitHub APIで最新リリースをチェック
+async function checkGitHubUpdate() {
   try {
     const https = require('https');
     const currentVersion = app.getVersion();
@@ -449,7 +416,7 @@ async function checkPortableUpdate() {
       hostname: 'api.github.com',
       path: '/repos/waqprime/tool-instagram-live-transcription/releases/latest',
       headers: {
-        'User-Agent': 'Instagram-Live-Transcription'
+        'User-Agent': 'TranscriptionTool'
       }
     };
 
@@ -463,7 +430,7 @@ async function checkPortableUpdate() {
 
           console.log(`Current version: ${currentVersion}, Latest version: ${latestVersion}`);
 
-          // semver比較: "1.10.0" > "1.9.0" を正しく判定
+          // semver比較
           const compareSemver = (a, b) => {
             const pa = a.split('.').map(Number);
             const pb = b.split('.').map(Number);
@@ -477,18 +444,16 @@ async function checkPortableUpdate() {
           };
 
           if (compareSemver(latestVersion, currentVersion) > 0) {
-            // Find portable asset
-            const portableAsset = release.assets.find(asset =>
-              asset.name.includes('portable') && asset.name.endsWith('.exe')
-            );
-
-            if (portableAsset && mainWindow && !mainWindow.isDestroyed()) {
+            console.log(`Update available: ${latestVersion}`);
+            if (mainWindow && !mainWindow.isDestroyed()) {
               mainWindow.webContents.send('update-available-portable', {
                 version: latestVersion,
-                downloadUrl: portableAsset.browser_download_url,
+                downloadUrl: release.html_url,
                 releaseUrl: release.html_url
               });
             }
+          } else {
+            console.log('App is up to date.');
           }
         } catch (err) {
           console.error('Error parsing release data:', err);
@@ -498,7 +463,7 @@ async function checkPortableUpdate() {
       console.error('Error checking for updates:', err);
     });
   } catch (error) {
-    console.error('Error in checkPortableUpdate:', error);
+    console.error('Error in checkGitHubUpdate:', error);
   }
 }
 
