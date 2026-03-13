@@ -72,18 +72,27 @@ if (TARGET_ARCH) {
   console.log(`Target architecture: ${TARGET_ARCH} → PyInstaller: ${pyinstallerArch}`);
 }
 
-// On macOS arm64 host building for x64, use arch -x86_64 prefix
+// On macOS arm64 host building for x64, use venv-x64 python
 const isCrossCompileX64 = platform === 'darwin' && TARGET_ARCH === 'x64' && process.arch === 'arm64';
-const cmdPrefix = isCrossCompileX64 ? 'arch -x86_64 ' : '';
+let pyinstallerCmd = `${pythonCmd} -m PyInstaller`;
 
 if (isCrossCompileX64) {
-  console.log('Cross-compiling: arm64 host → x86_64 target (using arch -x86_64)');
+  // Use x64 venv's pyinstaller directly (system python3 is arm64-only)
+  const venvX64Pyinstaller = path.join(ROOT_DIR, 'venv-x64', 'bin', 'pyinstaller');
+  const venvX64Exists = fs.existsSync(venvX64Pyinstaller);
+  if (venvX64Exists) {
+    pyinstallerCmd = `arch -x86_64 ${venvX64Pyinstaller}`;
+    console.log(`Cross-compiling: using venv-x64 PyInstaller (${venvX64Pyinstaller})`);
+  } else {
+    pyinstallerCmd = `arch -x86_64 ${pythonCmd} -m PyInstaller`;
+    console.log('Cross-compiling: arm64 host → x86_64 target (using arch -x86_64)');
+  }
 }
 
 // Build with PyInstaller
 try {
   console.log('Running PyInstaller...');
-  execSync(`${cmdPrefix}${pythonCmd} -m PyInstaller ${specFile} --clean`, {
+  execSync(`${pyinstallerCmd} ${specFile} --clean`, {
     stdio: 'inherit',
     cwd: ROOT_DIR,
     env: buildEnv
