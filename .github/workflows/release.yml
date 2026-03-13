@@ -54,11 +54,16 @@ jobs:
             electron-app/dist/*.exe
             !electron-app/dist/*.blockmap
 
-  build-macos:
+  build-macos-arm64:
     runs-on: macos-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -69,16 +74,6 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements-light.txt
-
-      - name: Update version in package.json
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          cd electron-app
-          npm version $VERSION --no-git-tag-version
-
-      - name: Build binary
-        run: |
-          pyinstaller instagram-transcriber.spec --clean
 
       - name: Install Apple Certificate
         env:
@@ -94,37 +89,39 @@ jobs:
           security list-keychains -d user -s build.keychain
           security set-key-partition-list -S apple-tool:,apple: -s -k "$MACOS_CERTIFICATE_PWD" build.keychain
 
-      - name: Sign binary
+      - name: Install Electron dependencies
         run: |
-          codesign --sign "Developer ID Application: WAQPRIME (QFSX3T23BY)" \
-            --options runtime \
-            --timestamp \
-            --force \
-            dist/instagram-transcriber
+          cd electron-app
+          npm install
 
-      - name: Notarize and package
+      - name: Update version in package.json
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd electron-app
+          npm version $VERSION --no-git-tag-version
+
+      - name: Build for macOS arm64
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
         run: |
-          VERSION=${{ github.ref_name }}
-          ZIP_NAME="instagram-transcriber-${VERSION}-macos-arm64.zip"
-          zip -j "dist/${ZIP_NAME}" dist/instagram-transcriber
-          xcrun notarytool submit "dist/${ZIP_NAME}" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait
+          cd electron-app
+          npm run build:mac-arm64
 
-      - name: Upload macOS artifact
+      - name: Upload macOS arm64 artifacts
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-build
-          path: dist/instagram-transcriber-*-macos-arm64.zip
+          path: |
+            electron-app/dist/*.dmg
+            electron-app/dist/*.zip
+            !electron-app/dist/*.blockmap
 
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos-arm64]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -151,9 +148,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/windows-build/*
-            artifacts/macos-arm64-build/*
-            artifacts/macos-x64-build/*
+            artifacts/windows-build/**/*
+            artifacts/macos-arm64-build/**/*
           draft: false
           prerelease: false
           generate_release_notes: true
