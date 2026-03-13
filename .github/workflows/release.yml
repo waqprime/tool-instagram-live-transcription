@@ -39,7 +39,7 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           cd electron-app
-          npm version $VERSION --no-git-tag-version
+          npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Build for Windows
         run: |
@@ -98,7 +98,7 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           cd electron-app
-          npm version $VERSION --no-git-tag-version
+          npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Build for macOS arm64
         env:
