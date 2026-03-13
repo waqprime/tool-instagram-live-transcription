@@ -177,6 +177,7 @@
             <label class="setting-label" for="summary-provider-select">要約エンジン</label>
             <select id="summary-provider-select" class="glass-select">
               <option value="openai" selected>OpenAI API (gpt-4o-mini)</option>
+              <option value="gemini">Gemini API (gemini-2.0-flash)</option>
               <option value="ollama">ローカルLLM (Ollama)</option>
             </select>
           </div>
@@ -191,6 +192,18 @@
               </select>
               <button id="fetch-models-btn" class="btn btn-secondary" style="display: none;" type="button">取得</button>
             </div>
+          </div>
+
+          <!-- Gemini API Key -->
+          <div class="setting-item" id="gemini-api-key-section" style="display: none;">
+            <label class="setting-label" for="gemini-api-key-input">Gemini APIキー</label>
+            <input
+              type="password"
+              id="gemini-api-key-input"
+              class="glass-input"
+              placeholder="AIza..."
+            >
+            <p class="hint-text-small"><a href="https://aistudio.google.com/apikey" target="_blank" style="color: #8ab4f8;">Google AI Studio</a> でAPIキーを取得できます</p>
           </div>
 
           <!-- Ollama URL -->

@@ -27,6 +27,8 @@ const summaryProviderSelect = document.getElementById('summary-provider-select')
 const summaryModelSection = document.getElementById('summary-model-section');
 const summaryModelSelect = document.getElementById('summary-model-select');
 const fetchModelsBtn = document.getElementById('fetch-models-btn');
+const geminiApiKeySection = document.getElementById('gemini-api-key-section');
+const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
 const ollamaUrlSection = document.getElementById('ollama-url-section');
 const ollamaUrlInput = document.getElementById('ollama-url-input');
 const summaryPromptSection = document.getElementById('summary-prompt-section');
@@ -77,6 +79,11 @@ const SUMMARY_MODELS = {
     { value: 'gpt-4o-mini', label: 'gpt-4o-mini（推奨）', selected: true },
     { value: 'gpt-4o', label: 'gpt-4o' },
   ],
+  'gemini': [
+    { value: 'gemini-2.0-flash', label: 'gemini-2.0-flash（推奨）', selected: true },
+    { value: 'gemini-2.0-flash-lite', label: 'gemini-2.0-flash-lite（軽量）' },
+    { value: 'gemini-1.5-flash', label: 'gemini-1.5-flash' },
+  ],
   'ollama': [
     { value: 'gemma3', label: 'gemma3（推奨）', selected: true },
     { value: 'llama3.1', label: 'llama3.1' },
@@ -120,6 +127,12 @@ async function init() {
       ollamaUrlSection.style.display = '';
       fetchModelsBtn.style.display = '';
     }
+    if (settings.summaryProvider === 'gemini') {
+      geminiApiKeySection.style.display = '';
+    }
+  }
+  if (settings.geminiApiKey) {
+    geminiApiKeyInput.value = settings.geminiApiKey;
   }
   if (settings.summaryModel) {
     summaryModelSelect.value = settings.summaryModel;
@@ -321,6 +334,13 @@ async function startProcessing() {
     return;
   }
 
+  // Validate Gemini API key when summarize with Gemini is enabled
+  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'gemini' && !geminiApiKeyInput.value.trim()) {
+    alert('Geminiでの内容要約を使用するにはGemini APIキーを入力してください');
+    geminiApiKeyInput.focus();
+    return;
+  }
+
   // Save settings to file
   const obsidianVault = obsidianVaultDirInput.value.trim();
   const obsidianSubfolder = obsidianSubfolderInput.value.trim();
@@ -333,6 +353,7 @@ async function startProcessing() {
     summaryModel: summaryModelSelect.value,
     summaryPrompt: summaryPromptInput.value.trim() || undefined,
     ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
+    geminiApiKey: summaryProviderSelect.value === 'gemini' ? geminiApiKeyInput.value.trim() : undefined,
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : undefined,
     outputDir: outputDirectory,
@@ -397,6 +418,7 @@ async function startProcessing() {
     summaryModel: summarizeCheckbox.checked ? summaryModelSelect.value : '',
     summaryPrompt: summarizeCheckbox.checked ? summaryPromptInput.value.trim() : '',
     ollamaUrl: summarizeCheckbox.checked ? ollamaUrlInput.value.trim() : '',
+    geminiApiKey: summarizeCheckbox.checked ? geminiApiKeyInput.value.trim() : '',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : '',
     obsidianFolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : '',
   };
@@ -660,6 +682,7 @@ function onSummaryProviderChange() {
   const provider = summaryProviderSelect.value;
   ollamaUrlSection.style.display = provider === 'ollama' ? '' : 'none';
   fetchModelsBtn.style.display = provider === 'ollama' ? '' : 'none';
+  geminiApiKeySection.style.display = provider === 'gemini' ? '' : 'none';
   populateSummaryModels(provider);
 }
 
@@ -753,6 +776,7 @@ async function saveAndCloseSettings() {
     summaryModel: summaryModelSelect.value,
     summaryPrompt: summaryPromptInput.value.trim() || undefined,
     ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
+    geminiApiKey: summaryProviderSelect.value === 'gemini' ? geminiApiKeyInput.value.trim() : undefined,
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVaultDirInput.value.trim() : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolderInput.value.trim() : undefined,
     outputDir: outputDirectory,

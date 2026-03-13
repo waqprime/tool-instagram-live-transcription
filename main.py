@@ -90,6 +90,7 @@ class AudioTranscriptionProcessor:
         summary_provider: str = "openai",
         ollama_url: Optional[str] = None,
         summary_model: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ):
         """
         Args:
@@ -104,9 +105,10 @@ class AudioTranscriptionProcessor:
             obsidian_folder: Vault内のサブフォルダパス
             summarize: 内容要約を実行するかどうか
             summary_prompt: 要約プロンプト（カスタム）
-            summary_provider: 要約プロバイダ ("openai" or "ollama")
+            summary_provider: 要約プロバイダ ("openai", "ollama", "gemini")
             ollama_url: OllamaのAPIエンドポイント
             summary_model: 要約に使用するモデル名
+            gemini_api_key: Gemini APIキー
         """
         # output_dirが指定されていない場合はOSごとのデフォルトを使用
         if output_dir is None:
@@ -154,16 +156,21 @@ class AudioTranscriptionProcessor:
         self.summarizer = None
         if summarize:
             effective_api_key = api_key or os.environ.get('OPENAI_API_KEY')
-            if summary_provider == "ollama" or effective_api_key:
+            effective_gemini_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
+            if summary_provider == "ollama" or \
+               (summary_provider == "gemini" and effective_gemini_key) or \
+               (summary_provider == "openai" and effective_api_key):
                 self.summarizer = ContentSummarizer(
                     provider=summary_provider,
                     api_key=effective_api_key,
                     prompt=summary_prompt,
                     ollama_url=ollama_url,
                     summary_model=summary_model,
+                    gemini_api_key=effective_gemini_key,
                 )
             else:
-                print("[WARNING] 内容要約: OpenAI APIキーが設定されていません。要約をスキップします。", flush=True)
+                label = {"gemini": "Gemini", "openai": "OpenAI"}.get(summary_provider, summary_provider)
+                print(f"[WARNING] 内容要約: {label} APIキーが設定されていません。要約をスキップします。", flush=True)
 
     def process_file(self, file_path: str) -> bool:
         """
@@ -755,7 +762,7 @@ def main():
     parser.add_argument(
         "--summary-provider",
         default="openai",
-        choices=["openai", "ollama"],
+        choices=["openai", "ollama", "gemini"],
         help="要約プロバイダ（デフォルト: openai）"
     )
     parser.add_argument(
@@ -766,7 +773,12 @@ def main():
     parser.add_argument(
         "--summary-model",
         default=None,
-        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3 がデフォルト）"
+        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3, gemini: gemini-2.0-flash がデフォルト）"
+    )
+    parser.add_argument(
+        "--gemini-api-key",
+        default=None,
+        help="Gemini APIキー（gemini 要約プロバイダ使用時に必要。環境変数 GEMINI_API_KEY でも指定可）"
     )
 
     args = parser.parse_args()
@@ -787,6 +799,7 @@ def main():
         summary_provider=args.summary_provider,
         ollama_url=args.ollama_url,
         summary_model=args.summary_model,
+        gemini_api_key=args.gemini_api_key,
     )
 
     # 単一URL処理、ローカルファイル処理、またはファイル一括処理

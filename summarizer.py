@@ -20,6 +20,8 @@ DEFAULT_SUMMARY_PROMPT = (
 
 DEFAULT_OLLAMA_URL = "http://localhost:11434/v1"
 DEFAULT_OLLAMA_MODEL = "gemma3"
+DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 
 
 class ContentSummarizer:
@@ -32,14 +34,16 @@ class ContentSummarizer:
         prompt: Optional[str] = None,
         ollama_url: Optional[str] = None,
         summary_model: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
     ):
         """
         Args:
-            provider: 要約プロバイダ ("openai" or "ollama")
+            provider: 要約プロバイダ ("openai", "ollama", "gemini")
             api_key: OpenAI APIキー（openai使用時、省略時は環境変数から取得）
             prompt: 要約プロンプト（省略時はデフォルトプロンプト）
             ollama_url: OllamaのAPIエンドポイント（省略時はデフォルト）
             summary_model: 使用するモデル名（省略時はプロバイダのデフォルト）
+            gemini_api_key: Gemini APIキー（gemini使用時、省略時は環境変数から取得）
         """
         self.provider = provider
         self.prompt = prompt or DEFAULT_SUMMARY_PROMPT
@@ -48,6 +52,10 @@ class ContentSummarizer:
             self.base_url = ollama_url or DEFAULT_OLLAMA_URL
             self.model = summary_model or DEFAULT_OLLAMA_MODEL
             self.api_key = "ollama"  # Ollamaはダミーキーでよい
+        elif provider == "gemini":
+            self.base_url = DEFAULT_GEMINI_BASE_URL
+            self.model = summary_model or DEFAULT_GEMINI_MODEL
+            self.api_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
         else:
             self.base_url = None
             self.model = summary_model or "gpt-4o-mini"
@@ -64,8 +72,9 @@ class ContentSummarizer:
         Returns:
             要約テキスト、失敗時はNone
         """
-        if self.provider == "openai" and not self.api_key:
-            print("[WARNING] OpenAI APIキーが設定されていないため要約をスキップ", flush=True)
+        if self.provider in ("openai", "gemini") and not self.api_key:
+            label = "OpenAI" if self.provider == "openai" else "Gemini"
+            print(f"[WARNING] {label} APIキーが設定されていないため要約をスキップ", flush=True)
             return None
 
         if not text or not text.strip():
@@ -82,7 +91,7 @@ class ContentSummarizer:
             client = OpenAI(**client_kwargs)
             truncated_text = text[:max_chars]
 
-            provider_label = "Ollama" if self.provider == "ollama" else "OpenAI"
+            provider_label = {"ollama": "Ollama", "gemini": "Gemini"}.get(self.provider, "OpenAI")
             print(f"[INFO] 内容要約を生成中... ({provider_label}: {self.model})", flush=True)
 
             response = client.chat.completions.create(

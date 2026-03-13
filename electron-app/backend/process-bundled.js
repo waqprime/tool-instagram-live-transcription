@@ -37,7 +37,7 @@ class ProcessManager {
     }
   }
 
-  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'openai', ollamaUrl = '', summaryModel = '') {
+  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'openai', ollamaUrl = '', summaryModel = '', geminiApiKey = '') {
     this.stopped = false;
     this.engine = engine;
     this.apiKey = apiKey;
@@ -49,6 +49,7 @@ class ProcessManager {
     this.summaryProvider = summaryProvider;
     this.ollamaUrl = ollamaUrl;
     this.summaryModel = summaryModel;
+    this.geminiApiKey = geminiApiKey;
     const results = [];
     const totalItems = urls.length + (files ? files.length : 0);
 
@@ -226,6 +227,9 @@ class ProcessManager {
         if (this.ollamaUrl) {
           args.push('--ollama-url', this.ollamaUrl);
         }
+        if (this.geminiApiKey) {
+          args.push('--gemini-api-key', this.geminiApiKey);
+        }
       }
 
       // Set ffmpeg path and unbuffered output as environment variables
@@ -391,6 +395,9 @@ class ProcessManager {
         }
         if (this.ollamaUrl) {
           args.push('--ollama-url', this.ollamaUrl);
+        }
+        if (this.geminiApiKey) {
+          args.push('--gemini-api-key', this.geminiApiKey);
         }
       }
 

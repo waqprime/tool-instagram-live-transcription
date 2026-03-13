@@ -214,10 +214,10 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Auto-update disabled (private repository)
-  // if (!isDev) {
-  //   checkForUpdates();
-  // }
+  // Auto-update check
+  if (!isDev) {
+    checkForUpdates();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -355,7 +355,8 @@ ipcMain.handle('start-processing', async (event, config) => {
       config.summaryPrompt || '',
       config.summaryProvider || 'openai',
       config.ollamaUrl || '',
-      config.summaryModel || ''
+      config.summaryModel || '',
+      config.geminiApiKey || ''
     );
 
     return { success: true, results };
