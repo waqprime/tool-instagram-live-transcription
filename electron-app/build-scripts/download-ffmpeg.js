@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { execSync } = require('child_process');
 const unzipper = require('unzipper');
 
-const FFMPEG_VERSION = '7.1';
+const FFMPEG_VERSION = '8.0.1';
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
 const FFMPEG_DIR = path.join(RESOURCES_DIR, 'ffmpeg');
 const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
@@ -15,18 +15,20 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ビルドが失敗した場合は新バイナリを手動で検証し、ここを更新すること。
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
-  // evermeet.cx ffmpeg 7.1 — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': '63c7b7eb8bb473c8f24a26a0bdc481765ff9e9078ba3488c64e9faf6ccafaa04',
-  'darwin-x64': '63c7b7eb8bb473c8f24a26a0bdc481765ff9e9078ba3488c64e9faf6ccafaa04',
-  // Windows (gyan.dev) — 初回ビルド時に記録し、ここに追記する
-  // 'win32-x64': '',
+  // evermeet.cx ffmpeg 8.0.1 — darwin arm64/x64 は同一URLのため同一バイナリ
+  'darwin-arm64': '430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f',
+  'darwin-x64': '430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f',
+  // gyan.dev ffmpeg 8.0.1 essentials
+  'win32-x64': '5af82a0d4fe2b9eae211b967332ea97edfc51c6b328ca35b827e73eac560dc0d',
 };
 
-// Platform-specific download URLs (pinned to specific versions where possible)
+// Platform-specific download URLs
+// バージョン固定URLが404になる場合があるため、最新リリースURLを使用。
+// 真正性はKNOWN_HASHESで担保する。
 const FFMPEG_URLS = {
   darwin: {
-    arm64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/${FFMPEG_VERSION}/zip`,
-    x64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/${FFMPEG_VERSION}/zip`
+    arm64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip`,
+    x64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip`
   },
   win32: {
     x64: `https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip`
