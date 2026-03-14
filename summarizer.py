@@ -23,6 +23,11 @@ DEFAULT_OLLAMA_MODEL = "gemma3"
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
+# ビルトインGemini APIキー（ユーザーがAPIキー未入力時に使用）
+# gemini-2.5-flash-lite のみで使用（軽量・低コスト）
+BUILTIN_GEMINI_API_KEY = "AIzaSyDmPki7Mz36fSMrgO4UTRMW5FFx2hcRhlo"
+BUILTIN_GEMINI_MODEL = "gemini-2.5-flash-lite"
+
 
 class ContentSummarizer:
     """文字起こしテキストをLLMで要約するクラス"""
@@ -48,14 +53,30 @@ class ContentSummarizer:
         self.provider = provider
         self.prompt = prompt or DEFAULT_SUMMARY_PROMPT
 
+        self.using_builtin_key = False
+
         if provider == "ollama":
             self.base_url = ollama_url or DEFAULT_OLLAMA_URL
             self.model = summary_model or DEFAULT_OLLAMA_MODEL
             self.api_key = "ollama"  # Ollamaはダミーキーでよい
         elif provider == "gemini":
             self.base_url = DEFAULT_GEMINI_BASE_URL
-            self.model = summary_model or DEFAULT_GEMINI_MODEL
-            self.api_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
+            user_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
+            if user_key:
+                # ユーザー指定のAPIキー → 選択したモデルをそのまま使用
+                self.api_key = user_key
+                self.model = summary_model or DEFAULT_GEMINI_MODEL
+            else:
+                # ビルトインAPIキー → gemini-2.5-flash-lite固定
+                self.api_key = BUILTIN_GEMINI_API_KEY
+                self.model = BUILTIN_GEMINI_MODEL
+                self.using_builtin_key = True
+        elif provider == "builtin":
+            # ビルトイン要約（APIキー不要で使える）
+            self.base_url = DEFAULT_GEMINI_BASE_URL
+            self.api_key = BUILTIN_GEMINI_API_KEY
+            self.model = BUILTIN_GEMINI_MODEL
+            self.using_builtin_key = True
         else:
             self.base_url = None
             self.model = summary_model or "gpt-4o-mini"
@@ -72,9 +93,8 @@ class ContentSummarizer:
         Returns:
             要約テキスト、失敗時はNone
         """
-        if self.provider in ("openai", "gemini") and not self.api_key:
-            label = "OpenAI" if self.provider == "openai" else "Gemini"
-            print(f"[WARNING] {label} APIキーが設定されていないため要約をスキップ", flush=True)
+        if self.provider == "openai" and not self.api_key:
+            print("[WARNING] OpenAI APIキーが設定されていないため要約をスキップ", flush=True)
             return None
 
         if not text or not text.strip():
@@ -91,8 +111,9 @@ class ContentSummarizer:
             client = OpenAI(**client_kwargs)
             truncated_text = text[:max_chars]
 
-            provider_label = {"ollama": "Ollama", "gemini": "Gemini"}.get(self.provider, "OpenAI")
-            print(f"[INFO] 内容要約を生成中... ({provider_label}: {self.model})", flush=True)
+            provider_label = {"ollama": "Ollama", "gemini": "Gemini", "builtin": "Gemini"}.get(self.provider, "OpenAI")
+            builtin_note = "（ビルトイン）" if self.using_builtin_key else ""
+            print(f"[INFO] 内容要約を生成中... ({provider_label}: {self.model}{builtin_note})", flush=True)
 
             response = client.chat.completions.create(
                 model=self.model,

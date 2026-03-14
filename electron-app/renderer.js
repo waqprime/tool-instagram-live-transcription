@@ -78,6 +78,9 @@ const ENGINE_MODELS = {
 
 // Summary provider model options
 const SUMMARY_MODELS = {
+  'builtin': [
+    { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite（APIキー不要）', selected: true },
+  ],
   'openai': [
     { value: 'gpt-4o-mini', label: 'gpt-4o-mini（推奨）', selected: true },
     { value: 'gpt-4o', label: 'gpt-4o' },
@@ -417,7 +420,7 @@ async function startProcessing() {
     apiKey: apiKey,
     diarize: diarizeCheckbox.checked,
     summarize: summarizeCheckbox.checked,
-    summaryProvider: summarizeCheckbox.checked ? summaryProviderSelect.value : 'openai',
+    summaryProvider: summarizeCheckbox.checked ? summaryProviderSelect.value : 'builtin',
     summaryModel: summarizeCheckbox.checked ? summaryModelSelect.value : '',
     summaryPrompt: summarizeCheckbox.checked ? summaryPromptInput.value.trim() : '',
     ollamaUrl: summarizeCheckbox.checked ? ollamaUrlInput.value.trim() : '',
@@ -686,6 +689,7 @@ function onSummaryProviderChange() {
   ollamaUrlSection.style.display = provider === 'ollama' ? '' : 'none';
   fetchModelsBtn.style.display = provider === 'ollama' ? '' : 'none';
   geminiApiKeySection.style.display = provider === 'gemini' ? '' : 'none';
+  summaryModelSelect.disabled = provider === 'builtin';
   populateSummaryModels(provider);
 }
 

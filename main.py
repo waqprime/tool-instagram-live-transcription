@@ -157,9 +157,24 @@ class AudioTranscriptionProcessor:
         if summarize:
             effective_api_key = api_key or os.environ.get('OPENAI_API_KEY')
             effective_gemini_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
-            if summary_provider == "ollama" or \
-               (summary_provider == "gemini" and effective_gemini_key) or \
-               (summary_provider == "openai" and effective_api_key):
+            if summary_provider == "builtin":
+                # ビルトイン要約（APIキー不要）
+                self.summarizer = ContentSummarizer(
+                    provider="builtin",
+                    prompt=summary_prompt,
+                )
+            elif summary_provider == "gemini":
+                # Gemini: ユーザーキーがなくてもビルトインキーで動作
+                self.summarizer = ContentSummarizer(
+                    provider=summary_provider,
+                    api_key=effective_api_key,
+                    prompt=summary_prompt,
+                    ollama_url=ollama_url,
+                    summary_model=summary_model,
+                    gemini_api_key=effective_gemini_key,
+                )
+            elif summary_provider == "ollama" or \
+                 (summary_provider == "openai" and effective_api_key):
                 self.summarizer = ContentSummarizer(
                     provider=summary_provider,
                     api_key=effective_api_key,
@@ -761,9 +776,9 @@ def main():
     )
     parser.add_argument(
         "--summary-provider",
-        default="openai",
-        choices=["openai", "ollama", "gemini"],
-        help="要約プロバイダ（デフォルト: openai）"
+        default="builtin",
+        choices=["builtin", "openai", "ollama", "gemini"],
+        help="要約プロバイダ（デフォルト: builtin = Gemini 2.5 Flash Lite、APIキー不要）"
     )
     parser.add_argument(
         "--ollama-url",

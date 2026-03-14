@@ -217,7 +217,7 @@ class ProcessManager {
       // Add --summarize flag if enabled
       if (this.summarize) {
         args.push('--summarize');
-        args.push('--summary-provider', this.summaryProvider || 'openai');
+        args.push('--summary-provider', this.summaryProvider || 'builtin');
         if (this.summaryPrompt) {
           args.push('--summary-prompt', this.summaryPrompt);
         }
@@ -386,7 +386,7 @@ class ProcessManager {
       // Add --summarize flag if enabled
       if (this.summarize) {
         args.push('--summarize');
-        args.push('--summary-provider', this.summaryProvider || 'openai');
+        args.push('--summary-provider', this.summaryProvider || 'builtin');
         if (this.summaryPrompt) {
           args.push('--summary-prompt', this.summaryPrompt);
         }
