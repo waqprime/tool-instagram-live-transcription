@@ -4,36 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Purpose
 
-Instagram LiveやReelをMP3で保存し、自動的に文字起こしを行うPythonシステム。
-YouTube、X Spaces、Voicy、UTAGEなど、yt-dlp対応の1,800以上のプラットフォームに対応。
+各種プラットフォームの動画・音声をMP3で保存し、AIで文字起こし・要約を行うElectronアプリ。
+YouTube、Instagram、X Spaces、Voicy、stand.fm、UTAGEなど、yt-dlp対応の1,800以上のプラットフォームに対応。
 
 ## Architecture
 
-システムは4つの主要モジュールで構成されています:
+### Pythonバックエンド（メインモジュール）
 
 1. **downloader.py** - 動画・音声のダウンロード
    - `yt-dlp`を使用して各種プラットフォームから動画・音声を取得
    - `VideoDownloader`クラスが処理を担当
-   - UTAGE動画の自動検出とm3u8抽出に対応
-   - `--keep-video`オプションでUTAGE動画をMP4形式に自動変換
+   - UTAGE/Voicy/stand.fm は専用エクストラクタで対応
 
 2. **audio_converter.py** - 音声抽出・変換
    - `ffmpeg`を使用して動画からMP3音声を抽出
-   - `AudioConverter`クラスが処理を担当
    - HLS/m3u8形式からMP4への変換機能を提供
 
 3. **transcriber.py** - 音声文字起こし
-   - OpenAI Whisperを使用して日本語音声をテキスト化
-   - `AudioTranscriber`クラスが処理を担当
+   - 4エンジン対応: faster-whisper, kotoba-whisper, openai-api, local-whisper
+   - `KotobaWhisperExternalTranscriber`: PyInstallerビルドでは外部Python経由で実行
    - 3種類の出力: プレーンテキスト、タイムスタンプ付きテキスト、JSON
 
-4. **main.py** - メインオーケストレーター
-   - 全モジュールを統合し、ワークフロー全体を管理
-   - `AudioTranscriptionProcessor`クラスが処理を統括
+4. **summarizer.py** - 内容要約
+   - ビルトイン: AWS Lambda経由でGemini 2.5 Flash Lite（APIキー不要）
+   - Gemini API / OpenAI API（ユーザーのAPIキー使用）
 
-5. **utage_extractor.py** - UTAGE専用モジュール
+5. **main.py** - メインオーケストレーター
+   - 全モジュールを統合し、ワークフロー全体を管理
+
+### 専用エクストラクタ
+
+6. **voicy_extractor.py** - Voicy専用（yt-dlpのVoicyエクストラクタが壊れているため）
+   - Seleniumでページを開き、再生ボタンをクリックしてHLS音声URLをキャプチャ
+   - voice_id指定時は該当放送の再生ボタンをピンポイントでクリック
+
+7. **standfm_extractor.py** - stand.fm専用
+   - HTMLの`__SERVER_STATE__` JSONからM4A音声URLを直接抽出（認証不要）
+
+8. **utage_extractor.py** - UTAGE専用
    - Seleniumを使用してUTAGEページから動画URLを抽出
-   - ブラウザ自動化によりm3u8 URLを取得
+
+### Electronフロントエンド（`electron-app/`）
+
+- **main.js** - Electronメインプロセス（自動アップデートチェック含む）
+- **renderer.js** - UI制御（エンジン選択、要約プロバイダ選択等）
+- **backend/process-bundled.js** - PyInstallerバイナリの実行管理
 
 ## Development Setup
 
@@ -56,68 +71,54 @@ brew install ffmpeg  # macOS
 # link.txtのURLを一括処理
 python main.py
 
-# 単一URLを処理（Instagram）
-python main.py --url "https://www.instagram.com/reel/..."
-
-# 単一URLを処理（YouTube）
+# 単一URLを処理
 python main.py --url "https://www.youtube.com/watch?v=..."
+python main.py --url "https://voicy.jp/channel/XXXX/YYYY"
+python main.py --url "https://stand.fm/episodes/XXXX"
 
-# 単一URLを処理（UTAGE）
-python main.py --url "https://example.utage-system.com/..."
+# エンジン指定
+python main.py --url "URL" --engine faster-whisper   # デフォルト
+python main.py --url "URL" --engine kotoba-whisper    # 日本語特化
+python main.py --url "URL" --engine openai-api --api-key "sk-..."
 
-# 動画ファイルを保持する（MP4として保存、削除しない）
+# 要約付き
+python main.py --url "URL" --summarize                          # ビルトイン
+python main.py --url "URL" --summarize --summary-provider gemini --gemini-api-key "AIza..."
+
+# 動画ファイルを保持する
 python main.py --url "URL" --keep-video
-
-# UTAGE動画をMP4で保存（ローカル再生可能）
-python main.py --url "UTAGE_URL" --keep-video
-
-# Whisperモデルを指定（精度 vs 速度のトレードオフ）
-python main.py --model small   # 推奨: バランス型
-python main.py --model medium  # 高精度（処理時間長め）
-python main.py --model tiny    # 高速（精度低め）
-```
-
-### 個別モジュールのテスト
-```bash
-# ダウンローダーのテスト
-python downloader.py "https://www.instagram.com/reel/..."
-
-# 音声変換のテスト
-python audio_converter.py input_video.mp4
-
-# 文字起こしのテスト
-python transcriber.py audio.mp3 --model base
 ```
 
 ## Input/Output
 
 ### 入力
-- `link.txt` - 動画・音声URLのリスト（1行1URL、Instagram/YouTube/X Spaces/Voicy/UTAGE等）
+- `link.txt` - 動画・音声URLのリスト（1行1URL）
 
 ### 出力（デフォルト: `~/Downloads/InstagramTranscripts/`）
 - `*.mp3` - 抽出された音声ファイル
 - `*.mp4` - 動画ファイル（`--keep-video`オプション使用時）
-- `*_converted.mp4` - UTAGE動画のMP4変換版（`--keep-video`使用時）
 - `*_transcript.txt` - 文字起こしテキスト
 - `*_transcript_detailed.txt` - タイムスタンプ付き文字起こし
 - `*_transcript.json` - 詳細情報（セグメント、信頼度など）
+- `*_summary.md` - 内容要約（`--summarize`オプション使用時）
 
 ## Technical Notes
 
-- **文字コード**: 日本語対応のため、すべてのファイルI/OでUTF-8エンコーディングを使用
-- **Whisperモデル**: `base`がデフォルト。`tiny` < `base` < `small` < `medium` < `large`の順で精度が向上（処理時間も増加）
-- **エラーハンドリング**: 各モジュールは独立してエラー処理を行い、失敗時は`None`を返す
-- **動画ファイル保持**: デフォルトでは音声抽出後に動画ファイルを自動削除、`--keep-video`フラグで保持可能
-- **UTAGE動画変換**: `--keep-video`使用時、UTAGE動画（HLS/m3u8）はローカル再生可能なMP4形式に自動変換される
+- **文字コード**: すべてのファイルI/OでUTF-8エンコーディングを使用
+- **文字起こしエンジン**: faster-whisper（デフォルト、large-v3-turbo）が推奨
+- **kotoba-whisper**: PyInstallerビルドではtorch/transformersが除外されているため、システムPython経由で実行。初回は自動pipインストール
+- **ビルトイン要約**: AWS Lambda + API Gateway経由。APIキーはLambda環境変数に格納（ソースコードに含まない）
+- **自動アップデート**: GitHub APIで最新リリースをチェック、全プラットフォーム共通
 
 ## Dependencies
 
 - **yt-dlp**: 各種プラットフォームから動画・音声ダウンロード
-- **ffmpeg**: 音声抽出・変換、MP4変換（システムパッケージ）
-- **openai-whisper**: 音声認識・文字起こし
-- **selenium**: UTAGE動画URL抽出用のブラウザ自動化
+- **ffmpeg**: 音声抽出・変換（システムパッケージ）
+- **faster-whisper**: 高速音声認識（デフォルトエンジン）
+- **kotoba-whisper**: 日本語特化音声認識（オプション、システムPython経由）
+- **selenium**: Voicy/UTAGE用ブラウザ自動化
 - **webdriver-manager**: ChromeDriverの自動インストール
-- **pydub**: 音声ファイル操作（Whisperの依存関係）
+- **openai**: OpenAI API / Gemini API互換クライアント
 
 ## Build & Release
 
@@ -125,26 +126,32 @@ python transcriber.py audio.mp3 --model base
 - **macOS / Windows**: Electronアプリ（`electron-app/`）として配布。CLIバイナリ単体ではない
 - **CI (GitHub Actions)**: Windows + macOS arm64 を自動ビルド・署名・公証・リリース
 - **Intel Mac (x64)**: CIでは対応不可。ローカルで手動ビルドする
-  - `venv-x64/` を使用し `--onedir` モードでPyInstallerビルド
-  - 全バイナリに個別署名 + Apple notarization が必要
-  - `--onefile` モードではPython.frameworkの署名問題でIntel Macで実行不可
 
 ### Intel Mac 手動ビルド手順
 ```bash
 # 1. Electronアプリとしてx64ビルド
 cd electron-app
-TARGET_ARCH=x64 node build-scripts/build-backend.js
-CSC_LINK="..." CSC_KEY_PASSWORD="..." \
-  APPLE_ID="..." APPLE_APP_SPECIFIC_PASSWORD="..." APPLE_TEAM_ID="..." \
+npm version X.Y.Z --no-git-tag-version --allow-same-version
+APPLE_ID="..." APPLE_APP_SPECIFIC_PASSWORD="..." APPLE_TEAM_ID="..." \
   npm run build:mac-x64
 
 # 2. リリースにアップロード
-gh release upload vX.Y.Z electron-app/dist/TranscriptionTool-*.dmg
+gh release upload vX.Y.Z electron-app/dist/TranscriptionTool-*.dmg electron-app/dist/TranscriptionTool-*.zip
+
+# 3. クリーンアップ
+rm -rf electron-app/dist dist build
 ```
+
+### AWS Lambda（ビルトイン要約）
+- 関数名: `transcription-summarizer`
+- リージョン: ap-northeast-1
+- エンドポイント: API Gateway経由
+- APIキーはLambda環境変数 `GEMINI_API_KEY` に格納
+- スロットリング: 2リクエスト/秒、バースト5
 
 ## Known Limitations
 
 - Instagram動画のダウンロードは公開コンテンツに限定される
 - 長時間の動画（60分以上）はWhisper処理に時間がかかる場合がある
-- Whisper `large`モデルは高性能GPU推奨
-- UTAGE動画の抽出にはChromeブラウザとSeleniumが必要（初回実行時に自動インストール）
+- kotoba-whisperはシステムにPython 3 + torch + transformersが必要（初回自動インストール）
+- Voicy/UTAGEの抽出にはChromeブラウザが必要

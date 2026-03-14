@@ -26,6 +26,21 @@ if (!fs.existsSync(BACKEND_DIR)) {
 }
 console.log('✓ Resources directory ready');
 
+// Inject app token if available
+const appToken = process.env.BUILTIN_APP_TOKEN;
+const tokenPath = path.join(ROOT_DIR, '.app_token');
+if (appToken) {
+  fs.writeFileSync(tokenPath, appToken);
+  console.log('✓ App token injected');
+}
+
+// 成功・失敗を問わず .app_token を確実に削除
+process.on('exit', () => {
+  try {
+    if (fs.existsSync(tokenPath)) fs.unlinkSync(tokenPath);
+  } catch (_) { /* ignore */ }
+});
+
 // Step 2: Build Python binary with PyInstaller
 console.log('\n[2/4] Building Python binary with PyInstaller...');
 
@@ -35,12 +50,21 @@ const distBinaryPath = path.join(ROOT_DIR, 'dist', binaryName);
 const targetBinaryPath = path.join(BACKEND_DIR, binaryName);
 
 // Check if PyInstaller is available
-// Try both python and python3 for cross-platform compatibility
+// Try venv first, then system python
 const pythonCmd = platform === 'win32' ? 'python' : 'python3';
 const pipCmd = platform === 'win32' ? 'pip' : 'pip3';
 
+// Check for venv pyinstaller (preferred for local builds)
+const venvPyinstaller = path.join(ROOT_DIR, 'venv', 'bin', 'pyinstaller');
+const hasVenvPyinstaller = platform !== 'win32' && fs.existsSync(venvPyinstaller);
+
 try {
-  execSync(`${pythonCmd} -m PyInstaller --version`, { stdio: 'pipe' });
+  if (hasVenvPyinstaller) {
+    execSync(`${venvPyinstaller} --version`, { stdio: 'pipe' });
+    console.log(`Using venv PyInstaller: ${venvPyinstaller}`);
+  } else {
+    execSync(`${pythonCmd} -m PyInstaller --version`, { stdio: 'pipe' });
+  }
 } catch (error) {
   console.error('✗ PyInstaller not found. Installing...');
   try {
@@ -74,7 +98,7 @@ if (TARGET_ARCH) {
 
 // On macOS arm64 host building for x64, use venv-x64 python
 const isCrossCompileX64 = platform === 'darwin' && TARGET_ARCH === 'x64' && process.arch === 'arm64';
-let pyinstallerCmd = `${pythonCmd} -m PyInstaller`;
+let pyinstallerCmd = hasVenvPyinstaller ? venvPyinstaller : `${pythonCmd} -m PyInstaller`;
 
 if (isCrossCompileX64) {
   // Use x64 venv's pyinstaller directly (system python3 is arm64-only)

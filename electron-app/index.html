@@ -177,10 +177,9 @@
           <div class="setting-item" id="summary-provider-section">
             <label class="setting-label" for="summary-provider-select">要約エンジン</label>
             <select id="summary-provider-select" class="glass-select">
-              <option value="builtin" selected>ビルトイン (APIキー不要)</option>
-              <option value="gemini">Gemini API (自分のAPIキーで高精度)</option>
-              <option value="openai">OpenAI API (gpt-4o-mini)</option>
-              <option value="ollama">ローカルLLM (Ollama)</option>
+              <option value="builtin" selected>標準 (APIキー不要・低精度)</option>
+              <option value="gemini">Gemini API (高精度・自分のAPIキー)</option>
+              <option value="openai">OpenAI API (高精度・自分のAPIキー)</option>
             </select>
           </div>
 
@@ -199,25 +198,15 @@
           <!-- Gemini API Key -->
           <div class="setting-item" id="gemini-api-key-section" style="display: none;">
             <label class="setting-label" for="gemini-api-key-input">Gemini APIキー</label>
-            <input
-              type="password"
-              id="gemini-api-key-input"
-              class="glass-input"
-              placeholder="AIza..."
-            >
+            <div class="input-with-button">
+              <input
+                type="password"
+                id="gemini-api-key-input"
+                class="glass-input"
+                placeholder="AIza..."
+              >
+            </div>
             <p class="hint-text-small"><a href="https://aistudio.google.com/apikey" target="_blank" style="color: #8ab4f8;">Google AI Studio</a> でAPIキーを取得できます</p>
-          </div>
-
-          <!-- Ollama URL -->
-          <div class="setting-item" id="ollama-url-section" style="display: none;">
-            <label class="setting-label" for="ollama-url-input">Ollama URL</label>
-            <input
-              type="text"
-              id="ollama-url-input"
-              class="glass-input"
-              value="http://localhost:11434/v1"
-            >
-            <p class="hint-text-small">OllamaのAPIエンドポイント（通常は変更不要）</p>
           </div>
 
           <!-- Summary Prompt -->

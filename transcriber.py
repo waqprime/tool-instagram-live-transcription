@@ -636,9 +636,12 @@ class KotobaWhisperExternalTranscriber(TranscriberBase):
         except Exception:
             pass
 
-        # 自動インストール
-        print("[kotoba-whisper] 必要なパッケージをインストール中... (初回のみ、数分かかります)", flush=True)
-        packages = ["torch", "transformers", "accelerate"]
+        # 自動インストール（バージョン範囲固定で供給網リスク軽減）
+        print("[kotoba-whisper] [WARNING] 必要なパッケージ (torch, transformers, accelerate) がインストールされていません。", flush=True)
+        print("[kotoba-whisper] [WARNING] PyPI からダウンロードします。信頼できるネットワーク環境で実行してください。", flush=True)
+        print("[kotoba-whisper] [WARNING] 手動インストール: python3 -m pip install 'torch>=2.0,<3' 'transformers>=4.36,<5' 'accelerate>=0.25,<1'", flush=True)
+        print("[kotoba-whisper] インストール中... (初回のみ、数分かかります)", flush=True)
+        packages = ["torch>=2.0,<3", "transformers>=4.36,<5", "accelerate>=0.25,<1"]
         try:
             subprocess.run(
                 [self.python_cmd, "-m", "pip", "install", "--quiet"] + packages,
@@ -649,7 +652,7 @@ class KotobaWhisperExternalTranscriber(TranscriberBase):
             raise ImportError(
                 f"kotoba-whisper の依存パッケージのインストールに失敗しました。\n"
                 f"手動でインストールしてください:\n"
-                f"  {self.python_cmd} -m pip install torch transformers accelerate"
+                f"  {self.python_cmd} -m pip install 'torch>=2.0,<3' 'transformers>=4.36,<5' 'accelerate>=0.25,<1'"
             )
 
     def _run_transcription(self, audio_path: str) -> Optional[Dict]:

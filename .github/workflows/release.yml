@@ -29,6 +29,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-light.txt
 
+      - name: Inject app token
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        shell: bash
+        run: echo -n "$BUILTIN_APP_TOKEN" > .app_token
+
       - name: Install Electron dependencies
         run: |
           cd electron-app
@@ -42,6 +48,8 @@ jobs:
           npm version $VERSION --no-git-tag-version --allow-same-version
 
       - name: Build for Windows
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
         run: |
           cd electron-app
           npm run build:win
@@ -75,6 +83,11 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements-light.txt
 
+      - name: Inject app token
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        run: echo -n "$BUILTIN_APP_TOKEN" > .app_token
+
       - name: Install Apple Certificate
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
@@ -107,6 +120,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
         run: |
           cd electron-app
           npm run build:mac-arm64

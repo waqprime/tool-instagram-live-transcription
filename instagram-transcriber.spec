@@ -26,7 +26,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=ctranslate2_binaries,
-    datas=faster_whisper_datas + ctranslate2_datas,
+    datas=faster_whisper_datas + ctranslate2_datas + ([('.app_token', '.')] if os.path.exists('.app_token') else []),
     hiddenimports=[
         'tiktoken_ext',
         'tiktoken_ext.openai_public',

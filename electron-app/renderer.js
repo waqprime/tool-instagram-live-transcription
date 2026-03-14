@@ -29,8 +29,6 @@ const summaryModelSelect = document.getElementById('summary-model-select');
 const fetchModelsBtn = document.getElementById('fetch-models-btn');
 const geminiApiKeySection = document.getElementById('gemini-api-key-section');
 const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
-const ollamaUrlSection = document.getElementById('ollama-url-section');
-const ollamaUrlInput = document.getElementById('ollama-url-input');
 const summaryPromptSection = document.getElementById('summary-prompt-section');
 const summaryPromptInput = document.getElementById('summary-prompt-input');
 const obsidianEnabledCheckbox = document.getElementById('obsidian-enabled-checkbox');
@@ -79,7 +77,7 @@ const ENGINE_MODELS = {
 // Summary provider model options
 const SUMMARY_MODELS = {
   'builtin': [
-    { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite（APIキー不要）', selected: true },
+    { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite（APIキー不要・低精度）', selected: true },
   ],
   'openai': [
     { value: 'gpt-4o-mini', label: 'gpt-4o-mini（推奨）', selected: true },
@@ -90,14 +88,34 @@ const SUMMARY_MODELS = {
     { value: 'gemini-2.5-flash-lite', label: 'gemini-2.5-flash-lite（軽量・高速）' },
     { value: 'gemini-2.5-pro', label: 'gemini-2.5-pro（高精度）' },
   ],
-  'ollama': [
-    { value: 'gemma3', label: 'gemma3（推奨）', selected: true },
-    { value: 'llama3.1', label: 'llama3.1' },
-    { value: 'qwen2.5', label: 'qwen2.5' },
-    { value: 'phi4', label: 'phi4' },
-    { value: 'mistral', label: 'mistral' },
-  ],
 };
+
+// APIキー保存済みマーク + 削除ボタン追加
+function _markKeySaved(inputEl, keyName) {
+  inputEl.placeholder = '保存済み（変更する場合のみ入力）';
+  inputEl.dataset.saved = 'true';
+
+  // 既存の削除ボタンがあれば追加しない
+  if (inputEl.parentElement.querySelector('.btn-delete-key')) return;
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'btn btn-secondary btn-delete-key';
+  deleteBtn.textContent = '削除';
+  deleteBtn.title = '保存済みAPIキーを削除';
+  deleteBtn.style.marginLeft = '4px';
+  deleteBtn.style.color = '#ff6b6b';
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm('保存済みのAPIキーを削除しますか？')) return;
+    const settings = { [`_delete${keyName.charAt(0).toUpperCase() + keyName.slice(1)}`]: true };
+    await window.electronAPI.saveSettings(settings);
+    inputEl.placeholder = keyName === 'apiKey' ? 'sk-...' : 'AIza...';
+    inputEl.dataset.saved = '';
+    inputEl.value = '';
+    deleteBtn.remove();
+  });
+  inputEl.parentElement.appendChild(deleteBtn);
+}
 
 // Initialize
 async function init() {
@@ -117,8 +135,9 @@ async function init() {
   const settings = await window.electronAPI.loadSettings();
 
   // Restore saved settings
-  if (settings.apiKey) {
-    apiKeyInput.value = settings.apiKey;
+  // APIキーは文字列ではなく保存済みフラグで管理
+  if (settings._hasApiKey) {
+    _markKeySaved(apiKeyInput, 'apiKey');
   }
   if (settings.diarize) {
     diarizeCheckbox.checked = true;
@@ -129,22 +148,15 @@ async function init() {
   if (settings.summaryProvider) {
     summaryProviderSelect.value = settings.summaryProvider;
     populateSummaryModels(settings.summaryProvider);
-    if (settings.summaryProvider === 'ollama') {
-      ollamaUrlSection.style.display = '';
-      fetchModelsBtn.style.display = '';
-    }
     if (settings.summaryProvider === 'gemini') {
       geminiApiKeySection.style.display = '';
     }
   }
-  if (settings.geminiApiKey) {
-    geminiApiKeyInput.value = settings.geminiApiKey;
+  if (settings._hasGeminiApiKey) {
+    _markKeySaved(geminiApiKeyInput, 'geminiApiKey');
   }
   if (settings.summaryModel) {
     summaryModelSelect.value = settings.summaryModel;
-  }
-  if (settings.ollamaUrl) {
-    ollamaUrlInput.value = settings.ollamaUrl;
   }
   if (settings.summaryPrompt) {
     summaryPromptInput.value = settings.summaryPrompt;
@@ -172,7 +184,7 @@ async function init() {
   // Setup summarize checkbox and provider handlers
   summarizeCheckbox.addEventListener('change', onSummarizeChange);
   summaryProviderSelect.addEventListener('change', onSummaryProviderChange);
-  fetchModelsBtn.addEventListener('click', fetchOllamaModels);
+  // fetchModelsBtn is kept in DOM but unused
 
   // Setup Obsidian checkbox handler
   obsidianEnabledCheckbox.addEventListener('change', onObsidianChange);
@@ -326,22 +338,25 @@ async function startProcessing() {
   const engine = engineSelect.value;
   const apiKey = apiKeyInput.value.trim();
 
+  const hasApiKey = apiKey || apiKeyInput.dataset.saved === 'true';
+  const hasGeminiApiKey = geminiApiKeyInput.value.trim() || geminiApiKeyInput.dataset.saved === 'true';
+
   // Validate API key when OpenAI API engine is selected
-  if (engine === 'openai-api' && !apiKey) {
+  if (engine === 'openai-api' && !hasApiKey) {
     alert('OpenAI API エンジンを使用するにはAPIキーを入力してください');
     apiKeyInput.focus();
     return;
   }
 
   // Validate API key when summarize with OpenAI is enabled
-  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'openai' && !apiKey) {
+  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'openai' && !hasApiKey) {
     alert('OpenAIでの内容要約を使用するにはAPIキーを入力してください');
     apiKeyInput.focus();
     return;
   }
 
   // Validate Gemini API key when summarize with Gemini is enabled
-  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'gemini' && !geminiApiKeyInput.value.trim()) {
+  if (summarizeCheckbox.checked && summaryProviderSelect.value === 'gemini' && !hasGeminiApiKey) {
     alert('Geminiでの内容要約を使用するにはGemini APIキーを入力してください');
     geminiApiKeyInput.focus();
     return;
@@ -351,15 +366,17 @@ async function startProcessing() {
   const obsidianVault = obsidianVaultDirInput.value.trim();
   const obsidianSubfolder = obsidianSubfolderInput.value.trim();
 
+  // 新しいキーが入力された場合のみ保存（空欄なら保存済みキーを維持）
   const settingsToSave = {
-    apiKey: apiKey || undefined,
+    apiKey: apiKey || undefined,  // 空なら保存済みキーがmain側で維持される
+    _keepApiKey: !apiKey && apiKeyInput.dataset.saved === 'true',
     diarize: diarizeCheckbox.checked,
     summarize: summarizeCheckbox.checked,
     summaryProvider: summaryProviderSelect.value,
     summaryModel: summaryModelSelect.value,
     summaryPrompt: summaryPromptInput.value.trim() || undefined,
-    ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
-    geminiApiKey: summaryProviderSelect.value === 'gemini' ? geminiApiKeyInput.value.trim() : undefined,
+    geminiApiKey: geminiApiKeyInput.value.trim() || undefined,
+    _keepGeminiApiKey: !geminiApiKeyInput.value.trim() && geminiApiKeyInput.dataset.saved === 'true',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : undefined,
     outputDir: outputDirectory,
@@ -388,7 +405,6 @@ async function startProcessing() {
   summarizeCheckbox.disabled = true;
   summaryProviderSelect.disabled = true;
   summaryModelSelect.disabled = true;
-  ollamaUrlInput.disabled = true;
   summaryPromptInput.disabled = true;
   obsidianEnabledCheckbox.disabled = true;
   selectVaultBtn.disabled = true;
@@ -423,7 +439,6 @@ async function startProcessing() {
     summaryProvider: summarizeCheckbox.checked ? summaryProviderSelect.value : 'builtin',
     summaryModel: summarizeCheckbox.checked ? summaryModelSelect.value : '',
     summaryPrompt: summarizeCheckbox.checked ? summaryPromptInput.value.trim() : '',
-    ollamaUrl: summarizeCheckbox.checked ? ollamaUrlInput.value.trim() : '',
     geminiApiKey: summarizeCheckbox.checked ? geminiApiKeyInput.value.trim() : '',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : '',
     obsidianFolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : '',
@@ -462,7 +477,6 @@ async function startProcessing() {
     summarizeCheckbox.disabled = false;
     summaryProviderSelect.disabled = false;
     summaryModelSelect.disabled = false;
-    ollamaUrlInput.disabled = false;
     summaryPromptInput.disabled = false;
     obsidianEnabledCheckbox.disabled = false;
     selectVaultBtn.disabled = false;
@@ -535,16 +549,19 @@ function handleLog(log) {
   }
 
   // Extract important progress info from log messages
-  if (message.includes('ダウンロード')) {
+  // 初期化メッセージ（「有効」「対応」含む）はステータス更新しない
+  if (message.includes(': 有効') || message.includes('対応:') || message.includes('エンジン:')) {
+    // 初期化ログはスキップ
+  } else if (message.includes('ダウンロード')) {
     updateProgress(null, '動画をダウンロード中...', message);
+  } else if (message.includes('文字起こし') || message.includes('Whisper')) {
+    updateProgress(null, '文字起こし中...', message);
   } else if (message.includes('音声') || message.includes('MP3')) {
     updateProgress(null, 'MP3を抽出中...', message);
   } else if (message.includes('話者分離')) {
     updateProgress(null, '話者分離中...', message);
-  } else if (message.includes('内容要約') || message.includes('要約')) {
+  } else if (message.includes('【追加ステップ】内容要約') || message.includes('要約を生成中')) {
     updateProgress(null, '内容要約中...', message);
-  } else if (message.includes('文字起こし') || message.includes('Whisper')) {
-    updateProgress(null, '文字起こし中...', message);
   } else if (message.includes('完了')) {
     // Keep details if available
     updateProgress(null, null, message);
@@ -686,8 +703,6 @@ function onSummarizeChange() {
 // Summary provider change handler
 function onSummaryProviderChange() {
   const provider = summaryProviderSelect.value;
-  ollamaUrlSection.style.display = provider === 'ollama' ? '' : 'none';
-  fetchModelsBtn.style.display = provider === 'ollama' ? '' : 'none';
   geminiApiKeySection.style.display = provider === 'gemini' ? '' : 'none';
   summaryModelSelect.disabled = provider === 'builtin';
   populateSummaryModels(provider);
@@ -704,50 +719,6 @@ function populateSummaryModels(provider) {
     if (m.selected) opt.selected = true;
     summaryModelSelect.appendChild(opt);
   });
-}
-
-// Fetch installed Ollama models from API
-async function fetchOllamaModels() {
-  const rawUrl = ollamaUrlInput.value.trim() || 'http://localhost:11434/v1';
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      alert('Ollama URLはhttpまたはhttpsで始まる必要があります');
-      return;
-    }
-  } catch (e) {
-    alert('Ollama URLが不正です: ' + rawUrl);
-    return;
-  }
-  const baseUrl = rawUrl.replace(/\/v1\/?$/, '');
-  fetchModelsBtn.disabled = true;
-  fetchModelsBtn.textContent = '取得中...';
-  try {
-    const response = await fetch(`${baseUrl}/api/tags`);
-    const data = await response.json();
-    const models = (data.models || []).map(m => m.name);
-    if (models.length === 0) {
-      alert('Ollamaにモデルが見つかりませんでした。\nollama pull gemma3 等でモデルをインストールしてください。');
-      return;
-    }
-    const saved = summaryModelSelect.value;
-    summaryModelSelect.innerHTML = '';
-    models.forEach((name, i) => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      opt.textContent = name;
-      summaryModelSelect.appendChild(opt);
-    });
-    // Restore previous selection if still available
-    if (models.includes(saved)) {
-      summaryModelSelect.value = saved;
-    }
-  } catch (e) {
-    alert('Ollamaに接続できませんでした。\nOllamaが起動しているか確認してください。\n\n' + e.message);
-  } finally {
-    fetchModelsBtn.disabled = false;
-    fetchModelsBtn.textContent = '取得';
-  }
 }
 
 // Obsidian checkbox change handler
@@ -775,15 +746,18 @@ function closeSettingsModal() {
 }
 
 async function saveAndCloseSettings() {
+  const newApiKey = apiKeyInput.value.trim();
+  const newGeminiKey = geminiApiKeyInput.value.trim();
   const settingsToSave = {
-    apiKey: apiKeyInput.value.trim() || undefined,
+    apiKey: newApiKey || undefined,
+    _keepApiKey: !newApiKey && apiKeyInput.dataset.saved === 'true',
     diarize: diarizeCheckbox.checked,
     summarize: summarizeCheckbox.checked,
     summaryProvider: summaryProviderSelect.value,
     summaryModel: summaryModelSelect.value,
     summaryPrompt: summaryPromptInput.value.trim() || undefined,
-    ollamaUrl: summaryProviderSelect.value === 'ollama' ? ollamaUrlInput.value.trim() : undefined,
-    geminiApiKey: summaryProviderSelect.value === 'gemini' ? geminiApiKeyInput.value.trim() : undefined,
+    geminiApiKey: newGeminiKey || undefined,
+    _keepGeminiApiKey: !newGeminiKey && geminiApiKeyInput.dataset.saved === 'true',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVaultDirInput.value.trim() : undefined,
     obsidianSubfolder: obsidianEnabledCheckbox.checked ? obsidianSubfolderInput.value.trim() : undefined,
     outputDir: outputDirectory,

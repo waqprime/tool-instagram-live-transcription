@@ -1,18 +1,32 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 const unzipper = require('unzipper');
 
-const FFMPEG_VERSION = '6.0';
+const FFMPEG_VERSION = '7.1';
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
 const FFMPEG_DIR = path.join(RESOURCES_DIR, 'ffmpeg');
+const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 
-// Platform-specific download URLs
+// 既知の正当なハッシュ値（検証済みバイナリから記録）
+// evermeet.cx / gyan.dev がリビルドするとハッシュが変わるため、
+// ビルドが失敗した場合は新バイナリを手動で検証し、ここを更新すること。
+// ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
+const KNOWN_HASHES = {
+  // evermeet.cx ffmpeg 7.1 — darwin arm64/x64 は同一URLのため同一バイナリ
+  'darwin-arm64': '63c7b7eb8bb473c8f24a26a0bdc481765ff9e9078ba3488c64e9faf6ccafaa04',
+  'darwin-x64': '63c7b7eb8bb473c8f24a26a0bdc481765ff9e9078ba3488c64e9faf6ccafaa04',
+  // Windows (gyan.dev) — 初回ビルド時に記録し、ここに追記する
+  // 'win32-x64': '',
+};
+
+// Platform-specific download URLs (pinned to specific versions where possible)
 const FFMPEG_URLS = {
   darwin: {
-    arm64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip`,
-    x64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/zip`
+    arm64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/${FFMPEG_VERSION}/zip`,
+    x64: `https://evermeet.cx/ffmpeg/getrelease/ffmpeg/${FFMPEG_VERSION}/zip`
   },
   win32: {
     x64: `https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip`
@@ -21,6 +35,24 @@ const FFMPEG_URLS = {
     x64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz`
   }
 };
+
+function computeFileHash(filePath) {
+  const data = fs.readFileSync(filePath);
+  return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+function verifyHash(filePath, expectedHash) {
+  const actualHash = computeFileHash(filePath);
+  if (actualHash !== expectedHash) {
+    throw new Error(
+      `Hash mismatch for ${path.basename(filePath)}!\n` +
+      `  Expected: ${expectedHash}\n` +
+      `  Got:      ${actualHash}\n` +
+      `The downloaded file may have been tampered with.`
+    );
+  }
+  console.log(`✓ Hash verified: ${actualHash.substring(0, 16)}...`);
+}
 
 async function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
@@ -36,11 +68,9 @@ async function downloadFile(url, destPath) {
       const protocol = parsedUrl.protocol === 'https:' ? https : require('http');
 
       protocol.get(downloadUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
-        // Handle redirects
         if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 303 || response.statusCode === 307 || response.statusCode === 308) {
-          response.resume(); // Consume response data to free up memory
+          response.resume();
           const redirectLocation = response.headers.location;
-          // Convert relative URLs to absolute
           const redirectUrl = redirectLocation.startsWith('http')
             ? redirectLocation
             : new URL(redirectLocation, downloadUrl).href;
@@ -49,7 +79,6 @@ async function downloadFile(url, destPath) {
           return;
         }
 
-        // Check for successful response
         if (response.statusCode !== 200) {
           reject(new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`));
           return;
@@ -86,7 +115,6 @@ async function extractArchive(archivePath, destDir) {
 
   try {
     if (ext === '.zip') {
-      // Use Node.js unzipper for cross-platform compatibility
       await fs.createReadStream(archivePath)
         .pipe(unzipper.Extract({ path: destDir }))
         .promise();
@@ -103,7 +131,6 @@ async function extractArchive(archivePath, destDir) {
 function findAndMoveBinary(searchDir, destPath, binaryName) {
   console.log(`Searching for ${binaryName} in ${searchDir}...`);
 
-  // Recursively find the binary
   const findBinary = (dir) => {
     const items = fs.readdirSync(dir);
 
@@ -133,14 +160,12 @@ function findAndMoveBinary(searchDir, destPath, binaryName) {
 
   fs.copyFileSync(binaryPath, destPath);
 
-  // Make executable on Unix
   if (process.platform !== 'win32') {
     fs.chmodSync(destPath, 0o755);
   }
 }
 
 async function downloadFFmpeg(platform, arch) {
-  // Create directories
   if (!fs.existsSync(RESOURCES_DIR)) {
     fs.mkdirSync(RESOURCES_DIR, { recursive: true });
   }
@@ -149,16 +174,35 @@ async function downloadFFmpeg(platform, arch) {
     fs.mkdirSync(FFMPEG_DIR, { recursive: true });
   }
 
-  // Check if ffmpeg already exists
   const binaryName = platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
   const ffmpegBinaryPath = path.join(FFMPEG_DIR, binaryName);
 
+  const knownKey = `${platform}-${arch}`;
+  const knownHash = KNOWN_HASHES[knownKey];
+
   if (fs.existsSync(ffmpegBinaryPath)) {
-    console.log('ffmpeg binary already exists, skipping download');
-    return;
+    // 既存バイナリのハッシュ検証（KNOWN_HASHES優先、なければHASH_FILE）
+    const expectedHash = knownHash
+      || (fs.existsSync(HASH_FILE) ? fs.readFileSync(HASH_FILE, 'utf-8').trim() : null);
+
+    if (expectedHash) {
+      try {
+        verifyHash(ffmpegBinaryPath, expectedHash);
+        console.log('✓ ffmpeg binary verified, skipping download');
+        return;
+      } catch (e) {
+        console.warn(`⚠ ${e.message}`);
+        console.log('Re-downloading ffmpeg...');
+        fs.unlinkSync(ffmpegBinaryPath);
+        if (fs.existsSync(HASH_FILE)) fs.unlinkSync(HASH_FILE);
+      }
+    } else {
+      // ハッシュが一切ない場合は再ダウンロード（信頼できないバイナリを使わない）
+      console.warn('⚠ No known hash for existing ffmpeg binary. Re-downloading...');
+      fs.unlinkSync(ffmpegBinaryPath);
+    }
   }
 
-  // Get download URL
   const platformUrls = FFMPEG_URLS[platform];
   if (!platformUrls) {
     throw new Error(`Unsupported platform: ${platform}`);
@@ -169,23 +213,52 @@ async function downloadFFmpeg(platform, arch) {
     throw new Error(`Unsupported architecture: ${arch} on ${platform}`);
   }
 
-  // Download
   const archiveExt = downloadUrl.includes('.zip') ? '.zip' : '.tar.xz';
   const archivePath = path.join(RESOURCES_DIR, `ffmpeg${archiveExt}`);
 
   console.log(`Downloading ffmpeg for ${platform} ${arch}...`);
   await downloadFile(downloadUrl, archivePath);
 
-  // Extract
   const extractDir = path.join(RESOURCES_DIR, 'ffmpeg-temp');
   if (!fs.existsSync(extractDir)) {
     fs.mkdirSync(extractDir, { recursive: true });
   }
 
   await extractArchive(archivePath, extractDir);
-
-  // Find and move binary
   findAndMoveBinary(extractDir, ffmpegBinaryPath, 'ffmpeg');
+
+  // ハッシュを記録・検証
+  const hash = computeFileHash(ffmpegBinaryPath);
+  if (knownHash) {
+    if (hash !== knownHash) {
+      throw new Error(
+        `ffmpeg hash mismatch for ${platform}-${arch}!\n` +
+        `  Expected: ${knownHash}\n` +
+        `  Got:      ${hash}\n` +
+        `The downloaded binary may have been tampered with.`
+      );
+    }
+    console.log(`✓ ffmpeg hash verified against known good hash`);
+  } else {
+    // KNOWN_HASHES未登録 → 初回ダウンロードを信じない。ハッシュを表示してビルドを中断。
+    // 開発者がバイナリを手動検証した上で KNOWN_HASHES に追加する必要がある。
+    // 未検証ファイルをすべて削除してからビルド中断
+    fs.unlinkSync(ffmpegBinaryPath);
+    if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+    if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
+    console.error(`\n${'!'.repeat(60)}`);
+    console.error(`ffmpeg downloaded for ${platform}-${arch} but no known hash registered.`);
+    console.error(`Downloaded binary hash: '${hash}'`);
+    console.error(`\nTo proceed, verify this binary is legitimate, then add to KNOWN_HASHES in download-ffmpeg.js:`);
+    console.error(`  '${platform}-${arch}': '${hash}'`);
+    console.error(`${'!'.repeat(60)}\n`);
+    throw new Error(
+      `Build aborted: ffmpeg hash for ${platform}-${arch} is not in KNOWN_HASHES.\n` +
+      `Add the hash above after manual verification.`
+    );
+  }
+  fs.writeFileSync(HASH_FILE, hash);
+  console.log(`✓ ffmpeg hash recorded: ${hash.substring(0, 16)}...`);
 
   // Cleanup
   console.log('Cleaning up temporary files...');

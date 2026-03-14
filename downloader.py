@@ -133,7 +133,7 @@ class VideoDownloader:
                 ydl_opts = {
                     'outtmpl': output_template,
                     'format': 'best',
-                    'nocheckcertificate': True,
+                    'nocheckcertificate': False,
                     'quiet': False,
                     'no_warnings': False,
                     'progress_hooks': [self._progress_hook],
@@ -148,8 +148,7 @@ class VideoDownloader:
                 # フォールバック: コマンドラインのyt-dlpを使用
                 cmd = [
                     "yt-dlp",
-                    "--no-check-certificates",
-                    "-f", "best",
+                                        "-f", "best",
                     "-o", output_template,
                     url
                 ]
@@ -484,7 +483,7 @@ class VideoDownloader:
                         ydl_opts = {
                             'outtmpl': output_template,
                             'format': 'best',
-                            'nocheckcertificate': True,
+                            'nocheckcertificate': False,
                             'quiet': False,
                             'no_warnings': False,
                             'progress_hooks': [self._progress_hook],
@@ -497,8 +496,7 @@ class VideoDownloader:
                         # フォールバック: コマンドラインのyt-dlpを使用
                         cmd = [
                             "yt-dlp",
-                            "--no-check-certificates",
-                            "-f", "best",
+                                                        "-f", "best",
                             "-o", output_template,
                             video_url
                         ]
@@ -609,7 +607,7 @@ class VideoDownloader:
             ydl_opts = {
                 'quiet': True,
                 'no_warnings': True,
-                'nocheckcertificate': True,
+                'nocheckcertificate': False,
                 'socket_timeout': 15,
                 'noplaylist': True,
             }

@@ -87,10 +87,10 @@ class AudioTranscriptionProcessor:
         obsidian_folder: str = "",
         summarize: bool = False,
         summary_prompt: Optional[str] = None,
-        summary_provider: str = "openai",
-        ollama_url: Optional[str] = None,
+        summary_provider: str = "builtin",
         summary_model: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
+        **kwargs,
     ):
         """
         Args:
@@ -105,8 +105,7 @@ class AudioTranscriptionProcessor:
             obsidian_folder: Vault内のサブフォルダパス
             summarize: 内容要約を実行するかどうか
             summary_prompt: 要約プロンプト（カスタム）
-            summary_provider: 要約プロバイダ ("openai", "ollama", "gemini")
-            ollama_url: OllamaのAPIエンドポイント
+            summary_provider: 要約プロバイダ ("builtin", "openai", "gemini")
             summary_model: 要約に使用するモデル名
             gemini_api_key: Gemini APIキー
         """
@@ -158,30 +157,23 @@ class AudioTranscriptionProcessor:
             effective_api_key = api_key or os.environ.get('OPENAI_API_KEY')
             effective_gemini_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
             if summary_provider == "builtin":
-                # ビルトイン要約（APIキー不要）
                 self.summarizer = ContentSummarizer(
                     provider="builtin",
                     prompt=summary_prompt,
                 )
-            elif summary_provider == "gemini":
-                # Gemini: ユーザーキーがなくてもビルトインキーで動作
+            elif summary_provider == "gemini" and effective_gemini_key:
                 self.summarizer = ContentSummarizer(
-                    provider=summary_provider,
-                    api_key=effective_api_key,
+                    provider="gemini",
                     prompt=summary_prompt,
-                    ollama_url=ollama_url,
                     summary_model=summary_model,
                     gemini_api_key=effective_gemini_key,
                 )
-            elif summary_provider == "ollama" or \
-                 (summary_provider == "openai" and effective_api_key):
+            elif summary_provider == "openai" and effective_api_key:
                 self.summarizer = ContentSummarizer(
-                    provider=summary_provider,
+                    provider="openai",
                     api_key=effective_api_key,
                     prompt=summary_prompt,
-                    ollama_url=ollama_url,
                     summary_model=summary_model,
-                    gemini_api_key=effective_gemini_key,
                 )
             else:
                 label = {"gemini": "Gemini", "openai": "OpenAI"}.get(summary_provider, summary_provider)
@@ -777,18 +769,13 @@ def main():
     parser.add_argument(
         "--summary-provider",
         default="builtin",
-        choices=["builtin", "openai", "ollama", "gemini"],
-        help="要約プロバイダ（デフォルト: builtin = Gemini 2.5 Flash Lite、APIキー不要）"
-    )
-    parser.add_argument(
-        "--ollama-url",
-        default=None,
-        help="OllamaのAPIエンドポイント（デフォルト: http://localhost:11434/v1）"
+        choices=["builtin", "openai", "gemini"],
+        help="要約プロバイダ（デフォルト: builtin = APIキー不要）"
     )
     parser.add_argument(
         "--summary-model",
         default=None,
-        help="要約モデル名（openai: gpt-4o-mini, ollama: gemma3, gemini: gemini-2.5-flash がデフォルト）"
+        help="要約モデル名（openai: gpt-4o-mini, gemini: gemini-2.5-flash がデフォルト）"
     )
     parser.add_argument(
         "--gemini-api-key",
@@ -812,7 +799,6 @@ def main():
         summarize=args.summarize,
         summary_prompt=args.summary_prompt,
         summary_provider=args.summary_provider,
-        ollama_url=args.ollama_url,
         summary_model=args.summary_model,
         gemini_api_key=args.gemini_api_key,
     )

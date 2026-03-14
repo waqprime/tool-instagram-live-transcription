@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 内容要約モジュール
-文字起こしテキストをOpenAI API または ローカルLLM (Ollama) で要約
+文字起こしテキストをビルトイン(Lambda経由) / Gemini API / OpenAI API で要約
 """
 
 import os
@@ -18,16 +18,39 @@ DEFAULT_SUMMARY_PROMPT = (
     "重要なポイントを箇条書きでまとめ、最後に全体のまとめを記載してください。"
 )
 
-DEFAULT_OLLAMA_URL = "http://localhost:11434/v1"
-DEFAULT_OLLAMA_MODEL = "gemma3"
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
-# ビルトインGemini APIキー（ユーザーがAPIキー未入力時に使用）
-# gemini-2.5-flash-lite のみで使用（軽量・低コスト）
-import base64 as _b64
-BUILTIN_GEMINI_API_KEY = _b64.b64decode("QUl6YVN5RG1Qa2k3TXozNmZTTXJnTzRVVFJNVzVGRngyaGNSaGxv").decode()
+# ビルトイン要約エンドポイント（Lambda + API Gateway）
+BUILTIN_ENDPOINT = "https://iuymmhyuc9.execute-api.ap-northeast-1.amazonaws.com/prod/summarize"
 BUILTIN_GEMINI_MODEL = "gemini-2.5-flash-lite"
+# アプリ識別トークン（レート制限用）
+# 注意: このトークンは配布バイナリから抽出可能です。秘密鍵ではありません。
+# 不正利用の防止はサーバー側のレート制限（2 req/sec, burst 5）+ IP制限で担保しています。
+BUILTIN_APP_TOKEN = os.environ.get('BUILTIN_APP_TOKEN', '')
+
+
+def _load_app_token():
+    """ビルド済みアプリ用: .app_tokenファイルからトークンを読み込む"""
+    global BUILTIN_APP_TOKEN
+    if BUILTIN_APP_TOKEN:
+        return
+    import sys as _sys
+    paths = []
+    if getattr(_sys, '_MEIPASS', None):
+        paths.append(os.path.join(_sys._MEIPASS, '.app_token'))
+    paths.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.app_token'))
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, 'r') as f:
+                    BUILTIN_APP_TOKEN = f.read().strip()
+                return
+            except Exception:
+                pass
+
+
+_load_app_token()
 
 
 class ContentSummarizer:
@@ -35,49 +58,33 @@ class ContentSummarizer:
 
     def __init__(
         self,
-        provider: str = "openai",
+        provider: str = "builtin",
         api_key: Optional[str] = None,
         prompt: Optional[str] = None,
-        ollama_url: Optional[str] = None,
         summary_model: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
+        **kwargs,
     ):
         """
         Args:
-            provider: 要約プロバイダ ("openai", "ollama", "gemini")
+            provider: 要約プロバイダ ("builtin", "openai", "gemini")
             api_key: OpenAI APIキー（openai使用時、省略時は環境変数から取得）
             prompt: 要約プロンプト（省略時はデフォルトプロンプト）
-            ollama_url: OllamaのAPIエンドポイント（省略時はデフォルト）
             summary_model: 使用するモデル名（省略時はプロバイダのデフォルト）
             gemini_api_key: Gemini APIキー（gemini使用時、省略時は環境変数から取得）
         """
         self.provider = provider
         self.prompt = prompt or DEFAULT_SUMMARY_PROMPT
 
-        self.using_builtin_key = False
-
-        if provider == "ollama":
-            self.base_url = ollama_url or DEFAULT_OLLAMA_URL
-            self.model = summary_model or DEFAULT_OLLAMA_MODEL
-            self.api_key = "ollama"  # Ollamaはダミーキーでよい
+        if provider == "builtin":
+            # Lambda経由（APIキー不要）
+            self.base_url = None
+            self.model = BUILTIN_GEMINI_MODEL
+            self.api_key = None
         elif provider == "gemini":
             self.base_url = DEFAULT_GEMINI_BASE_URL
-            user_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
-            if user_key:
-                # ユーザー指定のAPIキー → 選択したモデルをそのまま使用
-                self.api_key = user_key
-                self.model = summary_model or DEFAULT_GEMINI_MODEL
-            else:
-                # ビルトインAPIキー → gemini-2.5-flash-lite固定
-                self.api_key = BUILTIN_GEMINI_API_KEY
-                self.model = BUILTIN_GEMINI_MODEL
-                self.using_builtin_key = True
-        elif provider == "builtin":
-            # ビルトイン要約（APIキー不要で使える）
-            self.base_url = DEFAULT_GEMINI_BASE_URL
-            self.api_key = BUILTIN_GEMINI_API_KEY
-            self.model = BUILTIN_GEMINI_MODEL
-            self.using_builtin_key = True
+            self.model = summary_model or DEFAULT_GEMINI_MODEL
+            self.api_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
         else:
             self.base_url = None
             self.model = summary_model or "gpt-4o-mini"
@@ -94,8 +101,12 @@ class ContentSummarizer:
         Returns:
             要約テキスト、失敗時はNone
         """
-        if self.provider == "openai" and not self.api_key:
-            print("[WARNING] OpenAI APIキーが設定されていないため要約をスキップ", flush=True)
+        if self.provider == "builtin":
+            return self._summarize_builtin(text, max_chars)
+
+        if not self.api_key:
+            label = "OpenAI" if self.provider == "openai" else "Gemini"
+            print(f"[WARNING] {label} APIキーが設定されていないため要約をスキップ", flush=True)
             return None
 
         if not text or not text.strip():
@@ -112,9 +123,8 @@ class ContentSummarizer:
             client = OpenAI(**client_kwargs)
             truncated_text = text[:max_chars]
 
-            provider_label = {"ollama": "Ollama", "gemini": "Gemini", "builtin": "Gemini"}.get(self.provider, "OpenAI")
-            builtin_note = "（ビルトイン）" if self.using_builtin_key else ""
-            print(f"[INFO] 内容要約を生成中... ({provider_label}: {self.model}{builtin_note})", flush=True)
+            provider_label = "Gemini" if self.provider == "gemini" else "OpenAI"
+            print(f"[INFO] 内容要約を生成中... ({provider_label}: {self.model})", flush=True)
 
             response = client.chat.completions.create(
                 model=self.model,
@@ -141,6 +151,53 @@ class ContentSummarizer:
 
         except Exception as e:
             print(f"[WARNING] 内容要約エラー: {e}", flush=True)
+            return None
+
+    def _summarize_builtin(self, text: str, max_chars: int = 10000) -> Optional[str]:
+        """ビルトインLambdaエンドポイント経由で要約"""
+        import json
+
+        if not text or not text.strip():
+            print("[WARNING] 要約対象のテキストが空です", flush=True)
+            return None
+
+        truncated_text = text[:max_chars]
+        print(f"[INFO] 内容要約を生成中... (ビルトイン: {self.model})", flush=True)
+
+        try:
+            import urllib.request
+            import urllib.error
+
+            payload = json.dumps({
+                "text": truncated_text,
+            }).encode("utf-8")
+
+            req_headers = {"Content-Type": "application/json"}
+            if BUILTIN_APP_TOKEN:
+                req_headers["X-App-Token"] = BUILTIN_APP_TOKEN
+
+            req = urllib.request.Request(
+                BUILTIN_ENDPOINT,
+                data=payload,
+                headers=req_headers,
+                method="POST",
+            )
+
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+
+            summary = result.get("summary", "")
+            if summary:
+                print("[OK] 内容要約を生成しました", flush=True)
+                return summary
+
+            error = result.get("error", "")
+            if error:
+                print(f"[WARNING] 要約エラー: {error}", flush=True)
+            return None
+
+        except Exception as e:
+            print(f"[WARNING] ビルトイン要約エラー: {e}", flush=True)
             return None
 
     def save_summary(self, summary: str, output_path: str) -> Optional[str]:

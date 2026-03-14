@@ -49,22 +49,27 @@
 
 <table>
 <tr>
-<td align="center" width="25%">
+<td align="center" width="20%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Musical%20Note.png" width="60"><br>
 <b>動画→音声変換</b><br>
 <sub>各種プラットフォームの動画を高音質MP3として保存</sub>
 </td>
-<td align="center" width="25%">
+<td align="center" width="20%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Memo.png" width="60"><br>
 <b>AI文字起こし</b><br>
-<sub>OpenAI Whisperで自動テキスト化</sub>
+<sub>faster-whisper / kotoba-whisper / OpenAI APIで自動テキスト化</sub>
 </td>
-<td align="center" width="25%">
+<td align="center" width="20%">
+<img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Light%20Bulb.png" width="60"><br>
+<b>AI要約</b><br>
+<sub>APIキー不要のビルトイン要約機能</sub>
+</td>
+<td align="center" width="20%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Symbols/Clockwise%20Vertical%20Arrows.png" width="60"><br>
 <b>自動アップデート</b><br>
 <sub>新バージョンを自動でお知らせ</sub>
 </td>
-<td align="center" width="25%">
+<td align="center" width="20%">
 <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Thumbs%20Up.png" width="60"><br>
 <b>簡単操作</b><br>
 <sub>URLを貼り付けるだけ！</sub>
@@ -100,16 +105,28 @@
 </thead>
 <tbody>
 <tr>
-<td align="center">🍎<br><strong>macOS</strong></td>
-<td align="center"><code>Instagram Live Transcription-1.0.0-arm64.dmg</code></td>
-<td align="center">~90MB</td>
-<td align="center">macOS 10.15<br>(Catalina) 以降</td>
+<td align="center">🍎<br><strong>macOS</strong><br>(Apple Silicon)</td>
+<td align="center"><code>TranscriptionTool-X.Y.Z-arm64.dmg</code></td>
+<td align="center">~196MB</td>
+<td align="center">macOS 10.15 以降<br>(M1/M2/M3/M4)</td>
 </tr>
 <tr>
-<td align="center">🪟<br><strong>Windows</strong></td>
-<td align="center"><code>Instagram Live Transcription Setup 1.0.0.exe</code></td>
-<td align="center">~90MB</td>
+<td align="center">🍎<br><strong>macOS</strong><br>(Intel)</td>
+<td align="center"><code>TranscriptionTool-X.Y.Z-x64.dmg</code></td>
+<td align="center">~223MB</td>
+<td align="center">macOS 10.15 以降<br>(Intel Mac)</td>
+</tr>
+<tr>
+<td align="center">🪟<br><strong>Windows</strong><br>(インストーラー)</td>
+<td align="center"><code>TranscriptionTool-X.Y.Z-Setup.exe</code></td>
+<td align="center">~207MB</td>
 <td align="center">Windows 10 / 11</td>
+</tr>
+<tr>
+<td align="center">🪟<br><strong>Windows</strong><br>(ポータブル)</td>
+<td align="center"><code>TranscriptionTool-X.Y.Z-portable.exe</code></td>
+<td align="center">~207MB</td>
+<td align="center">Windows 10 / 11<br>(インストール不要)</td>
 </tr>
 </tbody>
 </table>
@@ -299,62 +316,47 @@
 <!-- Model Selection Section -->
 <div align="center">
 
-## 🎯 モデル選択ガイド
+## 🎯 文字起こしエンジン & モデル選択
 
-<sub>処理速度と精度のバランスで選べます</sub>
+<sub>用途に合わせてエンジンとモデルを選べます</sub>
 
 </div>
 
 <br>
 
-<table>
-<thead>
-<tr>
-<th align="center" width="15%">モデル</th>
-<th align="center" width="20%">📊 精度</th>
-<th align="center" width="20%">⚡ 速度</th>
-<th align="center" width="45%">💡 おすすめの用途</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td align="center"><strong>Tiny</strong></td>
-<td align="center">⭐</td>
-<td align="center">⚡⚡⚡⚡⚡</td>
-<td>とにかく速く試したい</td>
-</tr>
-<tr style="background-color: #f0f8ff;">
-<td align="center"><strong>Base</strong><br>👈 <sub>おすすめ</sub></td>
-<td align="center">⭐⭐</td>
-<td align="center">⚡⚡⚡⚡</td>
-<td><strong>初心者におすすめ！</strong><br>速度と精度のバランス型</td>
-</tr>
-<tr>
-<td align="center"><strong>Small</strong></td>
-<td align="center">⭐⭐⭐</td>
-<td align="center">⚡⚡⚡</td>
-<td>精度重視で、ある程度速くしたい</td>
-</tr>
-<tr>
-<td align="center"><strong>Medium</strong></td>
-<td align="center">⭐⭐⭐⭐</td>
-<td align="center">⚡⚡</td>
-<td>高精度が必要（処理時間長め）</td>
-</tr>
-<tr>
-<td align="center"><strong>Large</strong></td>
-<td align="center">⭐⭐⭐⭐⭐</td>
-<td align="center">⚡</td>
-<td>最高精度（要高性能PC・時間かかる）</td>
-</tr>
-</tbody>
-</table>
+### 文字起こしエンジン
+
+| エンジン | 特徴 | APIキー |
+|:---:|:---|:---:|
+| **faster-whisper** 👈 推奨 | 高速・高精度。ローカル実行 | 不要 |
+| **kotoba-whisper** | 日本語特化。Whisper large-v3より高精度・6.3倍高速 | 不要 |
+| **OpenAI API** | クラウド実行。PCスペック不要 | 必要 |
+
+### faster-whisper モデル
+
+| モデル | 📊 精度 | ⚡ 速度 | 💡 おすすめの用途 |
+|:---:|:---:|:---:|:---|
+| **large-v3-turbo** 👈 推奨 | ⭐⭐⭐⭐⭐ | ⚡⚡⚡⚡ | **高速かつ高精度（デフォルト）** |
+| **large-v3** | ⭐⭐⭐⭐⭐ | ⚡⚡ | 最高精度 |
+| **medium** | ⭐⭐⭐⭐ | ⚡⚡⚡ | バランス型 |
+| **small** | ⭐⭐⭐ | ⚡⚡⚡⚡ | 軽量・高速 |
+| **tiny** | ⭐⭐ | ⚡⚡⚡⚡⚡ | とにかく速く試したい |
+
+### 内容要約機能
+
+文字起こし後のテキストをAIで自動要約できます。
+
+| プロバイダ | モデル | APIキー | 備考 |
+|:---:|:---:|:---:|:---|
+| **ビルトイン** 👈 推奨 | gemini-2.5-flash-lite | **不要** | そのまま使える！ |
+| **Gemini API** | gemini-2.5-flash 等 | 必要 | 高精度モデルを選択可能 |
+| **OpenAI API** | gpt-4o-mini 等 | 必要 | OpenAI派向け |
 
 <div align="center">
 
 <br>
 
-💡 **迷ったら「Base」を選びましょう！**
+💡 **迷ったら faster-whisper の large-v3-turbo + ビルトイン要約でOK！**
 
 </div>
 
@@ -416,10 +418,18 @@
 - **Instagram** - Live, Reels, 投稿動画
 - **YouTube** - 動画, ライブ配信, Podcast
 - **X (Twitter)** - Spaces（音声ライブ）
-- **Voicy** - 音声配信
+- **Voicy** - 音声配信（独自実装で完全対応）
+- **stand.fm** - 音声配信（独自実装で完全対応）
 - **Radiko** - ラジオ配信
-- **stand.fm** - 音声配信
-- その他多数のサイト
+- **ニコニコ動画** - 動画, ライブ
+- **TVer** - テレビ番組
+- **AbemaTV** - 動画配信
+- **TikTok** - 動画
+- **Twitch** - ライブ配信, アーカイブ
+- **SoundCloud** - 音声配信
+- **Facebook** - 動画
+- **Apple Podcasts** - ポッドキャスト
+- その他yt-dlp対応の1,800以上のサイト
 
 URLを貼り付けるだけで自動判定されます！
 
@@ -578,10 +588,10 @@ brew install ffmpeg
 <table>
 <tr>
 <td align="center" width="25%">
-✅<br><b>ローカル処理</b><br><sub>すべてPC上で実行</sub>
+✅<br><b>ローカル処理</b><br><sub>文字起こしはPC上で実行</sub>
 </td>
 <td align="center" width="25%">
-✅<br><b>データ送信なし</b><br><sub>外部サーバー不使用</sub>
+✅<br><b>最小限の通信</b><br><sub>要約機能利用時のみテキストを送信</sub>
 </td>
 <td align="center" width="25%">
 ✅<br><b>個人情報収集なし</b><br><sub>完全プライベート</sub>
@@ -630,19 +640,26 @@ MIT License - 個人利用・商用利用ともに自由にご利用いただけ
 <summary>開発者向け情報</summary>
 
 ### フロントエンド
-- Electron
+- Electron 28
 - HTML/CSS/JavaScript（Liquid Glass UI）
-- electron-updater
+- electron-updater（自動アップデート通知）
 
 ### バックエンド
-- Python 3.13
-- yt-dlp
-- ffmpeg
-- OpenAI Whisper
+- Python 3.11+
+- faster-whisper（デフォルト文字起こしエンジン）
+- kotoba-whisper v2.0（日本語特化エンジン、オプション）
+- yt-dlp（動画・音声ダウンロード）
+- ffmpeg（音声変換）
+- Selenium（Voicy/UTAGE対応）
+
+### 要約機能
+- ビルトイン: AWS Lambda + Gemini 2.5 Flash Lite（APIキー不要）
+- オプション: Gemini API / OpenAI API（ユーザーのAPIキー使用）
 
 ### ビルド & デプロイ
-- electron-builder
-- GitHub Actions（自動ビルド）
+- electron-builder + PyInstaller
+- GitHub Actions（Windows + macOS arm64 自動ビルド・署名・公証）
+- macOS x64（Intel Mac）はローカル手動ビルド
 - GitHub Releases（配布）
 
 ### 開発モードで起動
@@ -672,14 +689,22 @@ npm start
 <a href="https://github.com/yt-dlp/yt-dlp">
 <img src="https://img.shields.io/badge/yt--dlp-E74C3C?style=for-the-badge&logo=youtube&logoColor=white" alt="yt-dlp">
 </a><br>
-<sub>Instagram動画ダウンロード</sub>
+<sub>動画・音声ダウンロード</sub>
 </td>
 <td align="center">
-<a href="https://github.com/openai/whisper">
-<img src="https://img.shields.io/badge/OpenAI_Whisper-412991?style=for-the-badge&logo=openai&logoColor=white" alt="Whisper">
+<a href="https://github.com/SYSTRAN/faster-whisper">
+<img src="https://img.shields.io/badge/faster--whisper-412991?style=for-the-badge&logo=openai&logoColor=white" alt="faster-whisper">
 </a><br>
-<sub>音声認識エンジン</sub>
+<sub>高速音声認識エンジン</sub>
 </td>
+<td align="center">
+<a href="https://huggingface.co/kotoba-tech/kotoba-whisper-v2.0">
+<img src="https://img.shields.io/badge/kotoba--whisper-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black" alt="kotoba-whisper">
+</a><br>
+<sub>日本語特化音声認識</sub>
+</td>
+</tr>
+<tr>
 <td align="center">
 <a href="https://www.electronjs.org/">
 <img src="https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white" alt="Electron">
@@ -691,6 +716,12 @@ npm start
 <img src="https://img.shields.io/badge/FFmpeg-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="ffmpeg">
 </a><br>
 <sub>音声処理</sub>
+</td>
+<td align="center">
+<a href="https://ai.google.dev/">
+<img src="https://img.shields.io/badge/Gemini_API-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini">
+</a><br>
+<sub>AI要約エンジン</sub>
 </td>
 </tr>
 </table>

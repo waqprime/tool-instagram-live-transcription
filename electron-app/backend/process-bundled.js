@@ -12,8 +12,8 @@ class ProcessManager {
     this.stopped = false;
 
     console.log('ProcessManager initialized (Bundled mode):');
-    console.log('  Backend binary:', this.binaryPath);
-    console.log('  ffmpeg binary:', this.ffmpegPath);
+    console.log('  Backend binary:', path.basename(this.binaryPath));
+    console.log('  ffmpeg binary:', path.basename(this.ffmpegPath));
   }
 
   onLog(callback) {
@@ -37,7 +37,46 @@ class ProcessManager {
     }
   }
 
-  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'openai', ollamaUrl = '', summaryModel = '', geminiApiKey = '') {
+  // ログ出力用: stdout/stderrの行からセンシティブ情報を除去
+  _sanitizeLogLine(line) {
+    let sanitized = line;
+    // URL: クエリパラメータ・フラグメントを除去（https://example.com/path?key=val → https://example.com/path）
+    sanitized = sanitized.replace(/https?:\/\/[^\s"']+/g, (url) => this._sanitizeUrl(url));
+    // 絶対パス: /Users/xxx/... や C:\Users\xxx\... をベース名に
+    sanitized = sanitized.replace(/(?:\/Users\/[^\s"':]+|\/home\/[^\s"':]+|[A-Z]:\\Users\\[^\s"':]+)/g, (p) => {
+      const base = p.split(/[\\/]/).pop();
+      return base || p;
+    });
+    return sanitized;
+  }
+
+  // ログ出力用: URLからクエリパラメータを除去
+  _sanitizeUrl(url) {
+    try {
+      const parsed = new URL(url);
+      // クエリパラメータとフラグメントを除去
+      return `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`;
+    } catch {
+      return url.split('?')[0];
+    }
+  }
+
+  // ログ出力用: 引数から絶対パスをベース名に、機微情報を除去
+  _sanitizeArgs(args) {
+    const sensitiveFlags = ['--api-key', '--gemini-api-key', '--obsidian-vault', '--obsidian-folder', '--summary-prompt'];
+    return args.map((a, i, arr) => {
+      // 機微フラグの値を隠す
+      if (i > 0 && sensitiveFlags.includes(arr[i - 1])) return '[REDACTED]';
+      if (sensitiveFlags.includes(a)) return a;
+      // URLのクエリパラメータを除去
+      if (a.startsWith('http://') || a.startsWith('https://')) return this._sanitizeUrl(a);
+      // 絶対パスをベース名に変換（出力先ディレクトリは除く）
+      if (path.isAbsolute(a) && !arr[i - 1]?.includes('output-dir')) return path.basename(a);
+      return a;
+    });
+  }
+
+  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'builtin', summaryModel = '', geminiApiKey = '') {
     this.stopped = false;
     this.engine = engine;
     this.apiKey = apiKey;
@@ -47,15 +86,14 @@ class ProcessManager {
     this.summarize = summarize;
     this.summaryPrompt = summaryPrompt;
     this.summaryProvider = summaryProvider;
-    this.ollamaUrl = ollamaUrl;
     this.summaryModel = summaryModel;
     this.geminiApiKey = geminiApiKey;
     const results = [];
     const totalItems = urls.length + (files ? files.length : 0);
 
     // Validate URLs before processing
-    console.log('Processing URLs:', urls);
-    console.log('Processing Files:', files);
+    console.log('Processing URLs:', urls.map(u => this._sanitizeUrl(u)));
+    console.log('Processing Files:', files.map(f => path.basename(f)));
 
     for (let i = 0; i < urls.length; i++) {
       const url = urls[i];
@@ -101,7 +139,7 @@ class ProcessManager {
         fs.mkdirSync(urlOutputDir, { recursive: true });
       }
 
-      this.log('info', `[${urlNum}/${totalItems}] 処理開始: ${url}`);
+      this.log('info', `[${urlNum}/${totalItems}] 処理開始: ${this._sanitizeUrl(url)}`);
       this.log('info', `[${urlNum}/${totalItems}] 保存先: ${folderName}/`);
       this.updateProgress((i / totalItems) * 100, `URL ${urlNum}/${totalItems} を処理中...`);
 
@@ -224,12 +262,7 @@ class ProcessManager {
         if (this.summaryModel) {
           args.push('--summary-model', this.summaryModel);
         }
-        if (this.ollamaUrl) {
-          args.push('--ollama-url', this.ollamaUrl);
-        }
-        if (this.geminiApiKey) {
-          args.push('--gemini-api-key', this.geminiApiKey);
-        }
+        // geminiApiKey is passed via env var below, not CLI args
       }
 
       // Set ffmpeg path and unbuffered output as environment variables
@@ -238,15 +271,19 @@ class ProcessManager {
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
       }
-      // Pass OpenAI API key via environment variable (not CLI args for security)
+      // Pass API keys via environment variable (not CLI args for security)
       if (this.apiKey) {
         env.OPENAI_API_KEY = this.apiKey;
       }
+      if (this.geminiApiKey) {
+        env.GEMINI_API_KEY = this.geminiApiKey;
+      }
 
       // ログにはセンシティブな引数を除外して出力
-      const safeArgs = args.filter((a, i, arr) => a !== '--api-key' && (i === 0 || arr[i - 1] !== '--api-key'));
-      this.log('info', `[${fileNum}/${totalItems}] バイナリ実行: ${this.binaryPath}`);
-      this.log('info', `[${fileNum}/${totalItems}] 引数: ${safeArgs.join(' ')}`);
+      const sensitiveFlags = ['--api-key', '--gemini-api-key'];
+      const safeArgs = args.filter((a, i, arr) => !sensitiveFlags.includes(a) && (i === 0 || !sensitiveFlags.includes(arr[i - 1])));
+      this.log('info', `[${fileNum}/${totalItems}] バイナリ実行: ${path.basename(this.binaryPath)}`);
+      this.log('info', `[${fileNum}/${totalItems}] 引数: ${this._sanitizeArgs(safeArgs).join(' ')}`);
 
       // Create log file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -259,9 +296,9 @@ class ProcessManager {
       };
 
       writeLog('='.repeat(60));
-      writeLog(`Processing file: ${filePath}`);
-      writeLog(`Binary: ${this.binaryPath}`);
-      writeLog(`Args: ${args.join(' ')}`);
+      writeLog(`Processing file: ${path.basename(filePath)}`);
+      writeLog(`Binary: ${path.basename(this.binaryPath)}`);
+      writeLog(`Args: ${this._sanitizeArgs(args).join(' ')}`);
       writeLog('='.repeat(60));
 
       this.currentProcess = spawn(this.binaryPath, args, { env });
@@ -276,10 +313,10 @@ class ProcessManager {
         const lines = text.split('\n');
         for (const line of lines) {
           if (!line.trim()) continue;
-          writeLog(`STDOUT: ${line.trim()}`);
+          writeLog(`STDOUT: ${this._sanitizeLogLine(line.trim())}`);
 
           if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]')) {
-            this.log('info', line.trim());
+            this.log('info', this._sanitizeLogLine(line.trim()));
           }
         }
       });
@@ -291,7 +328,7 @@ class ProcessManager {
         const lines = text.split('\n');
         for (const line of lines) {
           if (!line.trim()) continue;
-          writeLog(`STDERR: ${line.trim()}`);
+          writeLog(`STDERR: ${this._sanitizeLogLine(line.trim())}`);
         }
       });
 
@@ -338,7 +375,7 @@ class ProcessManager {
       this.currentProcess.on('error', (error) => {
         this.currentProcess = null;
         writeLog('='.repeat(60));
-        writeLog(`FATAL ERROR: ${error.message}`);
+        writeLog(`FATAL ERROR: ${this._sanitizeLogLine(error.message)}`);
         writeLog('='.repeat(60));
         logStream.end();
         reject(error);
@@ -393,12 +430,7 @@ class ProcessManager {
         if (this.summaryModel) {
           args.push('--summary-model', this.summaryModel);
         }
-        if (this.ollamaUrl) {
-          args.push('--ollama-url', this.ollamaUrl);
-        }
-        if (this.geminiApiKey) {
-          args.push('--gemini-api-key', this.geminiApiKey);
-        }
+        // geminiApiKey is passed via env var below, not CLI args
       }
 
       // Set ffmpeg path and unbuffered output as environment variables
@@ -406,18 +438,21 @@ class ProcessManager {
       env.PYTHONUNBUFFERED = '1';  // Force unbuffered output for Windows
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
-        this.log('info', `Using ffmpeg: ${this.ffmpegPath}`);
+        this.log('info', `Using ffmpeg: ${path.basename(this.ffmpegPath)}`);
       }
-      // Pass OpenAI API key via environment variable (not CLI args for security)
+      // Pass API keys via environment variable (not CLI args for security)
       if (this.apiKey) {
         env.OPENAI_API_KEY = this.apiKey;
       }
+      if (this.geminiApiKey) {
+        env.GEMINI_API_KEY = this.geminiApiKey;
+      }
 
       // ログにはセンシティブな引数を除外して出力
-      const safeArgs = args.filter((a, i, arr) => a !== '--api-key' && (i === 0 || arr[i - 1] !== '--api-key'));
-      this.log('info', `[${urlNum}/${totalItems}] バイナリ実行: ${this.binaryPath}`);
-      this.log('info', `[${urlNum}/${totalItems}] 引数: ${safeArgs.join(' ')}`);
-      this.log('info', `[${urlNum}/${totalItems}] 出力先: ${outputDir}`);
+      const sensitiveFlags = ['--api-key', '--gemini-api-key'];
+      const safeArgs = args.filter((a, i, arr) => !sensitiveFlags.includes(a) && (i === 0 || !sensitiveFlags.includes(arr[i - 1])));
+      this.log('info', `[${urlNum}/${totalItems}] バイナリ実行: ${path.basename(this.binaryPath)}`);
+      this.log('info', `[${urlNum}/${totalItems}] 引数: ${this._sanitizeArgs(safeArgs).join(' ')}`);
 
       // Create log file for this processing session
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -430,10 +465,9 @@ class ProcessManager {
       };
 
       writeLog('='.repeat(60));
-      writeLog(`Processing started: ${url}`);
-      writeLog(`Binary: ${this.binaryPath}`);
-      writeLog(`Args: ${args.join(' ')}`);
-      writeLog(`Output: ${outputDir}`);
+      writeLog(`Processing started: ${this._sanitizeUrl(url)}`);
+      writeLog(`Binary: ${path.basename(this.binaryPath)}`);
+      writeLog(`Args: ${this._sanitizeArgs(args).join(' ')}`);
       writeLog('='.repeat(60));
 
       this.currentProcess = spawn(this.binaryPath, args, { env });
@@ -451,8 +485,8 @@ class ProcessManager {
         for (const line of lines) {
           if (!line.trim()) continue;
 
-          // Write all stdout to log file
-          writeLog(`STDOUT: ${line.trim()}`);
+          // Write sanitized stdout to log file
+          writeLog(`STDOUT: ${this._sanitizeLogLine(line.trim())}`);
 
           // Parse [PROGRESS] messages
           const progressMatch = line.match(/\[PROGRESS\]\s*(.+?):\s*(\d+(?:\.\d+)?)%/);
@@ -484,15 +518,15 @@ class ProcessManager {
             continue;
           }
 
-          // Log important messages
+          // Log important messages (sanitized)
           if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
-            this.log('info', line.trim());
+            this.log('info', this._sanitizeLogLine(line.trim()));
           }
 
-          // Update progress for long operations (fallback)
+          // Update progress for long operations (fallback, sanitized)
           const now = Date.now();
           if (now - lastProgressUpdate > 2000) {
-            this.updateProgress(null, `処理中: URL ${urlNum}/${totalItems}`, line.substring(0, 100));
+            this.updateProgress(null, `処理中: URL ${urlNum}/${totalItems}`, this._sanitizeLogLine(line.substring(0, 100)));
             lastProgressUpdate = now;
           }
         }
@@ -507,17 +541,18 @@ class ProcessManager {
         for (const line of lines) {
           if (!line.trim()) continue;
 
-          // Write all stderr to log file
-          writeLog(`STDERR: ${line.trim()}`);
+          // Write sanitized stderr to log file
+          writeLog(`STDERR: ${this._sanitizeLogLine(line.trim())}`);
 
           // Log as error or warning based on content
+          const sanitizedLine = this._sanitizeLogLine(line.trim());
           if (line.includes('error') || line.includes('Error') || line.includes('ERROR') || line.includes('Exception') || line.includes('Traceback')) {
-            this.log('error', `STDERR: ${line.trim()}`);
+            this.log('error', `STDERR: ${sanitizedLine}`);
           } else if (line.includes('warning') || line.includes('Warning') || line.includes('WARN')) {
-            this.log('warning', `STDERR: ${line.trim()}`);
+            this.log('warning', `STDERR: ${sanitizedLine}`);
           } else {
             // Log all other stderr as info for debugging
-            this.log('debug', `STDERR: ${line.trim()}`);
+            this.log('debug', `STDERR: ${sanitizedLine}`);
           }
         }
       });
@@ -566,12 +601,11 @@ class ProcessManager {
       this.currentProcess.on('error', (error) => {
         this.currentProcess = null;
 
-        // Write error to log file
+        // Write sanitized error to log file
         writeLog('='.repeat(60));
-        writeLog(`FATAL ERROR: ${error.message}`);
-        writeLog(`Stack trace: ${error.stack}`);
+        writeLog(`FATAL ERROR: ${this._sanitizeLogLine(error.message)}`);
+        writeLog(`Stack trace: ${this._sanitizeLogLine(error.stack || '')}`);
         writeLog('='.repeat(60));
-        writeLog(`Log file saved to: ${logFilePath}`);
         logStream.end();
 
         reject(error);

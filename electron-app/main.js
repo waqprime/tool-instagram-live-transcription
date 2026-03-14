@@ -54,6 +54,18 @@ function loadSettings() {
         delete settings._apiKeyEncrypted;
       }
 
+      // Decrypt Gemini API key if encrypted
+      if (settings._geminiApiKeyEncrypted && settings.geminiApiKey) {
+        try {
+          const encrypted = Buffer.from(settings.geminiApiKey, 'base64');
+          settings.geminiApiKey = safeStorage.decryptString(encrypted);
+        } catch (decryptError) {
+          console.error('Failed to decrypt Gemini API key:', decryptError);
+          settings.geminiApiKey = '';
+        }
+        delete settings._geminiApiKeyEncrypted;
+      }
+
       return settings;
     }
   } catch (error) {
@@ -69,13 +81,63 @@ function saveSettings(settings) {
       fs.mkdirSync(SETTINGS_DIR, { recursive: true });
     }
     const settingsPath = getSettingsPath();
+
+    // 削除専用リクエストの場合: 既存設定から該当キーだけ削除して保存
+    if (settings._deleteApiKey || settings._deleteGeminiApiKey) {
+      const existing = fs.existsSync(settingsPath)
+        ? JSON.parse(fs.readFileSync(settingsPath, 'utf-8'))
+        : {};
+      if (settings._deleteApiKey) {
+        delete existing.apiKey;
+        delete existing._apiKeyEncrypted;
+      }
+      if (settings._deleteGeminiApiKey) {
+        delete existing.geminiApiKey;
+        delete existing._geminiApiKeyEncrypted;
+      }
+      fs.writeFileSync(settingsPath, JSON.stringify(existing, null, 2), 'utf-8');
+      return true;
+    }
+
     const toSave = { ...settings };
 
-    // Encrypt API key if safeStorage is available
-    if (toSave.apiKey && safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(toSave.apiKey);
-      toSave.apiKey = encrypted.toString('base64');
-      toSave._apiKeyEncrypted = true;
+    // 保存済みキーを維持（rendererから空で送られた場合）
+    if (toSave._keepApiKey) {
+      const existing = loadSettings();
+      if (existing.apiKey) toSave.apiKey = existing.apiKey;
+    }
+    delete toSave._keepApiKey;
+    if (toSave._keepGeminiApiKey) {
+      const existing = loadSettings();
+      if (existing.geminiApiKey) toSave.geminiApiKey = existing.geminiApiKey;
+    }
+    delete toSave._keepGeminiApiKey;
+
+    // Encrypt API keys if safeStorage is available
+    if (toSave.apiKey || toSave.geminiApiKey) {
+      if (safeStorage.isEncryptionAvailable()) {
+        if (toSave.apiKey) {
+          const encrypted = safeStorage.encryptString(toSave.apiKey);
+          toSave.apiKey = encrypted.toString('base64');
+          toSave._apiKeyEncrypted = true;
+        }
+        if (toSave.geminiApiKey) {
+          const encrypted = safeStorage.encryptString(toSave.geminiApiKey);
+          toSave.geminiApiKey = encrypted.toString('base64');
+          toSave._geminiApiKeyEncrypted = true;
+        }
+      } else {
+        // safeStorageが利用不可の場合、APIキーを平文で保存しない
+        console.warn('safeStorage is not available. API keys will NOT be saved.');
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('processing-log', {
+            type: 'warning',
+            message: 'APIキーの暗号化が利用できないため、キーは保存されませんでした。アプリを再起動して再試行してください。'
+          });
+        }
+        delete toSave.apiKey;
+        delete toSave.geminiApiKey;
+      }
     }
 
     fs.writeFileSync(settingsPath, JSON.stringify(toSave, null, 2), 'utf-8');
@@ -95,7 +157,7 @@ function getBackendBinaryPath() {
     // In development, use the binary from resources if it exists
     const devBinaryPath = path.join(__dirname, 'resources', 'backend', binaryName);
     if (fs.existsSync(devBinaryPath)) {
-      console.log('Using dev binary:', devBinaryPath);
+      console.log('Using dev binary:', path.basename(devBinaryPath));
       return devBinaryPath;
     }
     console.warn('Dev binary not found. Run "npm run prebuild" first.');
@@ -104,7 +166,7 @@ function getBackendBinaryPath() {
 
   // In production, use the bundled binary
   const binaryPath = path.join(process.resourcesPath, 'resources', 'backend', binaryName);
-  console.log('Using production binary:', binaryPath);
+  console.log('Using production binary:', path.basename(binaryPath));
   return binaryPath;
 }
 
@@ -132,7 +194,7 @@ function findSystemFFmpeg() {
     ];
     for (const p of commonPaths) {
       if (fs.existsSync(p)) {
-        console.log('Found ffmpeg at:', p);
+        console.log('Found ffmpeg at:', path.basename(p));
         return p;
       }
     }
@@ -155,21 +217,13 @@ function getFFmpegPath() {
     return findSystemFFmpeg();
   }
 
-  // In production, try the bundled binary first
+  // In production, use ONLY the bundled binary (no system fallback for security)
   const bundledPath = path.join(process.resourcesPath, 'resources', 'ffmpeg', ffmpegName);
   if (fs.existsSync(bundledPath)) {
     return bundledPath;
   }
 
-  // Bundled ffmpeg not found - try system PATH as fallback
-  console.warn('Bundled ffmpeg not found at:', bundledPath);
-  console.warn('Falling back to system ffmpeg...');
-  const systemFFmpeg = findSystemFFmpeg();
-  if (systemFFmpeg) {
-    return systemFFmpeg;
-  }
-
-  console.error('ffmpeg not found anywhere. Please install ffmpeg.');
+  console.error('Bundled ffmpeg not found. Application may be corrupted.');
   return null;
 }
 
@@ -259,7 +313,18 @@ ipcMain.handle('get-default-output-dir', async () => {
 });
 
 ipcMain.handle('load-settings', async () => {
-  return loadSettings();
+  const settings = loadSettings();
+  // APIキー文字列はrendererに返さない（保存済みフラグのみ）
+  const safeSettings = { ...settings };
+  if (safeSettings.apiKey) {
+    safeSettings._hasApiKey = true;
+    delete safeSettings.apiKey;
+  }
+  if (safeSettings.geminiApiKey) {
+    safeSettings._hasGeminiApiKey = true;
+    delete safeSettings.geminiApiKey;
+  }
+  return safeSettings;
 });
 
 ipcMain.handle('save-settings', async (event, settings) => {
@@ -294,7 +359,16 @@ ipcMain.handle('select-files', async () => {
 
 ipcMain.handle('start-processing', async (event, config) => {
   try {
-    const safeConfig = { ...config, apiKey: config.apiKey ? '[REDACTED]' : '' };
+    // 保存済みAPIキーをmainプロセス側で注入（rendererからは送らない）
+    const savedSettings = loadSettings();
+    if (!config.apiKey && savedSettings.apiKey) {
+      config.apiKey = savedSettings.apiKey;
+    }
+    if (!config.geminiApiKey && savedSettings.geminiApiKey) {
+      config.geminiApiKey = savedSettings.geminiApiKey;
+    }
+
+    const safeConfig = { ...config, apiKey: config.apiKey ? '[REDACTED]' : '', geminiApiKey: config.geminiApiKey ? '[REDACTED]' : '' };
     console.log('Starting processing with config:', safeConfig);
 
     // Get bundled backend binary
@@ -322,8 +396,8 @@ ipcMain.handle('start-processing', async (event, config) => {
       };
     }
 
-    console.log('Backend binary:', binaryPath);
-    console.log('ffmpeg binary:', ffmpegPath);
+    console.log('Backend binary:', path.basename(binaryPath));
+    console.log('ffmpeg:', ffmpegPath ? path.basename(ffmpegPath) : 'not found');
 
     // Initialize ProcessManager with bundled binary
     processManager = new ProcessManager(binaryPath, ffmpegPath);
@@ -353,8 +427,7 @@ ipcMain.handle('start-processing', async (event, config) => {
       config.diarize || false,
       config.summarize || false,
       config.summaryPrompt || '',
-      config.summaryProvider || 'openai',
-      config.ollamaUrl || '',
+      config.summaryProvider || 'builtin',
       config.summaryModel || '',
       config.geminiApiKey || ''
     );
