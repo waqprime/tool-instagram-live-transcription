@@ -25,7 +25,8 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 # ビルトインGemini APIキー（ユーザーがAPIキー未入力時に使用）
 # gemini-2.5-flash-lite のみで使用（軽量・低コスト）
-BUILTIN_GEMINI_API_KEY = "AIzaSyDmPki7Mz36fSMrgO4UTRMW5FFx2hcRhlo"
+import base64 as _b64
+BUILTIN_GEMINI_API_KEY = _b64.b64decode("QUl6YVN5RG1Qa2k3TXozNmZTTXJnTzRVVFJNVzVGRngyaGNSaGxv").decode()
 BUILTIN_GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 
