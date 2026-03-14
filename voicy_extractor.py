@@ -101,6 +101,10 @@ class VoicyExtractor:
 
             print(f"[INFO] Voicyページにアクセス (ブラウザ自動化): {page_url}", flush=True)
 
+            # URLからvoice_idを抽出
+            params = self._parse_url(page_url)
+            voice_id = params.get('voice_id') if params else None
+
             chrome_options = Options()
             chrome_options.add_argument('--headless')
             chrome_options.add_argument('--no-sandbox')
@@ -125,14 +129,67 @@ class VoicyExtractor:
                 title = driver.title or "voicy_audio"
                 title = re.sub(r'\s*[|-]\s*Voicy.*$', '', title).strip()
 
-                # 再生ボタンを探してクリック
-                play_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="再生"]')
-                if play_buttons:
-                    driver.execute_script("arguments[0].click();", play_buttons[0])
-                    print("[INFO] 再生ボタンをクリック", flush=True)
-                    time.sleep(5)
-                else:
-                    print("[WARNING] 再生ボタンが見つかりません", flush=True)
+                # voice_idが指定されている場合、該当放送までスクロールして再生
+                play_clicked = False
+                if voice_id:
+                    print(f"[INFO] 指定放送を検索中 (voice_id: {voice_id})", flush=True)
+                    # voice_idを含むリンクを探す
+                    voice_links = driver.find_elements(By.CSS_SELECTOR, f'a[href*="/{voice_id}"]')
+                    if voice_links:
+                        # 該当放送の近くの再生ボタンを探す
+                        for link in voice_links:
+                            try:
+                                # 親要素をたどって再生ボタンを探す
+                                parent = link
+                                for _ in range(10):
+                                    parent = parent.find_element(By.XPATH, '..')
+                                    play_btns = parent.find_elements(By.CSS_SELECTOR, '[aria-label="再生"]')
+                                    if play_btns:
+                                        driver.execute_script("arguments[0].scrollIntoView(true);", play_btns[0])
+                                        time.sleep(1)
+                                        driver.execute_script("arguments[0].click();", play_btns[0])
+                                        print(f"[INFO] 指定放送の再生ボタンをクリック (voice_id: {voice_id})", flush=True)
+                                        play_clicked = True
+                                        break
+                                if play_clicked:
+                                    break
+                            except Exception:
+                                continue
+
+                    if not play_clicked:
+                        # voice_idのリンクが見つからない場合、ページ内のテキストからvoice_idを探す
+                        # 全再生ボタンの中からvoice_idに最も近いものを選択
+                        all_links = driver.find_elements(By.CSS_SELECTOR, 'a[href*="/channel/"]')
+                        for link in all_links:
+                            href = link.get_attribute('href') or ''
+                            if voice_id in href:
+                                try:
+                                    parent = link
+                                    for _ in range(10):
+                                        parent = parent.find_element(By.XPATH, '..')
+                                        play_btns = parent.find_elements(By.CSS_SELECTOR, '[aria-label="再生"]')
+                                        if play_btns:
+                                            driver.execute_script("arguments[0].scrollIntoView(true);", play_btns[0])
+                                            time.sleep(1)
+                                            driver.execute_script("arguments[0].click();", play_btns[0])
+                                            print(f"[INFO] 指定放送の再生ボタンをクリック", flush=True)
+                                            play_clicked = True
+                                            break
+                                    if play_clicked:
+                                        break
+                                except Exception:
+                                    continue
+
+                if not play_clicked:
+                    # フォールバック: 最初の再生ボタンをクリック
+                    play_buttons = driver.find_elements(By.CSS_SELECTOR, '[aria-label="再生"]')
+                    if play_buttons:
+                        driver.execute_script("arguments[0].click();", play_buttons[0])
+                        print("[INFO] 再生ボタンをクリック（フォールバック）", flush=True)
+                    else:
+                        print("[WARNING] 再生ボタンが見つかりません", flush=True)
+
+                time.sleep(5)
 
                 # ネットワークログからHLS m3u8 URLを抽出
                 logs = driver.get_log('performance')
