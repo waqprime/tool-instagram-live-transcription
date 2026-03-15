@@ -135,10 +135,17 @@ npm version X.Y.Z --no-git-tag-version --allow-same-version
 APPLE_ID="..." APPLE_APP_SPECIFIC_PASSWORD="..." APPLE_TEAM_ID="..." \
   npm run build:mac-x64
 
-# 2. リリースにアップロード
+# 2. DMG作成失敗時（macOS 26+ hdiutil日本語ボリューム名バグ）
+#    npm run build:mac-x64 でzipは作成されるがDMGがhdiutilエラーで失敗する場合、
+#    手動でDMG作成する:
+hdiutil create -srcfolder "dist/mac/文字起こしツール.app" \
+  -volname "TranscriptionTool" -anyowners -nospotlight \
+  -format UDZO -fs APFS "dist/TranscriptionTool-X.Y.Z-x64.dmg"
+
+# 3. リリースにアップロード
 gh release upload vX.Y.Z electron-app/dist/TranscriptionTool-*.dmg electron-app/dist/TranscriptionTool-*.zip
 
-# 3. クリーンアップ
+# 4. クリーンアップ
 rm -rf electron-app/dist dist build
 ```
 
@@ -155,3 +162,4 @@ rm -rf electron-app/dist dist build
 - 長時間の動画（60分以上）はWhisper処理に時間がかかる場合がある
 - kotoba-whisperはシステムにPython 3 + torch + transformersが必要（初回自動インストール）
 - Voicy/UTAGEの抽出にはChromeブラウザが必要
+- macOS 26以降、hdiutilが日本語ボリューム名（`文字起こしツール`）でDMG作成に失敗する。手動ビルド時はASCIIボリューム名（`TranscriptionTool`）を使用すること
