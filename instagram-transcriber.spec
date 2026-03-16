@@ -28,6 +28,16 @@ a = Analysis(
     binaries=ctranslate2_binaries,
     datas=faster_whisper_datas + ctranslate2_datas + ([('.app_token', '.')] if os.path.exists('.app_token') else []),
     hiddenimports=[
+        # ローカルモジュール（PyInstaller 6.19 + Python 3.14で自動検出に失敗する場合がある）
+        'transcriber',
+        'downloader',
+        'audio_converter',
+        'summarizer',
+        'title_generator',
+        'obsidian_writer',
+        'voicy_extractor',
+        'standfm_extractor',
+        'utage_extractor',
         'tiktoken_ext',
         'tiktoken_ext.openai_public',
         'yt_dlp',
