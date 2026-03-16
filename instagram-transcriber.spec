@@ -24,20 +24,23 @@ except Exception:
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=[os.path.abspath('.')],
     binaries=ctranslate2_binaries,
-    datas=faster_whisper_datas + ctranslate2_datas + ([('.app_token', '.')] if os.path.exists('.app_token') else []),
+    datas=faster_whisper_datas + ctranslate2_datas
+        + ([('.app_token', '.')] if os.path.exists('.app_token') else [])
+        + [
+            # ローカルモジュール（単独.pyファイルはhiddenimportsでは不十分なためdatasで同梱）
+            ('transcriber.py', '.'),
+            ('downloader.py', '.'),
+            ('audio_converter.py', '.'),
+            ('summarizer.py', '.'),
+            ('title_generator.py', '.'),
+            ('obsidian_writer.py', '.'),
+            ('voicy_extractor.py', '.'),
+            ('standfm_extractor.py', '.'),
+            ('utage_extractor.py', '.'),
+        ],
     hiddenimports=[
-        # ローカルモジュール（PyInstaller 6.19 + Python 3.14で自動検出に失敗する場合がある）
-        'transcriber',
-        'downloader',
-        'audio_converter',
-        'summarizer',
-        'title_generator',
-        'obsidian_writer',
-        'voicy_extractor',
-        'standfm_extractor',
-        'utage_extractor',
         'tiktoken_ext',
         'tiktoken_ext.openai_public',
         'yt_dlp',

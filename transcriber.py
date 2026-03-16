@@ -661,6 +661,8 @@ class KotobaWhisperExternalTranscriber(TranscriberBase):
         import tempfile
 
         # 一時スクリプトを作成して実行
+        # パスのエスケープ処理（f-stringのバックスラッシュ制限回避のため事前に変数化）
+        safe_audio_path = audio_path.replace('\\', '/').replace('"', '\\"')
         script = f'''
 import json, sys
 try:
@@ -687,7 +689,7 @@ try:
     )
 
     result = pipe(
-        "{audio_path.replace(chr(92), '/').replace('"', '\\"')}",
+        "{safe_audio_path}",
         return_timestamps=True,
         generate_kwargs={{"language": "japanese", "task": "transcribe"}},
     )
