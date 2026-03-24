@@ -15,11 +15,13 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ビルドが失敗した場合は新バイナリを手動で検証し、ここを更新すること。
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
-  // evermeet.cx ffmpeg 8.0.1 — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': '430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f',
-  'darwin-x64': '430d60fbf419dab28daee9b679e7929a31ee9bae53f6e42e8ae26b725584290f',
-  // gyan.dev ffmpeg 8.0.1 essentials
-  'win32-x64': '5af82a0d4fe2b9eae211b967332ea97edfc51c6b328ca35b827e73eac560dc0d',
+  // evermeet.cx ffmpeg (latest release) — darwin arm64/x64 は同一URLのため同一バイナリ
+  'darwin-arm64': 'b68f795f7fb4528daf697f57a2b6780846a1ae762a71907e994442ad103ee88f',
+  'darwin-x64': 'b68f795f7fb4528daf697f57a2b6780846a1ae762a71907e994442ad103ee88f',
+  // gyan.dev ffmpeg essentials
+  'win32-x64': '1a65d5b0b10d8d9a81d2824a3538046a40ed3607c906b335a166add87613f705',
+  // johnvansickle.com ffmpeg static
+  'linux-x64': 'e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99',
 };
 
 // Platform-specific download URLs
