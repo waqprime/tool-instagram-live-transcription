@@ -6,6 +6,8 @@ let outputDirectory = '';
 let isProcessing = false;
 let startTime = null;
 let timerInterval = null;
+let isDownloadingModel = false;
+let systemMemoryGB = 0;
 
 // DOM Elements
 const urlList = document.getElementById('url-list');
@@ -49,20 +51,22 @@ const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
 const progressDetails = document.getElementById('progress-details');
 const dropZone = document.getElementById('drop-zone');
+const modelDownloadBtn = document.getElementById('model-download-btn');
+const modelDownloadStatus = document.getElementById('model-download-status');
 
 // Supported file extensions for drag & drop
 const SUPPORTED_EXTENSIONS = ['.mp4', '.mp3', '.m4a', '.wav', '.webm', '.mkv', '.mov'];
 
-// Engine-specific model options
+// Engine-specific model options (minMem: recommended minimum RAM in GB)
 const ENGINE_MODELS = {
   'faster-whisper': [
-    { value: 'large-v3-turbo', label: 'large-v3-turbo - 高速・高精度（推奨）', selected: true },
-    { value: 'large-v3', label: 'large-v3 - 最高精度' },
-    { value: 'large-v2', label: 'large-v2 - 高精度' },
-    { value: 'medium', label: 'medium - バランス型' },
-    { value: 'small', label: 'small - 軽量・高速' },
-    { value: 'base', label: 'base - 軽量' },
-    { value: 'tiny', label: 'tiny - 最速（精度は低め）' },
+    { value: 'large-v3-turbo', label: 'large-v3-turbo - 高速・高精度（推奨）', selected: true, minMem: 12 },
+    { value: 'large-v3', label: 'large-v3 - 最高精度', minMem: 16 },
+    { value: 'large-v2', label: 'large-v2 - 高精度', minMem: 16 },
+    { value: 'medium', label: 'medium - バランス型', minMem: 8 },
+    { value: 'small', label: 'small - 軽量・高速', minMem: 4 },
+    { value: 'base', label: 'base - 軽量', minMem: 2 },
+    { value: 'tiny', label: 'tiny - 最速（精度は低め）', minMem: 2 },
   ],
   'kotoba-whisper': [
     { value: 'kotoba-whisper-v2.0', label: 'kotoba-whisper-v2.0 - 日本語特化（推奨）', selected: true },
@@ -129,7 +133,19 @@ async function init() {
 
   // Setup engine-related UI
   engineSelect.addEventListener('change', onEngineChange);
+  modelSelect.addEventListener('change', updateDownloadButton);
+  modelDownloadBtn.addEventListener('click', onModelDownloadClick);
   toggleApiKeyBtn.addEventListener('click', toggleApiKeyVisibility);
+
+  // Get system memory
+  systemMemoryGB = await window.electronAPI.getSystemMemory();
+
+  // Listen for model download progress
+  window.electronAPI.onModelDownloadProgress((progress) => {
+    if (modelDownloadStatus && progress.message) {
+      modelDownloadStatus.textContent = progress.message;
+    }
+  });
 
   // Load settings from file
   const settings = await window.electronAPI.loadSettings();
@@ -191,11 +207,12 @@ async function init() {
   selectVaultBtn.addEventListener('click', selectObsidianVault);
 
   // Initialize model options based on engine (after restoring engine setting)
-  onEngineChange();
+  await onEngineChange();
 
   // Restore model after onEngineChange populated options
   if (settings.model) {
     modelSelect.value = settings.model;
+    updateDownloadButton();
   }
 
   // Setup settings modal
@@ -253,6 +270,22 @@ async function init() {
       window.electronAPI.openDownloadPage(info.releaseUrl);
     }
   });
+
+  // Check if default model needs download (first launch guidance)
+  if (engineSelect.value === 'faster-whisper') {
+    const currentModel = modelSelect.value;
+    if (downloadedModels && !downloadedModels[currentModel]) {
+      const doDownload = confirm(
+        `文字起こしモデル「${currentModel}」がまだダウンロードされていません。\n\n` +
+        `初回はモデルのダウンロードが必要です（約1.5GB）。\n` +
+        `今すぐダウンロードしますか？\n\n` +
+        `「キャンセル」を選ぶと、文字起こし開始時に自動ダウンロードされます。`
+      );
+      if (doDownload) {
+        onModelDownloadClick();
+      }
+    }
+  }
 }
 
 // Add URL input row
@@ -665,8 +698,40 @@ function removeFileItem(fileItem, filePath) {
   }
 }
 
+// Cached model download status
+let downloadedModels = {};
+
+// Fetch model download status and update UI
+async function refreshModelStatus() {
+  try {
+    downloadedModels = await window.electronAPI.getDownloadedModels();
+  } catch (e) {
+    downloadedModels = {};
+  }
+  updateModelLabels();
+}
+
+// Update model dropdown labels with download status
+function updateModelLabels() {
+  const engine = engineSelect.value;
+  if (engine !== 'faster-whisper') return;
+
+  const options = modelSelect.querySelectorAll('option');
+  const models = ENGINE_MODELS[engine] || [];
+  options.forEach((opt, i) => {
+    const model = models[i];
+    if (!model) return;
+    const isDl = downloadedModels[model.value];
+    const status = isDl ? ' [DL済]' : ' [未DL]';
+    opt.textContent = model.label + status;
+  });
+
+  // Update download button visibility
+  updateDownloadButton();
+}
+
 // Engine change handler
-function onEngineChange() {
+async function onEngineChange() {
   const engine = engineSelect.value;
 
   // Update model dropdown options
@@ -682,6 +747,101 @@ function onEngineChange() {
 
   // Disable model select when only one model available
   modelSelect.disabled = models.length <= 1;
+
+  // Refresh download status for faster-whisper
+  if (engine === 'faster-whisper') {
+    await refreshModelStatus();
+  } else {
+    updateDownloadButton();
+  }
+}
+
+// Get memory warning for a model
+function getMemoryWarning(modelValue) {
+  if (!systemMemoryGB) return '';
+  const models = ENGINE_MODELS['faster-whisper'] || [];
+  const model = models.find(m => m.value === modelValue);
+  if (model && model.minMem && systemMemoryGB < model.minMem) {
+    return `このモデルは${model.minMem}GB以上のメモリを推奨します（現在: ${systemMemoryGB}GB）。メモリ不足でエラーになる可能性があります。`;
+  }
+  return '';
+}
+
+// Update download button based on current model selection
+function updateDownloadButton() {
+  const engine = engineSelect.value;
+  if (engine !== 'faster-whisper') {
+    modelDownloadBtn.style.display = 'none';
+    modelDownloadStatus.style.display = 'none';
+    return;
+  }
+
+  const selectedModel = modelSelect.value;
+  const isDl = downloadedModels[selectedModel];
+  const memWarning = getMemoryWarning(selectedModel);
+
+  if (isDl && !memWarning) {
+    modelDownloadBtn.style.display = 'none';
+    modelDownloadStatus.style.display = 'none';
+  } else if (isDownloadingModel) {
+    modelDownloadBtn.textContent = '中止';
+    modelDownloadBtn.style.display = '';
+    modelDownloadStatus.style.display = '';
+  } else {
+    if (!isDl) {
+      modelDownloadBtn.textContent = 'DL';
+      modelDownloadBtn.style.display = '';
+    } else {
+      modelDownloadBtn.style.display = 'none';
+    }
+    const parts = [];
+    if (!isDl) parts.push('未ダウンロード - 初回使用時に自動DLされます');
+    if (memWarning) parts.push(memWarning);
+    modelDownloadStatus.textContent = parts.join(' / ');
+    modelDownloadStatus.style.display = parts.length > 0 ? '' : 'none';
+    if (memWarning) {
+      modelDownloadStatus.style.color = '#ff9800';
+    } else {
+      modelDownloadStatus.style.color = '';
+    }
+  }
+}
+
+// Download model button handler
+async function onModelDownloadClick() {
+  if (isDownloadingModel) {
+    // Cancel download
+    await window.electronAPI.cancelModelDownload();
+    isDownloadingModel = false;
+    modelDownloadStatus.textContent = 'ダウンロードをキャンセルしました';
+    updateDownloadButton();
+    return;
+  }
+
+  const modelName = modelSelect.value;
+  isDownloadingModel = true;
+  modelDownloadBtn.textContent = '中止';
+  modelDownloadStatus.textContent = 'ダウンロード準備中...';
+  modelDownloadStatus.style.display = '';
+  modelSelect.disabled = true;
+  engineSelect.disabled = true;
+
+  try {
+    const result = await window.electronAPI.downloadModel(modelName);
+    if (result.success) {
+      modelDownloadStatus.textContent = 'ダウンロード完了!';
+      await refreshModelStatus();
+    } else {
+      modelDownloadStatus.textContent = `エラー: ${result.error}`;
+    }
+  } catch (e) {
+    modelDownloadStatus.textContent = `エラー: ${e.message}`;
+  } finally {
+    isDownloadingModel = false;
+    modelSelect.disabled = (ENGINE_MODELS[engineSelect.value] || []).length <= 1;
+    engineSelect.disabled = false;
+    updateDownloadButton();
+  }
 }
 
 // Toggle API key visibility

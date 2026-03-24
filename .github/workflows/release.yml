@@ -62,6 +62,57 @@ jobs:
             electron-app/dist/*.exe
             !electron-app/dist/*.blockmap
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements-light.txt
+
+      - name: Inject app token
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        run: echo -n "$BUILTIN_APP_TOKEN" > .app_token
+
+      - name: Install Electron dependencies
+        run: |
+          cd electron-app
+          npm install
+
+      - name: Update version in package.json
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd electron-app
+          npm version $VERSION --no-git-tag-version --allow-same-version
+
+      - name: Build for Linux
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        run: |
+          cd electron-app
+          npm run build:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: |
+            electron-app/dist/*.AppImage
+            electron-app/dist/*.deb
+
   build-macos-arm64:
     runs-on: macos-latest
 
@@ -135,7 +186,7 @@ jobs:
             !electron-app/dist/*.blockmap
 
   release:
-    needs: [build-windows, build-macos-arm64]
+    needs: [build-windows, build-macos-arm64, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -164,6 +215,7 @@ jobs:
           files: |
             artifacts/windows-build/**/*
             artifacts/macos-arm64-build/**/*
+            artifacts/linux-build/**/*
           draft: false
           prerelease: false
           generate_release_notes: true

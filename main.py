@@ -661,6 +661,24 @@ class AudioTranscriptionProcessor:
             return []
 
 
+def _download_model(model_name: str) -> int:
+    """faster-whisperモデルを事前ダウンロード"""
+    from transcriber import FasterWhisperTranscriber
+    valid_models = FasterWhisperTranscriber.MODELS
+    if model_name not in valid_models:
+        print(f"[ERROR] 無効なモデル名: {model_name}")
+        print(f"[INFO] 利用可能なモデル: {', '.join(valid_models)}")
+        return 1
+    try:
+        print(f"[INFO] モデルをダウンロード中: {model_name}", flush=True)
+        FasterWhisperTranscriber(model_name=model_name)
+        print(f"[OK] モデルのダウンロード完了: {model_name}", flush=True)
+        return 0
+    except Exception as e:
+        print(f"[ERROR] モデルのダウンロード失敗: {e}", flush=True)
+        return 1
+
+
 def main():
     """メイン関数"""
     parser = argparse.ArgumentParser(
@@ -782,8 +800,17 @@ def main():
         default=None,
         help="Gemini APIキー（gemini 要約プロバイダ使用時に必要。環境変数 GEMINI_API_KEY でも指定可）"
     )
+    parser.add_argument(
+        "--download-model",
+        default=None,
+        help="指定したfaster-whisperモデルを事前ダウンロードして終了"
+    )
 
     args = parser.parse_args()
+
+    # モデル事前ダウンロードモード
+    if args.download_model:
+        return _download_model(args.download_model)
 
     # プロセッサーを初期化
     processor = AudioTranscriptionProcessor(

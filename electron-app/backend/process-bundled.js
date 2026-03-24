@@ -332,11 +332,11 @@ class ProcessManager {
         }
       });
 
-      this.currentProcess.on('close', (code) => {
+      this.currentProcess.on('close', (code, signal) => {
         this.currentProcess = null;
 
         writeLog('='.repeat(60));
-        writeLog(`Process finished with exit code: ${code}`);
+        writeLog(`Process finished with exit code: ${code}, signal: ${signal}`);
         writeLog('='.repeat(60));
 
         if (code === 0) {
@@ -361,6 +361,15 @@ class ProcessManager {
               error: '出力ファイルが見つかりませんでした'
             });
           }
+        } else if (code === null || signal === 'SIGKILL') {
+          writeLog(`ERROR: Process killed (signal: ${signal}) - likely out of memory`);
+          writeLog(`Log file saved to: ${logFilePath}`);
+          logStream.end();
+          const totalMem = Math.round(require('os').totalmem() / (1024 * 1024 * 1024));
+          resolve({
+            success: false,
+            error: `プロセスが強制終了されました（メモリ不足の可能性があります）。\nお使いのMacのメモリ: ${totalMem}GB\nより軽量なモデル（small, base等）に変更してお試しください。`
+          });
         } else {
           writeLog(`ERROR: Process failed with exit code ${code}`);
           writeLog(`Log file saved to: ${logFilePath}`);
@@ -557,12 +566,12 @@ class ProcessManager {
         }
       });
 
-      this.currentProcess.on('close', (code) => {
+      this.currentProcess.on('close', (code, signal) => {
         this.currentProcess = null;
 
         // Write final log entry
         writeLog('='.repeat(60));
-        writeLog(`Process finished with exit code: ${code}`);
+        writeLog(`Process finished with exit code: ${code}, signal: ${signal}`);
         writeLog('='.repeat(60));
 
         if (code === 0) {
@@ -587,6 +596,15 @@ class ProcessManager {
               error: '出力ファイルが見つかりませんでした'
             });
           }
+        } else if (code === null || signal === 'SIGKILL') {
+          writeLog(`ERROR: Process killed (signal: ${signal}) - likely out of memory`);
+          writeLog(`Log file saved to: ${logFilePath}`);
+          logStream.end();
+          const totalMem = Math.round(require('os').totalmem() / (1024 * 1024 * 1024));
+          resolve({
+            success: false,
+            error: `プロセスが強制終了されました（メモリ不足の可能性があります）。\nお使いのMacのメモリ: ${totalMem}GB\nより軽量なモデル（small, base等）に変更してお試しください。`
+          });
         } else {
           writeLog(`ERROR: Process failed with exit code ${code}`);
           writeLog(`Log file saved to: ${logFilePath}`);

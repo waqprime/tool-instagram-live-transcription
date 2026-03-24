@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require('electron');
 const path = require('path');
 const os = require('os');
-const { execFileSync } = require('child_process');
+const { execFileSync, spawn } = require('child_process');
 const { ProcessManager } = require('./backend/process-bundled');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
@@ -307,6 +307,33 @@ function getDefaultOutputDirectory() {
   }
 }
 
+// Model cache directory (matches transcriber.py)
+const MODEL_CACHE_DIR = path.join(os.homedir(), '.cache', 'transcription-tool', 'models');
+
+// faster-whisper model → HuggingFace repo mapping
+const MODEL_REPO_MAP = {
+  'large-v3-turbo': 'models--mobiuslabsgmbh--faster-whisper-large-v3-turbo',
+  'large-v3': 'models--Systran--faster-whisper-large-v3',
+  'large-v2': 'models--Systran--faster-whisper-large-v2',
+  'medium': 'models--Systran--faster-whisper-medium',
+  'small': 'models--Systran--faster-whisper-small',
+  'base': 'models--Systran--faster-whisper-base',
+  'tiny': 'models--Systran--faster-whisper-tiny',
+};
+
+// Check which faster-whisper models are downloaded
+function getDownloadedModels() {
+  const downloaded = {};
+  for (const [model, dirName] of Object.entries(MODEL_REPO_MAP)) {
+    const modelPath = path.join(MODEL_CACHE_DIR, dirName, 'snapshots');
+    downloaded[model] = fs.existsSync(modelPath) && fs.readdirSync(modelPath).length > 0;
+  }
+  return downloaded;
+}
+
+// Active model download process
+let modelDownloadProcess = null;
+
 // IPC Handlers
 ipcMain.handle('get-default-output-dir', async () => {
   return getDefaultOutputDirectory();
@@ -355,6 +382,75 @@ ipcMain.handle('select-files', async () => {
     return result.filePaths;
   }
   return [];
+});
+
+ipcMain.handle('get-downloaded-models', async () => {
+  return getDownloadedModels();
+});
+
+ipcMain.handle('get-system-memory', async () => {
+  return Math.round(os.totalmem() / (1024 * 1024 * 1024));
+});
+
+ipcMain.handle('download-model', async (event, modelName) => {
+  if (!MODEL_REPO_MAP[modelName]) {
+    return { success: false, error: `無効なモデル名: ${modelName}` };
+  }
+
+  const binaryPath = getBackendBinaryPath();
+  if (!binaryPath || !fs.existsSync(binaryPath)) {
+    return { success: false, error: 'バックエンドバイナリが見つかりません' };
+  }
+
+  // Kill any existing download
+  if (modelDownloadProcess) {
+    modelDownloadProcess.kill('SIGTERM');
+    modelDownloadProcess = null;
+  }
+
+  return new Promise((resolve) => {
+    const args = ['--download-model', modelName];
+    const env = { ...process.env, PYTHONUNBUFFERED: '1' };
+
+    modelDownloadProcess = spawn(binaryPath, args, { env });
+
+    modelDownloadProcess.stdout.on('data', (data) => {
+      const text = data.toString();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('model-download-progress', { message: text.trim() });
+      }
+    });
+
+    modelDownloadProcess.stderr.on('data', (data) => {
+      const text = data.toString();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('model-download-progress', { message: text.trim() });
+      }
+    });
+
+    modelDownloadProcess.on('close', (code) => {
+      modelDownloadProcess = null;
+      if (code === 0) {
+        resolve({ success: true });
+      } else {
+        resolve({ success: false, error: `ダウンロード失敗 (exit code: ${code})` });
+      }
+    });
+
+    modelDownloadProcess.on('error', (error) => {
+      modelDownloadProcess = null;
+      resolve({ success: false, error: error.message });
+    });
+  });
+});
+
+ipcMain.handle('cancel-model-download', async () => {
+  if (modelDownloadProcess) {
+    modelDownloadProcess.kill('SIGTERM');
+    modelDownloadProcess = null;
+    return { success: true };
+  }
+  return { success: false, error: 'ダウンロード中ではありません' };
 });
 
 ipcMain.handle('start-processing', async (event, config) => {

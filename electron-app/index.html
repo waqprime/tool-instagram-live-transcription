@@ -144,9 +144,13 @@
           <!-- Whisper Model Selection -->
           <div class="setting-item">
             <label class="setting-label" for="model-select">モデル</label>
-            <select id="model-select" class="glass-select">
-              <option value="large-v3-turbo" selected>large-v3-turbo - 高速・高精度（推奨）</option>
-            </select>
+            <div class="input-with-button">
+              <select id="model-select" class="glass-select">
+                <option value="large-v3-turbo" selected>large-v3-turbo - 高速・高精度（推奨）</option>
+              </select>
+              <button id="model-download-btn" class="btn btn-secondary" type="button" style="display: none;">DL</button>
+            </div>
+            <p id="model-download-status" class="hint-text-small" style="display: none;"></p>
           </div>
 
           <!-- OpenAI API Key -->

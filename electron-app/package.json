@@ -1,6 +1,6 @@
 {
   "name": "transcription-tool",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "description": "Multi-platform audio/video transcription with Whisper AI - Supports Instagram, YouTube, X Spaces, Voicy, UTAGE (multiple videos), etc.",
   "main": "main.js",
   "scripts": {
@@ -15,7 +15,8 @@
     "build:mac-arm64-lite": "TARGET_ARCH=arm64 BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --mac --arm64 --publish never",
     "build:mac-x64-lite": "TARGET_ARCH=x64 BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --mac --x64 --publish never",
     "build:win": "npm run prebuild && electron-builder --win --publish never",
-    "build:win-lite": "BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --win --publish never"
+    "build:win-lite": "BUILD_VARIANT=lite node build-scripts/build-backend.js && electron-builder --win --publish never",
+    "build:linux": "npm run prebuild && electron-builder --linux --publish never"
   },
   "keywords": [
     "transcription",
@@ -98,11 +99,41 @@
         }
       ]
     },
+    "linux": {
+      "artifactName": "TranscriptionTool-${version}-${arch}.${ext}",
+      "category": "AudioVideo",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
     "portable": {
       "artifactName": "TranscriptionTool-${version}-portable.${ext}"
     },
     "dmg": {
-      "title": "文字起こしツール"
+      "title": "文字起こしツール",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,

@@ -16,6 +16,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File selection
   selectFiles: () => ipcRenderer.invoke('select-files'),
 
+  // Model management
+  getSystemMemory: () => ipcRenderer.invoke('get-system-memory'),
+  getDownloadedModels: () => ipcRenderer.invoke('get-downloaded-models'),
+  downloadModel: (modelName) => ipcRenderer.invoke('download-model', modelName),
+  cancelModelDownload: () => ipcRenderer.invoke('cancel-model-download'),
+  onModelDownloadProgress: (callback) => {
+    ipcRenderer.on('model-download-progress', (event, progress) => callback(progress));
+  },
+
   // Processing control
   startProcessing: (config) => ipcRenderer.invoke('start-processing', config),
   stopProcessing: () => ipcRenderer.invoke('stop-processing'),
@@ -56,7 +65,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Remove listeners (for cleanup)
   removeAllListeners: (channel) => {
-    const allowedChannels = ['processing-log', 'processing-progress', 'update-available', 'update-downloaded', 'update-progress', 'update-available-portable'];
+    const allowedChannels = ['processing-log', 'processing-progress', 'update-available', 'update-downloaded', 'update-progress', 'update-available-portable', 'model-download-progress'];
     if (allowedChannels.includes(channel)) {
       ipcRenderer.removeAllListeners(channel);
     }
