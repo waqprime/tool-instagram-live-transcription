@@ -29,7 +29,11 @@
     "audio",
     "video"
   ],
-  "author": "",
+  "author": {
+    "name": "waqprime",
+    "email": "waqprime@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/waqprime/tool-instagram-live-transcription",
   "license": "MIT",
   "devDependencies": {
     "@electron/notarize": "^2.5.0",
