@@ -55,8 +55,12 @@ a = Analysis(
         'huggingface_hub',
         'huggingface_hub.utils',
         'tokenizers',
-        # openai API client
+        # openai API client (pydantic is a required dependency of openai>=1.0)
         'openai',
+        'pydantic',
+        'pydantic.deprecated',
+        'pydantic.deprecated.class_validators',
+        'pydantic_core',
         'httpx',
         'httpcore',
         'anyio',
@@ -127,7 +131,6 @@ a = Analysis(
         'uvicorn',
         'starlette',
         'fastapi',
-        'pydantic',
         'jsonschema',
         'narwhals',
     ],
