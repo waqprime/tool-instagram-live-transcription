@@ -67,3 +67,5 @@ Thumbs.db
 .env
 .builtin_key
 .app_token
+.collaborator
+.claude/settings.local.json

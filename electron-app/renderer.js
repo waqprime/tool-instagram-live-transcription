@@ -210,8 +210,12 @@ async function init() {
   await onEngineChange();
 
   // Restore model after onEngineChange populated options
+  // If saved model is disabled (memory insufficient), keep the auto-selected default
   if (settings.model) {
-    modelSelect.value = settings.model;
+    const savedOpt = modelSelect.querySelector(`option[value="${settings.model}"]`);
+    if (savedOpt && !savedOpt.disabled) {
+      modelSelect.value = settings.model;
+    }
     updateDownloadButton();
   }
 
@@ -730,18 +734,42 @@ function updateModelLabels() {
   updateDownloadButton();
 }
 
+// Get the best default model for current system memory
+function getBestDefaultModel() {
+  const models = ENGINE_MODELS['faster-whisper'] || [];
+  if (!systemMemoryGB) return models[0]?.value || 'large-v3-turbo';
+  // Pick the first model whose minMem fits in system memory
+  for (const m of models) {
+    if (!m.minMem || systemMemoryGB >= m.minMem) return m.value;
+  }
+  return 'tiny';
+}
+
 // Engine change handler
 async function onEngineChange() {
   const engine = engineSelect.value;
 
   // Update model dropdown options
   const models = ENGINE_MODELS[engine] || [];
+  const bestDefault = (engine === 'faster-whisper') ? getBestDefaultModel() : null;
   modelSelect.innerHTML = '';
   models.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m.value;
     opt.textContent = m.label;
-    if (m.selected) opt.selected = true;
+
+    // For faster-whisper: disable models that exceed system memory
+    if (engine === 'faster-whisper' && systemMemoryGB && m.minMem && systemMemoryGB < m.minMem) {
+      opt.disabled = true;
+      opt.textContent = m.label + ` [メモリ不足: ${m.minMem}GB以上必要]`;
+    }
+
+    // Select best default based on memory (not hardcoded)
+    if (bestDefault) {
+      if (m.value === bestDefault) opt.selected = true;
+    } else {
+      if (m.selected) opt.selected = true;
+    }
     modelSelect.appendChild(opt);
   });
 
