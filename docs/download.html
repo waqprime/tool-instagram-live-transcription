@@ -183,10 +183,21 @@
         const ua = navigator.userAgent;
         if (/Mac/i.test(ua)) {
             // Apple Silicon detection
-            if (/arm64|aarch64/i.test(ua) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
-                return 'mac-arm64';
-            }
+            // 1. UA に arm64/aarch64 が含まれる
+            // 2. navigator.userAgentData が使える場合は architecture で判定
+            // 3. WebGL rendererに "Apple" が含まれる（Apple GPU = Apple Silicon）
+            if (/arm64|aarch64/i.test(ua)) return 'mac-arm64';
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                    if (dbg) {
+                        const renderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+                        if (/Apple M|Apple GPU/i.test(renderer)) return 'mac-arm64';
+                    }
+                }
+            } catch (e) {}
             return 'mac-x64';
         }
         if (/Win/i.test(ua)) return 'windows';
@@ -204,8 +215,14 @@
 
     function classifyAsset(name) {
         const n = name.toLowerCase();
-        if (n.endsWith('.exe') || n.endsWith('.msi'))
-            return { platform: 'windows', label: 'Windows', icon: '🪟' };
+        // Windows: Setup (インストール版) vs portable (ポータブル版)
+        if (n.includes('setup') && n.endsWith('.exe'))
+            return { platform: 'windows', label: 'Windows (インストール版)', icon: '🪟' };
+        if (n.includes('portable') && n.endsWith('.exe'))
+            return { platform: 'windows-portable', label: 'Windows (ポータブル版)', icon: '🪟' };
+        if (n.endsWith('.msi'))
+            return { platform: 'windows', label: 'Windows (インストール版)', icon: '🪟' };
+        // macOS
         if (n.includes('arm64') && n.endsWith('.dmg'))
             return { platform: 'mac-arm64', label: 'macOS (Apple Silicon)', icon: '🍎' };
         if (n.includes('x64') && n.endsWith('.dmg'))
@@ -214,6 +231,7 @@
             return { platform: 'mac-arm64-zip', label: 'macOS (Apple Silicon) ZIP', icon: '🍎' };
         if (n.includes('x64') && n.endsWith('.zip'))
             return { platform: 'mac-x64-zip', label: 'macOS (Intel) ZIP', icon: '🍎' };
+        // Linux
         if (n.endsWith('.deb') || n.endsWith('.AppImage'))
             return { platform: 'linux', label: 'Linux', icon: '🐧' };
         return null;
@@ -260,7 +278,7 @@
             const priorityMap = {
                 'mac-arm64': ['mac-arm64', 'mac-arm64-zip'],
                 'mac-x64':   ['mac-x64', 'mac-x64-zip'],
-                'windows':   ['windows'],
+                'windows':   ['windows', 'windows-portable'],
                 'linux':     ['linux'],
             };
             const preferred = priorityMap[userOS] || [];
