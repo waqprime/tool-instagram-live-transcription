@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字起こしツール - ダウンロード</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .app-icon {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 0.3rem;
+        }
+
+        .version {
+            font-size: 0.95rem;
+            color: #888;
+            margin-bottom: 2rem;
+        }
+
+        .loading {
+            color: #888;
+            padding: 2rem 0;
+        }
+
+        .loading .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 0.5rem;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Primary download button */
+        .dl-primary {
+            display: block;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            margin-bottom: 0.75rem;
+        }
+
+        .dl-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5);
+        }
+
+        .dl-primary .dl-sub {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 400;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+
+        /* Secondary download links */
+        .dl-others {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #eee;
+        }
+
+        .dl-others-label {
+            font-size: 0.85rem;
+            color: #999;
+            margin-bottom: 0.75rem;
+        }
+
+        .dl-list {
+            list-style: none;
+        }
+
+        .dl-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        .dl-list a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            background: #f7f7fa;
+            border-radius: 10px;
+            text-decoration: none;
+            color: #333;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .dl-list a:hover {
+            background: #eeeef5;
+        }
+
+        .dl-list .dl-size {
+            font-size: 0.8rem;
+            color: #999;
+            font-weight: 400;
+        }
+
+        .dl-list .dl-icon {
+            margin-right: 0.5rem;
+        }
+
+        .error {
+            color: #e74c3c;
+            padding: 2rem 0;
+        }
+
+        .error a {
+            color: #667eea;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 540px) {
+            body { padding: 1rem; }
+            .card { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="app-icon">🎙️</div>
+        <h1>文字起こしツール</h1>
+        <div class="version" id="version">読み込み中...</div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>最新バージョンを確認中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const REPO = 'waqprime/tool-instagram-live-transcription';
+
+    function detectOS() {
+        const ua = navigator.userAgent;
+        if (/Mac/i.test(ua)) {
+            // Apple Silicon detection
+            if (/arm64|aarch64/i.test(ua) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+                return 'mac-arm64';
+            }
+            return 'mac-x64';
+        }
+        if (/Win/i.test(ua)) return 'windows';
+        if (/Linux/i.test(ua)) return 'linux';
+        return 'unknown';
+    }
+
+    function formatSize(bytes) {
+        if (!bytes) return '';
+        const mb = bytes / (1024 * 1024);
+        return mb >= 1024
+            ? (mb / 1024).toFixed(1) + ' GB'
+            : mb.toFixed(0) + ' MB';
+    }
+
+    function classifyAsset(name) {
+        const n = name.toLowerCase();
+        if (n.endsWith('.exe') || n.endsWith('.msi'))
+            return { platform: 'windows', label: 'Windows', icon: '🪟' };
+        if (n.includes('arm64') && n.endsWith('.dmg'))
+            return { platform: 'mac-arm64', label: 'macOS (Apple Silicon)', icon: '🍎' };
+        if (n.includes('x64') && n.endsWith('.dmg'))
+            return { platform: 'mac-x64', label: 'macOS (Intel)', icon: '🍎' };
+        if (n.includes('arm64') && n.endsWith('.zip'))
+            return { platform: 'mac-arm64-zip', label: 'macOS (Apple Silicon) ZIP', icon: '🍎' };
+        if (n.includes('x64') && n.endsWith('.zip'))
+            return { platform: 'mac-x64-zip', label: 'macOS (Intel) ZIP', icon: '🍎' };
+        if (n.endsWith('.deb') || n.endsWith('.AppImage'))
+            return { platform: 'linux', label: 'Linux', icon: '🐧' };
+        return null;
+    }
+
+    async function loadRelease() {
+        const contentEl = document.getElementById('content');
+        const versionEl = document.getElementById('version');
+
+        try {
+            const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`);
+            if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+            const release = await res.json();
+
+            const version = release.tag_name.replace(/^v/, '');
+            versionEl.textContent = `v${version}`;
+
+            const userOS = detectOS();
+
+            // Classify assets
+            const assets = [];
+            for (const a of release.assets) {
+                const info = classifyAsset(a.name);
+                if (info) {
+                    assets.push({
+                        ...info,
+                        url: a.browser_download_url,
+                        size: a.size,
+                        name: a.name
+                    });
+                }
+            }
+
+            if (assets.length === 0) {
+                contentEl.innerHTML = `
+                    <div class="error">
+                        ダウンロードファイルが見つかりません。<br>
+                        <a href="https://github.com/${REPO}/releases/latest">GitHubリリースページ</a>をご確認ください。
+                    </div>`;
+                return;
+            }
+
+            // Find primary (recommended) download
+            const priorityMap = {
+                'mac-arm64': ['mac-arm64', 'mac-arm64-zip'],
+                'mac-x64':   ['mac-x64', 'mac-x64-zip'],
+                'windows':   ['windows'],
+                'linux':     ['linux'],
+            };
+            const preferred = priorityMap[userOS] || [];
+            let primary = null;
+            for (const p of preferred) {
+                primary = assets.find(a => a.platform === p);
+                if (primary) break;
+            }
+            if (!primary) primary = assets[0];
+
+            // Build primary button
+            let html = `
+                <a href="${primary.url}" class="dl-primary" download>
+                    ${primary.label} 版をダウンロード
+                    <span class="dl-sub">${primary.name}${primary.size ? ' (' + formatSize(primary.size) + ')' : ''}</span>
+                </a>`;
+
+            // Build other downloads
+            const others = assets.filter(a => a !== primary);
+            if (others.length > 0) {
+                html += `
+                <div class="dl-others">
+                    <div class="dl-others-label">その他のプラットフォーム</div>
+                    <ul class="dl-list">`;
+                for (const a of others) {
+                    html += `
+                        <li>
+                            <a href="${a.url}" download>
+                                <span><span class="dl-icon">${a.icon}</span>${a.label}</span>
+                                <span class="dl-size">${formatSize(a.size)}</span>
+                            </a>
+                        </li>`;
+                }
+                html += `</ul></div>`;
+            }
+
+            contentEl.innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+            contentEl.innerHTML = `
+                <div class="error">
+                    リリース情報の取得に失敗しました。<br>
+                    <a href="https://github.com/${REPO}/releases/latest">こちら</a>からダウンロードしてください。
+                </div>`;
+        }
+    }
+
+    loadRelease();
+    </script>
+</body>
+</html>
