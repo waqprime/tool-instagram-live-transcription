@@ -356,14 +356,32 @@ class VideoDownloader:
                 output_path = self.output_dir / f"{safe_name}.mp3"
                 return self._download_hls_to_mp3(audio_url, str(output_path))
 
-            # M4Aを直接ダウンロード
+            # M4Aを直接ダウンロード（Session共有・リトライ付き）
             output_path = self.output_dir / f"{safe_name}.{ext}"
 
             import requests
-            response = requests.get(audio_url, stream=True, timeout=60, headers={
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            })
-            response.raise_for_status()
+            import time
+            session = self.standfm_extractor._session
+            max_retries = 3
+            response = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    response = session.get(audio_url, stream=True, timeout=60)
+                    if response.status_code == 429:
+                        delay = int(response.headers.get('Retry-After', 5 * attempt))
+                        print(f"[WARNING] レート制限 (429)。{delay}秒後にリトライ ({attempt}/{max_retries})", flush=True)
+                        time.sleep(delay)
+                        continue
+                    response.raise_for_status()
+                    break
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                    delay = 5 * attempt
+                    print(f"[WARNING] 接続エラー。{delay}秒後にリトライ ({attempt}/{max_retries}): {e}", flush=True)
+                    time.sleep(delay)
+                    if attempt == max_retries:
+                        raise
+            if response is None or response.status_code != 200:
+                raise Exception(f"音声ダウンロードに失敗しました (status={response.status_code if response else 'None'})")
 
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0

@@ -615,10 +615,11 @@ async function checkGitHubUpdate() {
           if (compareSemver(latestVersion, currentVersion) > 0) {
             console.log(`Update available: ${latestVersion}`);
             if (mainWindow && !mainWindow.isDestroyed()) {
+              const downloadPageUrl = 'https://waqprime.github.io/tool-instagram-live-transcription/download.html';
               mainWindow.webContents.send('update-available-portable', {
                 version: latestVersion,
-                downloadUrl: release.html_url,
-                releaseUrl: release.html_url
+                downloadUrl: downloadPageUrl,
+                releaseUrl: downloadPageUrl
               });
             }
           } else {
@@ -641,10 +642,13 @@ ipcMain.handle('install-update', () => {
 });
 
 ipcMain.handle('open-download-page', (event, url) => {
-  // Validate that the URL is from github.com
+  // Validate that the URL is from github.com or GitHub Pages
   try {
     const parsed = new URL(url);
-    if (parsed.hostname !== 'github.com' && !parsed.hostname.endsWith('.github.com')) {
+    const allowed = parsed.hostname === 'github.com'
+      || parsed.hostname.endsWith('.github.com')
+      || parsed.hostname.endsWith('.github.io');
+    if (!allowed) {
       console.error('Blocked open-download-page: non-GitHub URL:', url);
       return;
     }

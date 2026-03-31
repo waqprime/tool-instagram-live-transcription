@@ -8,6 +8,7 @@
 
 import os
 import sys
+import time
 import argparse
 import multiprocessing
 from pathlib import Path
@@ -620,6 +621,10 @@ class AudioTranscriptionProcessor:
                 stats['success'] += 1
             else:
                 stats['failed'] += 1
+
+            # stand.fm連続処理のレート制限対策
+            if i < len(urls) and 'stand.fm' in url:
+                time.sleep(2)
 
         # 最終結果を表示
         print(f"\n\n{'=' * 60}")

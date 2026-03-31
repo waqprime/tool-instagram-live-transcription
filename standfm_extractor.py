@@ -8,8 +8,11 @@ stand.fmページから音声URLを抽出（yt-dlpの汎用エクストラクタ
 import re
 import sys
 import json
+import time
 from typing import Optional, Dict, List
 from urllib.parse import urlparse
+
+import requests as _requests_module
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -20,7 +23,25 @@ if sys.platform == 'win32':
 class StandfmExtractor:
     """stand.fmページから音声URLを抽出するクラス"""
 
-    USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+    USER_AGENT = (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    )
+
+    # リクエスト間の最小間隔（秒）- レート制限対策
+    REQUEST_INTERVAL = 2.0
+    # リトライ設定
+    MAX_RETRIES = 3
+    RETRY_BASE_DELAY = 5  # 秒（指数バックオフの基底）
+
+    def __init__(self):
+        self._last_request_time = 0.0
+        self._cache = {}  # URL -> server_state のキャッシュ
+        self._audio_info_cache = {}  # URL -> extract_audio_info結果のキャッシュ
+        # Session: TCP接続再利用 + Cookie保持
+        self._session = _requests_module.Session()
+        self._session.headers.update({"User-Agent": self.USER_AGENT})
 
     def is_standfm_url(self, url: str) -> bool:
         """URLがstand.fmかどうかを判定"""
@@ -34,44 +55,88 @@ class StandfmExtractor:
         """チャンネルURLかどうか"""
         return bool(re.match(r'https?://stand\.fm/channels/[a-f0-9]+', url))
 
-    def _fetch_server_state(self, page_url: str) -> Optional[dict]:
-        """ページHTMLからwindow.__SERVER_STATE__のJSONを取得"""
-        try:
-            import requests
-            response = requests.get(
-                page_url,
-                headers={"User-Agent": self.USER_AGENT},
-                timeout=15,
-            )
-            response.raise_for_status()
-            html = response.text
+    def _wait_for_rate_limit(self):
+        """レート制限対策: 前回リクエストから一定間隔を空ける"""
+        elapsed = time.time() - self._last_request_time
+        if elapsed < self.REQUEST_INTERVAL:
+            wait = self.REQUEST_INTERVAL - elapsed
+            time.sleep(wait)
+        self._last_request_time = time.time()
 
-            idx = html.find('__SERVER_STATE__')
-            if idx < 0:
-                print("[WARNING] __SERVER_STATE__が見つかりません", flush=True)
-                return None
-
-            start = html.find('{', idx)
-            if start < 0:
-                return None
-
-            # 波括弧の対応でJSON終端を探す
-            depth = 0
-            end = start
-            for i in range(start, min(start + 500000, len(html))):
-                if html[i] == '{':
-                    depth += 1
-                elif html[i] == '}':
-                    depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-
-            return json.loads(html[start:end])
-
-        except Exception as e:
-            print(f"[ERROR] ページ取得エラー: {e}", flush=True)
+    def _parse_server_state(self, html: str) -> Optional[dict]:
+        """HTMLからwindow.__SERVER_STATE__のJSONをパース"""
+        idx = html.find('__SERVER_STATE__')
+        if idx < 0:
+            print("[WARNING] __SERVER_STATE__が見つかりません", flush=True)
             return None
+
+        start = html.find('{', idx)
+        if start < 0:
+            return None
+
+        # 波括弧の対応でJSON終端を探す
+        depth = 0
+        end = start
+        for i in range(start, min(start + 500000, len(html))):
+            if html[i] == '{':
+                depth += 1
+            elif html[i] == '}':
+                depth -= 1
+            if depth == 0:
+                end = i + 1
+                break
+
+        return json.loads(html[start:end])
+
+    def _fetch_server_state(self, page_url: str) -> Optional[dict]:
+        """ページHTMLからwindow.__SERVER_STATE__のJSONを取得（キャッシュ・リトライ付き）"""
+        if page_url in self._cache:
+            return self._cache[page_url]
+
+        for attempt in range(1, self.MAX_RETRIES + 1):
+            try:
+                self._wait_for_rate_limit()
+
+                response = self._session.get(page_url, timeout=30)
+
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', self.RETRY_BASE_DELAY * attempt))
+                    print(f"[WARNING] レート制限検出 (429)。{retry_after}秒後にリトライ ({attempt}/{self.MAX_RETRIES})", flush=True)
+                    time.sleep(retry_after)
+                    continue
+
+                if response.status_code >= 500:
+                    delay = self.RETRY_BASE_DELAY * attempt
+                    print(f"[WARNING] サーバーエラー ({response.status_code})。{delay}秒後にリトライ ({attempt}/{self.MAX_RETRIES})", flush=True)
+                    time.sleep(delay)
+                    continue
+
+                response.raise_for_status()
+
+                data = self._parse_server_state(response.text)
+                if data:
+                    self._cache[page_url] = data
+                return data
+
+            except _requests_module.exceptions.ConnectionError as e:
+                delay = self.RETRY_BASE_DELAY * attempt
+                print(f"[WARNING] 接続エラー。{delay}秒後にリトライ ({attempt}/{self.MAX_RETRIES}): {e}", flush=True)
+                time.sleep(delay)
+                continue
+            except _requests_module.exceptions.Timeout:
+                delay = self.RETRY_BASE_DELAY * attempt
+                print(f"[WARNING] タイムアウト。{delay}秒後にリトライ ({attempt}/{self.MAX_RETRIES})", flush=True)
+                time.sleep(delay)
+                continue
+            except _requests_module.exceptions.HTTPError as e:
+                print(f"[ERROR] HTTPエラー: {e}", flush=True)
+                return None
+            except Exception as e:
+                print(f"[ERROR] ページ取得エラー: {e}", flush=True)
+                return None
+
+        print(f"[ERROR] {self.MAX_RETRIES}回リトライしましたが取得できませんでした: {page_url}", flush=True)
+        return None
 
     def extract_audio_info(self, page_url: str) -> Optional[Dict]:
         """
@@ -83,6 +148,12 @@ class StandfmExtractor:
         if not self._is_episode_url(page_url):
             print(f"[ERROR] エピソードURLではありません: {page_url}", flush=True)
             return None
+
+        # extract_audio_info結果キャッシュ（タイトル取得→DLの二重呼出を排除）
+        if page_url in self._audio_info_cache:
+            cached = self._audio_info_cache[page_url]
+            print(f"[INFO] キャッシュから音声情報を取得: {cached.get('title', '')}", flush=True)
+            return cached
 
         print(f"[INFO] stand.fmページを取得中: {page_url}", flush=True)
         data = self._fetch_server_state(page_url)
@@ -121,21 +192,25 @@ class StandfmExtractor:
             print(f"[OK] 音声URL発見: {download_url}", flush=True)
             if channel_name:
                 print(f"[INFO] チャンネル: {channel_name}", flush=True)
-            return {
+            result = {
                 "url": download_url,
                 "title": title,
                 "ext": "m4a",
                 "channel": channel_name,
             }
+            self._audio_info_cache[page_url] = result
+            return result
 
         if hls_url:
             print(f"[OK] HLS URL発見: {hls_url}", flush=True)
-            return {
+            result = {
                 "url": hls_url,
                 "title": title,
                 "ext": "m4a",
                 "channel": channel_name,
             }
+            self._audio_info_cache[page_url] = result
+            return result
 
         print("[ERROR] 音声URLが見つかりませんでした", flush=True)
         return None
