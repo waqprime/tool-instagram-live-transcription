@@ -3,10 +3,11 @@
 """
 動画・音声ダウンローダー
 yt-dlpを使用して各種プラットフォームから動画・音声をダウンロード
-対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm, UTAGE等（yt-dlp対応サイト全て）
+対応: Instagram, YouTube, X Spaces, Voicy, Radiko, stand.fm, Spotify Podcast, UTAGE等（yt-dlp対応サイト全て）
 """
 
 import os
+import re
 import sys
 import subprocess
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import Optional, Dict, List
 from utage_extractor import UtageExtractor
 from voicy_extractor import VoicyExtractor
 from standfm_extractor import StandfmExtractor
+from spotify_extractor import SpotifyExtractor
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -47,6 +49,7 @@ class VideoDownloader:
         self.utage_extractor = UtageExtractor()
         self.voicy_extractor = VoicyExtractor()
         self.standfm_extractor = StandfmExtractor()
+        self.spotify_extractor = SpotifyExtractor()
         self.keep_video = keep_video
         self.is_utage_video = False  # UTAGE動画かどうかのフラグ
 
@@ -97,6 +100,12 @@ class VideoDownloader:
                 print(f"[INFO] stand.fmページを検出: {url}")
                 self.is_utage_video = False
                 return self._download_standfm(url, output_filename)
+
+            # Spotify Podcastの場合、RSSフィード経由で音声を取得
+            if self.spotify_extractor.is_spotify_url(url):
+                print(f"[INFO] Spotify Podcastを検出: {url}")
+                self.is_utage_video = False
+                return self._download_spotify(url, output_filename)
 
             # UTAGEページの場合、動画URLを抽出（単一動画のみ処理）
             if self.utage_extractor.is_utage_url(url):
@@ -408,6 +417,68 @@ class VideoDownloader:
             print(f"[ERROR] stand.fmダウンロードエラー: {e}")
             return None
 
+    def _download_spotify(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
+        """
+        Spotify PodcastをRSSフィード経由でダウンロード
+
+        Args:
+            url: SpotifyのPodcast URL
+            output_filename: 出力ファイル名（拡張子なし）
+
+        Returns:
+            ダウンロードしたファイルのパス、失敗時はNone
+        """
+        try:
+            result = self.spotify_extractor.extract_audio_info(url)
+            if not result:
+                print("[ERROR] Spotify Podcast音声URLの取得に失敗")
+                return None
+
+            audio_url = result['url']
+
+            if output_filename:
+                safe_name = output_filename
+            else:
+                safe_name = re.sub(r'[\\/:*?"<>|]', '_', result.get('title', 'spotify_podcast'))
+
+            ext = result.get('ext', 'mp3')
+            print(f"[INFO] Podcast音声をダウンロード中: {audio_url[:100]}...")
+
+            # 音声を直接ダウンロード
+            output_path = self.output_dir / f"{safe_name}.{ext}"
+
+            import requests
+            response = self.spotify_extractor._session.get(audio_url, stream=True, timeout=120)
+            response.raise_for_status()
+
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+
+            with open(output_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    if total_size > 0 and downloaded % (8192 * 100) == 0:
+                        percent = (downloaded / total_size) * 100
+                        print(f"\r[PROGRESS] ダウンロード: {percent:.1f}%", end="", flush=True)
+
+            if total_size > 0:
+                print()  # 改行
+
+            file_size = output_path.stat().st_size / (1024 * 1024)
+            print(f"[OK] ダウンロード完了: {output_path} ({file_size:.2f} MB)")
+
+            # MP3以外の場合はMP3に変換
+            if ext != 'mp3':
+                mp3_path = self.output_dir / f"{safe_name}.mp3"
+                return self._convert_m4a_to_mp3(str(output_path), str(mp3_path))
+
+            return str(output_path)
+
+        except Exception as e:
+            print(f"[ERROR] Spotify Podcastダウンロードエラー: {e}")
+            return None
+
     def _convert_m4a_to_mp3(self, input_path: str, output_path: str) -> Optional[str]:
         """M4AをMP3に変換"""
         try:
@@ -604,6 +675,10 @@ class VideoDownloader:
         # stand.fm URLの場合は専用エクストラクタから情報取得
         if self.standfm_extractor.is_standfm_url(url):
             return self.standfm_extractor.get_video_info(url)
+
+        # Spotify Podcast URLの場合はRSSフィード経由で情報取得
+        if self.spotify_extractor.is_spotify_url(url):
+            return self.spotify_extractor.get_video_info(url)
 
         # Voicy URLの場合はAPIから情報取得
         if self.voicy_extractor.is_voicy_url(url):
