@@ -41,7 +41,12 @@ YouTube、Instagram、X Spaces、Voicy、stand.fm、UTAGEなど、yt-dlp対応�
 7. **standfm_extractor.py** - stand.fm専用
    - HTMLの`__SERVER_STATE__` JSONからM4A音声URLを直接抽出（認証不要）
 
-8. **utage_extractor.py** - UTAGE専用
+8. **spotify_extractor.py** - Spotify Podcast専用
+   - SpotifyはDRM保護のためyt-dlp非対応。RSSフィード経由で音声を取得
+   - Spotify embedページ → 番組名取得 → Apple Podcasts APIでRSSフィード検索 → MP3直接DL
+   - APIキー不要、新規依存なし
+
+9. **utage_extractor.py** - UTAGE専用
    - Seleniumを使用してUTAGEページから動画URLを抽出
 
 ### Electronフロントエンド（`electron-app/`）

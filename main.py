@@ -506,6 +506,8 @@ class AudioTranscriptionProcessor:
             return 'Radiko'
         elif 'stand.fm' in url_lower:
             return 'stand.fm'
+        elif 'open.spotify.com' in url_lower:
+            return 'Spotify'
         elif 'utage' in url_lower:
             return 'UTAGE'
         elif 'tiktok.com' in url_lower:
