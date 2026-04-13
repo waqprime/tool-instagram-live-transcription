@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, safeStorage, Menu } = require('electron');
 const path = require('path');
 const os = require('os');
 const { execFileSync, spawn } = require('child_process');
@@ -283,6 +283,31 @@ function createWindow() {
       }
     });
   }
+
+  // Right-click context menu (cut/copy/paste)
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    const menuItems = [];
+
+    if (params.isEditable) {
+      menuItems.push(
+        { label: '切り取り', role: 'cut' },
+        { label: 'コピー', role: 'copy' },
+        { label: '貼り付け', role: 'paste' },
+        { type: 'separator' },
+        { label: 'すべて選択', role: 'selectAll' }
+      );
+    } else if (params.selectionText) {
+      menuItems.push(
+        { label: 'コピー', role: 'copy' },
+        { type: 'separator' },
+        { label: 'すべて選択', role: 'selectAll' }
+      );
+    }
+
+    if (menuItems.length > 0) {
+      Menu.buildFromTemplate(menuItems).popup();
+    }
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
