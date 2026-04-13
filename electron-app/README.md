@@ -40,7 +40,7 @@ electron-app/
 
 ### 1. System Requirements
 
-- Node.js 18+
+- Node.js 22+
 - Python 3.8+
 - ffmpeg
 - macOS, Windows, or Linux

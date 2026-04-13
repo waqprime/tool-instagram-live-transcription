@@ -3,6 +3,9 @@
   "version": "1.8.1",
   "description": "Multi-platform audio/video transcription with Whisper AI - Supports Instagram, YouTube, X Spaces, Voicy, UTAGE (multiple videos), etc.",
   "main": "main.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
@@ -36,9 +39,9 @@
   "homepage": "https://github.com/waqprime/tool-instagram-live-transcription",
   "license": "MIT",
   "devDependencies": {
-    "@electron/notarize": "^2.5.0",
-    "electron": "^28.3.3",
-    "electron-builder": "^26.0.12",
+    "@electron/notarize": "^3.1.1",
+    "electron": "^41.2.0",
+    "electron-builder": "^26.8.1",
     "unzipper": "^0.12.3"
   },
   "build": {
@@ -147,6 +150,6 @@
     }
   },
   "dependencies": {
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.8.3"
   }
 }
