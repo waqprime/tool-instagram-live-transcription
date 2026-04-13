@@ -227,6 +227,30 @@ function getFFmpegPath() {
   return null;
 }
 
+// Get deno binary directory path (yt-dlp needs deno for YouTube JS extraction)
+function getDenoDirPath() {
+  const isWindows = process.platform === 'win32';
+  const denoName = isWindows ? 'deno.exe' : 'deno';
+
+  if (isDev) {
+    const devDenoDir = path.join(__dirname, 'resources', 'deno');
+    if (fs.existsSync(path.join(devDenoDir, denoName))) {
+      return devDenoDir;
+    }
+    // In dev mode, deno on system PATH is fine (yt-dlp finds it automatically)
+    return null;
+  }
+
+  // In production, use the bundled binary
+  const bundledDir = path.join(process.resourcesPath, 'resources', 'deno');
+  if (fs.existsSync(path.join(bundledDir, denoName))) {
+    return bundledDir;
+  }
+
+  console.warn('Bundled deno not found. YouTube may use limited formats.');
+  return null;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -492,11 +516,15 @@ ipcMain.handle('start-processing', async (event, config) => {
       };
     }
 
+    // Get deno path (optional, for YouTube JS extraction)
+    const denoDirPath = getDenoDirPath();
+
     console.log('Backend binary:', path.basename(binaryPath));
     console.log('ffmpeg:', ffmpegPath ? path.basename(ffmpegPath) : 'not found');
+    console.log('deno:', denoDirPath || 'not found (YouTube may use limited formats)');
 
     // Initialize ProcessManager with bundled binary
-    processManager = new ProcessManager(binaryPath, ffmpegPath);
+    processManager = new ProcessManager(binaryPath, ffmpegPath, denoDirPath);
 
     // Set up log handler
     processManager.onLog((log) => {

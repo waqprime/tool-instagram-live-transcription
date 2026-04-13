@@ -3,9 +3,10 @@ const path = require('path');
 const fs = require('fs');
 
 class ProcessManager {
-  constructor(binaryPath, ffmpegPath) {
+  constructor(binaryPath, ffmpegPath, denoDirPath) {
     this.binaryPath = binaryPath;
     this.ffmpegPath = ffmpegPath;
+    this.denoDirPath = denoDirPath || null;
     this.currentProcess = null;
     this.logCallback = null;
     this.progressCallback = null;
@@ -14,6 +15,7 @@ class ProcessManager {
     console.log('ProcessManager initialized (Bundled mode):');
     console.log('  Backend binary:', path.basename(this.binaryPath));
     console.log('  ffmpeg binary:', path.basename(this.ffmpegPath));
+    console.log('  deno dir:', this.denoDirPath ? path.basename(this.denoDirPath) : 'not bundled');
   }
 
   onLog(callback) {
@@ -271,6 +273,10 @@ class ProcessManager {
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
       }
+      // Pass deno directory so yt-dlp can find deno for YouTube JS extraction
+      if (this.denoDirPath) {
+        env.DENO_DIR_PATH = this.denoDirPath;
+      }
       // Pass API keys via environment variable (not CLI args for security)
       if (this.apiKey) {
         env.OPENAI_API_KEY = this.apiKey;
@@ -448,6 +454,10 @@ class ProcessManager {
       if (this.ffmpegPath) {
         env.FFMPEG_BINARY = this.ffmpegPath;
         this.log('info', `Using ffmpeg: ${path.basename(this.ffmpegPath)}`);
+      }
+      // Pass deno directory so yt-dlp can find deno for YouTube JS extraction
+      if (this.denoDirPath) {
+        env.DENO_DIR_PATH = this.denoDirPath;
       }
       // Pass API keys via environment variable (not CLI args for security)
       if (this.apiKey) {

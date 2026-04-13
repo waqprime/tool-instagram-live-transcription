@@ -30,6 +30,14 @@ if sys.platform == 'win32':
     except (AttributeError, OSError):
         pass
 
+# バンドルされたdenoをPATHに追加（yt-dlpのYouTube JS解析に必要）
+_deno_dir = os.environ.get('DENO_DIR_PATH', '')
+if _deno_dir and os.path.isdir(_deno_dir):
+    _current_path = os.environ.get('PATH', '')
+    if _deno_dir not in _current_path:
+        os.environ['PATH'] = _deno_dir + os.pathsep + _current_path
+        print(f"denoパスを設定: {_deno_dir}", flush=True)
+
 
 class VideoDownloader:
     """各種プラットフォームから動画・音声をダウンロードするクラス
@@ -148,6 +156,10 @@ class VideoDownloader:
                     'progress_hooks': [self._progress_hook],
                     'socket_timeout': 30,
                     'noplaylist': True,
+                    'retries': 10,
+                    'fragment_retries': 10,
+                    'file_access_retries': 3,
+                    'extractor_retries': 3,
                 }
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -576,6 +588,10 @@ class VideoDownloader:
                             'quiet': False,
                             'no_warnings': False,
                             'progress_hooks': [self._progress_hook],
+                            'retries': 10,
+                            'fragment_retries': 10,
+                            'file_access_retries': 3,
+                            'extractor_retries': 3,
                         }
 
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:

@@ -143,7 +143,7 @@ try {
 }
 
 // Step 3: Download ffmpeg
-console.log('\n[3/4] Downloading ffmpeg...');
+console.log('\n[3/5] Downloading ffmpeg...');
 try {
   execSync('node build-scripts/download-ffmpeg.js', {
     stdio: 'inherit',
@@ -156,15 +156,33 @@ try {
   process.exit(1);
 }
 
-// Step 4: Verify resources
-console.log('\n[4/4] Verifying resources...');
+// Step 4: Download deno (required by yt-dlp for YouTube JS extraction)
+console.log('\n[4/5] Downloading deno...');
+try {
+  execSync('node build-scripts/download-deno.js', {
+    stdio: 'inherit',
+    cwd: path.join(__dirname, '..'),
+    env: buildEnv
+  });
+  console.log('✓ deno downloaded');
+} catch (error) {
+  console.warn('⚠ Failed to download deno:', error.message);
+  console.warn('  YouTube downloads may fall back to limited formats.');
+  // Non-fatal: app still works without deno, just with degraded YouTube support
+}
+
+// Step 5: Verify resources
+console.log('\n[5/5] Verifying resources...');
 
 const ffmpegName = platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
 const ffmpegPath = path.join(RESOURCES_DIR, 'ffmpeg', ffmpegName);
+const denoName = platform === 'win32' ? 'deno.exe' : 'deno';
+const denoPath = path.join(RESOURCES_DIR, 'deno', denoName);
 
 const checks = [
   { name: 'Backend binary', path: targetBinaryPath },
-  { name: 'ffmpeg binary', path: ffmpegPath }
+  { name: 'ffmpeg binary', path: ffmpegPath },
+  { name: 'deno binary', path: denoPath, optional: true }
 ];
 
 let allGood = true;
@@ -173,6 +191,8 @@ for (const check of checks) {
     const stats = fs.statSync(check.path);
     const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
     console.log(`✓ ${check.name}: ${sizeMB} MB`);
+  } else if (check.optional) {
+    console.warn(`⚠ ${check.name} not found (optional): ${check.path}`);
   } else {
     console.error(`✗ ${check.name} not found: ${check.path}`);
     allGood = false;
