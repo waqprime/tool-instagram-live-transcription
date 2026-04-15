@@ -78,7 +78,7 @@ class ProcessManager {
     });
   }
 
-  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'builtin', summaryModel = '', geminiApiKey = '') {
+  async processUrls(urls, files, outputDir, language, model, keepVideo = false, engine = 'faster-whisper', apiKey = '', obsidianVault = '', obsidianFolder = '', diarize = false, summarize = false, summaryPrompt = '', summaryProvider = 'builtin', summaryModel = '', geminiApiKey = '', cookiesBrowser = '') {
     this.stopped = false;
     this.engine = engine;
     this.apiKey = apiKey;
@@ -90,6 +90,7 @@ class ProcessManager {
     this.summaryProvider = summaryProvider;
     this.summaryModel = summaryModel;
     this.geminiApiKey = geminiApiKey;
+    this.cookiesBrowser = cookiesBrowser;
     const results = [];
     const totalItems = urls.length + (files ? files.length : 0);
 
@@ -446,6 +447,11 @@ class ProcessManager {
           args.push('--summary-model', this.summaryModel);
         }
         // geminiApiKey is passed via env var below, not CLI args
+      }
+
+      // Pass cookies-from-browser option if configured
+      if (this.cookiesBrowser) {
+        args.push('--cookies-from-browser', this.cookiesBrowser);
       }
 
       // Set ffmpeg path and unbuffered output as environment variables

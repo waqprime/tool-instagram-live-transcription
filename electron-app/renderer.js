@@ -33,6 +33,7 @@ const geminiApiKeySection = document.getElementById('gemini-api-key-section');
 const geminiApiKeyInput = document.getElementById('gemini-api-key-input');
 const summaryPromptSection = document.getElementById('summary-prompt-section');
 const summaryPromptInput = document.getElementById('summary-prompt-input');
+const cookiesBrowserSelect = document.getElementById('cookies-browser-select');
 const obsidianEnabledCheckbox = document.getElementById('obsidian-enabled-checkbox');
 const obsidianVaultSection = document.getElementById('obsidian-vault-section');
 const obsidianVaultDirInput = document.getElementById('obsidian-vault-dir');
@@ -195,6 +196,9 @@ async function init() {
   }
   if (settings.language) {
     languageSelect.value = settings.language;
+  }
+  if (settings.cookiesBrowser !== undefined) {
+    cookiesBrowserSelect.value = settings.cookiesBrowser;
   }
 
   // Setup summarize checkbox and provider handlers
@@ -420,6 +424,7 @@ async function startProcessing() {
     engine: engine,
     model: modelSelect.value,
     language: languageSelect.value,
+    cookiesBrowser: cookiesBrowserSelect.value,
   };
   window.electronAPI.saveSettings(settingsToSave);
 
@@ -446,6 +451,7 @@ async function startProcessing() {
   obsidianEnabledCheckbox.disabled = true;
   selectVaultBtn.disabled = true;
   obsidianSubfolderInput.disabled = true;
+  cookiesBrowserSelect.disabled = true;
 
   // Disable all URL inputs
   const inputs = urlList.querySelectorAll('input');
@@ -479,6 +485,7 @@ async function startProcessing() {
     geminiApiKey: summarizeCheckbox.checked ? geminiApiKeyInput.value.trim() : '',
     obsidianVault: obsidianEnabledCheckbox.checked ? obsidianVault : '',
     obsidianFolder: obsidianEnabledCheckbox.checked ? obsidianSubfolder : '',
+    cookiesBrowser: cookiesBrowserSelect.value,
   };
 
   try {
@@ -518,6 +525,7 @@ async function startProcessing() {
     obsidianEnabledCheckbox.disabled = false;
     selectVaultBtn.disabled = false;
     obsidianSubfolderInput.disabled = false;
+    cookiesBrowserSelect.disabled = false;
 
     inputs.forEach(input => input.disabled = false);
 

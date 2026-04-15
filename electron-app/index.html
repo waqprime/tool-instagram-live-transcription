@@ -167,6 +167,23 @@
             </div>
             <p class="hint-text-small">OpenAI API エンジン・内容要約・タイトル生成に使用。環境変数 OPENAI_API_KEY でも設定可能</p>
           </div>
+
+          <!-- Cookie Browser (YouTube bot detection workaround) -->
+          <div class="setting-item setting-item-full">
+            <label class="setting-label" for="cookies-browser-select">Cookieブラウザ（YouTube対策）</label>
+            <select id="cookies-browser-select" class="glass-select">
+              <option value="" selected>使用しない</option>
+              <option value="chrome">Chrome</option>
+              <option value="edge">Edge</option>
+              <option value="firefox">Firefox</option>
+              <option value="safari">Safari</option>
+              <option value="brave">Brave</option>
+              <option value="opera">Opera</option>
+              <option value="chromium">Chromium</option>
+              <option value="vivaldi">Vivaldi</option>
+            </select>
+            <p class="hint-text-small">YouTubeで「Sign in to confirm you're not a bot」エラーが出る場合、ログイン済みのブラウザを選択</p>
+          </div>
         </div>
 
         <!-- Speaker Diarization Option (hidden - not supported in this build) -->
