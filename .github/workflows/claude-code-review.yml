@@ -3,25 +3,13 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
       issues: read
       id-token: write
 
@@ -29,16 +17,42 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Run Claude Code Review
+      - name: Run Claude Code Review (inline comments)
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
+          claude_args: '--allowed-tools Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh api:*),Bash(gh pr comment:*),Bash(git diff:*),Bash(git log:*),Bash(git blame:*)'
+          prompt: |
+            あなたはコードレビュアーです。このPull Requestをレビューしてください。
 
+            リポジトリ: ${{ github.repository }}
+            PR番号: ${{ github.event.pull_request.number }}
+
+            手順:
+            1. `gh pr view ${{ github.event.pull_request.number }} --json title,body,files` でPR概要を取得
+            2. `gh pr diff ${{ github.event.pull_request.number }}` で差分を取得
+            3. **各指摘は該当のコード行に対するインラインコメントとして投稿する**（PR全体への総評コメントは不要。ただしレビュー自体の開始を示す1行サマリのみ可）
+            4. インラインコメントは `gh api` で `/repos/{owner}/{repo}/pulls/{pr}/comments` エンドポイントを使って投稿:
+               ```
+               gh api --method POST \
+                 /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments \
+                 -f body="指摘内容" \
+                 -f commit_id="<PRのHEAD SHA>" \
+                 -f path="<ファイルパス>" \
+                 -F line=<行番号> \
+                 -f side="RIGHT"
+               ```
+            5. HEAD SHAは `gh pr view ${{ github.event.pull_request.number }} --json headRefOid --jq .headRefOid` で取得
+
+            レビュー観点:
+            - バグ・論理エラー・エッジケース漏れ
+            - セキュリティ（入力検証、機密情報の扱い、インジェクション）
+            - パフォーマンス・メモリリーク
+            - 可読性・命名・責務分離
+            - テスト漏れ・エラーハンドリング不足
+
+            指摘は具体的かつ簡潔に。該当コードのどの行の何が問題かを明示すること。
+            日本語で指摘する。
