@@ -578,7 +578,8 @@ ipcMain.handle('start-processing', async (event, config) => {
       config.summaryPrompt || '',
       config.summaryProvider || 'builtin',
       config.summaryModel || '',
-      config.geminiApiKey || ''
+      config.geminiApiKey || '',
+      config.cookiesBrowser || ''
     );
 
     return { success: true, results };

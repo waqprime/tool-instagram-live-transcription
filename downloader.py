@@ -46,11 +46,17 @@ class VideoDownloader:
     1,800以上のサイトから動画・音声をダウンロード
     """
 
-    def __init__(self, output_dir: str = "output", keep_video: bool = False):
+    def __init__(
+        self,
+        output_dir: str = "output",
+        keep_video: bool = False,
+        cookies_from_browser: Optional[str] = None,
+    ):
         """
         Args:
             output_dir: 出力ディレクトリ
             keep_video: 動画ファイルを保持するかどうか（UTAGE動画のMP4変換に使用）
+            cookies_from_browser: Cookieを取得するブラウザ名（chrome/edge/firefox等）
         """
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
@@ -59,6 +65,7 @@ class VideoDownloader:
         self.standfm_extractor = StandfmExtractor()
         self.spotify_extractor = SpotifyExtractor()
         self.keep_video = keep_video
+        self.cookies_from_browser = cookies_from_browser
         self.is_utage_video = False  # UTAGE動画かどうかのフラグ
 
     def _get_yt_dlp_path(self) -> str:
@@ -71,6 +78,12 @@ class VideoDownloader:
         except ImportError:
             # システムのyt-dlpコマンドを使用
             return "yt-dlp"
+
+    def _apply_cookies(self, ydl_opts: dict) -> dict:
+        """yt-dlpオプションにブラウザCookie設定を適用"""
+        if self.cookies_from_browser:
+            ydl_opts['cookiesfrombrowser'] = (self.cookies_from_browser,)
+        return ydl_opts
 
     def _progress_hook(self, d):
         """yt-dlpの進捗フック"""
@@ -161,6 +174,7 @@ class VideoDownloader:
                     'file_access_retries': 3,
                     'extractor_retries': 3,
                 }
+                self._apply_cookies(ydl_opts)
 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([url])
@@ -593,6 +607,7 @@ class VideoDownloader:
                             'file_access_retries': 3,
                             'extractor_retries': 3,
                         }
+                        self._apply_cookies(ydl_opts)
 
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                             ydl.download([video_url])
@@ -720,6 +735,7 @@ class VideoDownloader:
                 'socket_timeout': 15,
                 'noplaylist': True,
             }
+            self._apply_cookies(ydl_opts)
 
             def _extract():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:

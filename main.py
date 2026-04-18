@@ -91,6 +91,7 @@ class AudioTranscriptionProcessor:
         summary_provider: str = "builtin",
         summary_model: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
+        cookies_from_browser: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -129,11 +130,17 @@ class AudioTranscriptionProcessor:
             print("内容要約: 有効")
         if obsidian_vault:
             print(f"Obsidian Vault: {obsidian_vault}")
+        if cookies_from_browser:
+            print(f"Cookieブラウザ: {cookies_from_browser}")
         print("対応: Instagram, YouTube, X Spaces, Voicy等")
         print("=" * 60)
 
         # 各コンポーネントを初期化
-        self.downloader = VideoDownloader(str(self.output_dir), keep_video=keep_video)
+        self.downloader = VideoDownloader(
+            str(self.output_dir),
+            keep_video=keep_video,
+            cookies_from_browser=cookies_from_browser,
+        )
         self.converter = AudioConverter()
         self.transcriber = AudioTranscriber(whisper_model, language, engine=engine, api_key=api_key)
         self.title_generator = TitleGenerator(api_key=api_key)
@@ -812,6 +819,12 @@ def main():
         default=None,
         help="指定したfaster-whisperモデルを事前ダウンロードして終了"
     )
+    parser.add_argument(
+        "--cookies-from-browser",
+        default=None,
+        choices=["chrome", "edge", "firefox", "safari", "brave", "opera", "chromium", "vivaldi"],
+        help="指定ブラウザのCookieを使用（YouTubeボット検知の回避に有効）"
+    )
 
     args = parser.parse_args()
 
@@ -835,6 +848,7 @@ def main():
         summary_provider=args.summary_provider,
         summary_model=args.summary_model,
         gemini_api_key=args.gemini_api_key,
+        cookies_from_browser=args.cookies_from_browser,
     )
 
     # 単一URL処理、ローカルファイル処理、またはファイル一括処理
