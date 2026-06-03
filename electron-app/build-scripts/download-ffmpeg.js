@@ -20,8 +20,9 @@ const KNOWN_HASHES = {
   'darwin-x64': '3a0ea97adddecfbf87b865da3bcbb321edfce4bab18a98ae1ba4ba9f0bd1f93a',
   // gyan.dev ffmpeg essentials (8.1.1)
   'win32-x64': '228d7a8556258de907fdb55f36850078ebc7680b84ec30d84ea02e99bec1d1eb',
-  // johnvansickle.com ffmpeg static
-  'linux-x64': 'e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99',
+  // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを
+  // ブロックし正規tarballを返さないため、CIから確実にDLできるGitHub Releasesに変更。
+  'linux-x64': '55f1b80d845629d9bd3b468edf2ec119c30fb2ee933072d71b19c8ff16dd28fc',
 };
 
 // Platform-specific download URLs
@@ -36,7 +37,7 @@ const FFMPEG_URLS = {
     x64: `https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip`
   },
   linux: {
-    x64: `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz`
+    x64: `https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz`
   }
 };
 
