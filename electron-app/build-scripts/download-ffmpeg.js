@@ -16,10 +16,10 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
   // evermeet.cx ffmpeg (latest release) — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': 'b68f795f7fb4528daf697f57a2b6780846a1ae762a71907e994442ad103ee88f',
-  'darwin-x64': 'b68f795f7fb4528daf697f57a2b6780846a1ae762a71907e994442ad103ee88f',
-  // gyan.dev ffmpeg essentials
-  'win32-x64': '1a65d5b0b10d8d9a81d2824a3538046a40ed3607c906b335a166add87613f705',
+  'darwin-arm64': '3a0ea97adddecfbf87b865da3bcbb321edfce4bab18a98ae1ba4ba9f0bd1f93a',
+  'darwin-x64': '3a0ea97adddecfbf87b865da3bcbb321edfce4bab18a98ae1ba4ba9f0bd1f93a',
+  // gyan.dev ffmpeg essentials (8.1.1)
+  'win32-x64': '228d7a8556258de907fdb55f36850078ebc7680b84ec30d84ea02e99bec1d1eb',
   // johnvansickle.com ffmpeg static
   'linux-x64': 'e7e7fb30477f717e6f55f9180a70386c62677ef8a4d4d1a5d948f4098aa3eb99',
 };
