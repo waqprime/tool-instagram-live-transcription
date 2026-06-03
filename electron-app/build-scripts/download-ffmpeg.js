@@ -71,7 +71,7 @@ async function downloadFile(url, destPath) {
       const parsedUrl = new URL(downloadUrl);
       const protocol = parsedUrl.protocol === 'https:' ? https : require('http');
 
-      protocol.get(downloadUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
+      const req = protocol.get(downloadUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
         if (response.statusCode === 301 || response.statusCode === 302 || response.statusCode === 303 || response.statusCode === 307 || response.statusCode === 308) {
           response.resume();
           const redirectLocation = response.headers.location;
@@ -102,7 +102,14 @@ async function downloadFile(url, destPath) {
           fs.unlink(destPath, () => {});
           reject(err);
         });
-      }).on('error', (err) => {
+      });
+
+      // 無応答/低速で固まった接続を中断し、上位のリトライに回す
+      req.setTimeout(120000, () => {
+        req.destroy(new Error('Download timed out (no data for 120s)'));
+      });
+
+      req.on('error', (err) => {
         fs.unlink(destPath, () => {});
         reject(err);
       });
@@ -219,57 +226,88 @@ async function downloadFFmpeg(platform, arch) {
 
   const archiveExt = downloadUrl.includes('.zip') ? '.zip' : '.tar.xz';
   const archivePath = path.join(RESOURCES_DIR, `ffmpeg${archiveExt}`);
-
-  console.log(`Downloading ffmpeg for ${platform} ${arch}...`);
-  await downloadFile(downloadUrl, archivePath);
-
   const extractDir = path.join(RESOURCES_DIR, 'ffmpeg-temp');
-  if (!fs.existsSync(extractDir)) {
-    fs.mkdirSync(extractDir, { recursive: true });
-  }
 
-  await extractArchive(archivePath, extractDir);
-  findAndMoveBinary(extractDir, ffmpegBinaryPath, 'ffmpeg');
+  const cleanupTemp = () => {
+    try { if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true }); } catch (_) {}
+    try { if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath); } catch (_) {}
+    try { if (fs.existsSync(ffmpegBinaryPath)) fs.unlinkSync(ffmpegBinaryPath); } catch (_) {}
+  };
 
-  // ハッシュを記録・検証
-  const hash = computeFileHash(ffmpegBinaryPath);
-  if (knownHash) {
-    if (hash !== knownHash) {
-      throw new Error(
-        `ffmpeg hash mismatch for ${platform}-${arch}!\n` +
-        `  Expected: ${knownHash}\n` +
-        `  Got:      ${hash}\n` +
-        `The downloaded binary may have been tampered with.`
-      );
+  // evermeet.cx / gyan.dev / johnvansickle.com は「最新版」を配信しており、
+  // 接続タイムアウトや不完全DLでアーカイブが壊れることがある（CIで頻発）。
+  // DL→展開→バイナリ取得→ハッシュ検証を最大3回リトライして一過性の失敗を吸収する。
+  // 注: ハッシュ不一致もリトライ対象（不完全DLが原因の場合は再取得で解消するため）。
+  //     KNOWN_HASHES未登録は本当の中断要因なのでリトライせず即中断する。
+  const MAX_ATTEMPTS = 3;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      console.log(`Downloading ffmpeg for ${platform} ${arch}... (attempt ${attempt}/${MAX_ATTEMPTS})`);
+      cleanupTemp();
+      fs.mkdirSync(extractDir, { recursive: true });
+
+      await downloadFile(downloadUrl, archivePath);
+      await extractArchive(archivePath, extractDir);
+      findAndMoveBinary(extractDir, ffmpegBinaryPath, 'ffmpeg');
+
+      // ハッシュを記録・検証
+      const hash = computeFileHash(ffmpegBinaryPath);
+      if (knownHash) {
+        if (hash !== knownHash) {
+          throw new Error(
+            `ffmpeg hash mismatch for ${platform}-${arch}!\n` +
+            `  Expected: ${knownHash}\n` +
+            `  Got:      ${hash}\n` +
+            `不完全DLか、配布元のリビルドの可能性があります。`
+          );
+        }
+        console.log(`✓ ffmpeg hash verified against known good hash`);
+      } else {
+        // KNOWN_HASHES未登録 → 初回ダウンロードを信じない。ハッシュを表示してビルドを中断。
+        // 開発者がバイナリを手動検証した上で KNOWN_HASHES に追加する必要がある。
+        cleanupTemp();
+        console.error(`\n${'!'.repeat(60)}`);
+        console.error(`ffmpeg downloaded for ${platform}-${arch} but no known hash registered.`);
+        console.error(`Downloaded binary hash: '${hash}'`);
+        console.error(`\nTo proceed, verify this binary is legitimate, then add to KNOWN_HASHES in download-ffmpeg.js:`);
+        console.error(`  '${platform}-${arch}': '${hash}'`);
+        console.error(`${'!'.repeat(60)}\n`);
+        throw new Error(
+          `Build aborted: ffmpeg hash for ${platform}-${arch} is not in KNOWN_HASHES.\n` +
+          `Add the hash above after manual verification.`
+        );
+      }
+
+      fs.writeFileSync(HASH_FILE, hash);
+      console.log(`✓ ffmpeg hash recorded: ${hash.substring(0, 16)}...`);
+
+      // 成功: 一時ファイルを掃除して終了
+      if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
+      if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
+      console.log('✓ ffmpeg binary ready');
+      return;
+    } catch (err) {
+      lastError = err;
+      // 未登録ハッシュによる中断はリトライしても無意味（手動対応が必要）
+      if (/not in KNOWN_HASHES/.test(err.message)) {
+        throw err;
+      }
+      console.warn(`⚠ ffmpeg取得失敗 (attempt ${attempt}/${MAX_ATTEMPTS}): ${err.message.split('\n')[0]}`);
+      cleanupTemp();
+      if (attempt < MAX_ATTEMPTS) {
+        const waitMs = attempt * 5000;
+        console.log(`${waitMs / 1000}秒後にリトライします...`);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
     }
-    console.log(`✓ ffmpeg hash verified against known good hash`);
-  } else {
-    // KNOWN_HASHES未登録 → 初回ダウンロードを信じない。ハッシュを表示してビルドを中断。
-    // 開発者がバイナリを手動検証した上で KNOWN_HASHES に追加する必要がある。
-    // 未検証ファイルをすべて削除してからビルド中断
-    fs.unlinkSync(ffmpegBinaryPath);
-    if (fs.existsSync(extractDir)) fs.rmSync(extractDir, { recursive: true, force: true });
-    if (fs.existsSync(archivePath)) fs.unlinkSync(archivePath);
-    console.error(`\n${'!'.repeat(60)}`);
-    console.error(`ffmpeg downloaded for ${platform}-${arch} but no known hash registered.`);
-    console.error(`Downloaded binary hash: '${hash}'`);
-    console.error(`\nTo proceed, verify this binary is legitimate, then add to KNOWN_HASHES in download-ffmpeg.js:`);
-    console.error(`  '${platform}-${arch}': '${hash}'`);
-    console.error(`${'!'.repeat(60)}\n`);
-    throw new Error(
-      `Build aborted: ffmpeg hash for ${platform}-${arch} is not in KNOWN_HASHES.\n` +
-      `Add the hash above after manual verification.`
-    );
   }
-  fs.writeFileSync(HASH_FILE, hash);
-  console.log(`✓ ffmpeg hash recorded: ${hash.substring(0, 16)}...`);
 
-  // Cleanup
-  console.log('Cleaning up temporary files...');
-  fs.rmSync(extractDir, { recursive: true, force: true });
-  fs.unlinkSync(archivePath);
-
-  console.log('✓ ffmpeg binary ready');
+  throw new Error(
+    `ffmpeg取得に${MAX_ATTEMPTS}回失敗しました (${platform}-${arch}): ` +
+    `${lastError ? lastError.message.split('\n')[0] : 'unknown error'}`
+  );
 }
 
 // Main
