@@ -80,9 +80,13 @@ class VideoDownloader:
             return "yt-dlp"
 
     def _apply_cookies(self, ydl_opts: dict) -> dict:
-        """yt-dlpオプションにブラウザCookie設定を適用"""
+        """yt-dlpオプションにブラウザCookie設定と共通設定を適用"""
         if self.cookies_from_browser:
             ydl_opts['cookiesfrombrowser'] = (self.cookies_from_browser,)
+        # YouTubeのn-challenge解決にyt-dlp-ejsソルバースクリプトの取得を許可。
+        # 同梱denoをJSランタイムとして使い、画像のみ/フォーマット取得失敗を回避する。
+        # （非YouTubeサイトでは未使用なので無害。GitHubからの取得には通信が必要）
+        ydl_opts.setdefault('remote_components', ['ejs:github'])
         return ydl_opts
 
     def _progress_hook(self, d):
@@ -183,7 +187,8 @@ class VideoDownloader:
                 # フォールバック: コマンドラインのyt-dlpを使用
                 cmd = [
                     "yt-dlp",
-                                        "-f", "best",
+                    "-f", "best",
+                    "--remote-components", "ejs:github",
                     "-o", output_template,
                     url
                 ]
@@ -616,7 +621,8 @@ class VideoDownloader:
                         # フォールバック: コマンドラインのyt-dlpを使用
                         cmd = [
                             "yt-dlp",
-                                                        "-f", "best",
+                            "-f", "best",
+                            "--remote-components", "ejs:github",
                             "-o", output_template,
                             video_url
                         ]
