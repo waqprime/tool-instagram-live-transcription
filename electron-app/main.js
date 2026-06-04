@@ -622,6 +622,173 @@ ipcMain.handle('open-folder', async (event, folderPath) => {
   shell.openPath(resolved);
 });
 
+// 出力ディレクトリ配下から最新の process_log_*.txt を探す（最大深さ3）
+function findLatestProcessLog(dir) {
+  let latest = null;
+  let latestMtime = 0;
+  const walk = (d, depth) => {
+    if (depth > 3) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch (e) {
+      return;
+    }
+    for (const ent of entries) {
+      const full = path.join(d, ent.name);
+      if (ent.isDirectory()) {
+        walk(full, depth + 1);
+      } else if (/^process_log_.*\.txt$/.test(ent.name)) {
+        try {
+          const m = fs.statSync(full).mtimeMs;
+          if (m > latestMtime) { latestMtime = m; latest = full; }
+        } catch (e) { /* ignore */ }
+      }
+    }
+  };
+  walk(dir, 0);
+  return latest;
+}
+
+// 送信対象として解決・検証済みのログパス（renderer由来のパスは信用しない）
+let lastResolvedLogPath = null;
+
+// ログ送信を許可する出力先ルート（保存済み設定＋OSデフォルト）
+function getAllowedLogRoots() {
+  const roots = [];
+  try {
+    const s = loadSettings();
+    if (s && s.outputDir) roots.push(s.outputDir);
+  } catch (e) { /* ignore */ }
+  roots.push(getDefaultOutputDirectory());
+  return roots.map((r) => {
+    try { return fs.realpathSync(r); } catch (e) { return path.resolve(r); }
+  });
+}
+
+// realpath が許可ルート配下か
+function isUnderAllowedRoot(realPath) {
+  return getAllowedLogRoots().some((root) => realPath === root || realPath.startsWith(root + path.sep));
+}
+
+// process_log として正当なファイルか検証し、realpath を返す（不正なら null）
+function validateLogPath(candidate, trusted) {
+  if (!candidate) return null;
+  let real;
+  try { real = fs.realpathSync(candidate); } catch (e) { return null; }
+  let st;
+  try { st = fs.lstatSync(real); } catch (e) { return null; }
+  if (!st.isFile()) return null;
+  if (!/^process_log_.*\.txt$/.test(path.basename(real))) return null;
+  // 信頼済み（main側が作成したパス）以外は許可ルート配下に限定
+  if (!trusted && !isUnderAllowedRoot(real)) return null;
+  return real;
+}
+
+// 先頭 maxBytes だけ読む（巨大ログでmainプロセスが固まるのを防ぐ）
+function readLogHead(filePath, maxBytes) {
+  let fd;
+  try {
+    fd = fs.openSync(filePath, 'r');
+    const st = fs.fstatSync(fd);
+    const len = Math.min(maxBytes, st.size);
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, 0);
+    let text = buf.toString('utf-8');
+    if (st.size > len) text += '\n…(以下省略)…';
+    return text;
+  } catch (e) {
+    return `(プレビュー読込エラー: ${e.message})`;
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch (e) { /* ignore */ } }
+  }
+}
+
+// ログ送信: 送信対象ログの情報とプレビューを返す（パスはrendererに返さない）
+ipcMain.handle('get-log-for-send', async () => {
+  try {
+    let real = null;
+    // ① 当セッションで生成した最新ログ（main側が作成＝信頼可）
+    if (processManager && processManager.lastLogFilePath) {
+      real = validateLogPath(processManager.lastLogFilePath, true);
+    }
+    // ② 許可ルート（保存済み設定／デフォルト）配下を走査
+    if (!real) {
+      for (const root of getAllowedLogRoots()) {
+        if (fs.existsSync(root)) {
+          const found = findLatestProcessLog(root);
+          const v = validateLogPath(found, false);
+          if (v) { real = v; break; }
+        }
+      }
+    }
+    if (!real) {
+      lastResolvedLogPath = null;
+      return { found: false };
+    }
+
+    lastResolvedLogPath = real;  // send-log はこのパスだけを送信する
+    return {
+      found: true,
+      logFileName: path.basename(real),
+      preview: readLogHead(real, 8192),
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      osRelease: os.release(),
+    };
+  } catch (error) {
+    return { found: false, error: error.message };
+  }
+});
+
+// ログ送信: バックエンドバイナリ経由で開発者へ送信（renderer由来パスは使わない）
+ipcMain.handle('send-log', async (event, payload) => {
+  try {
+    const note = (payload && payload.note) || '';
+    // get-log-for-send で確定したパスのみを送信対象にする
+    const real = validateLogPath(lastResolvedLogPath, true);
+    if (!real) {
+      return { success: false, error: '送信対象のログが未確定です（ログ送信画面を開き直してください）' };
+    }
+
+    const binaryPath = getBackendBinaryPath();
+    if (!binaryPath || !fs.existsSync(binaryPath)) {
+      return { success: false, error: 'バックエンドバイナリが見つかりません' };
+    }
+
+    return await new Promise((resolve) => {
+      const args = ['--send-log', real, '--app-version', app.getVersion()];
+      if (note) args.push('--log-note', String(note).slice(0, 2000));
+      const env = { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8' };
+
+      const proc = spawn(binaryPath, args, { env });
+      let out = '';
+      let err = '';
+      proc.stdout.on('data', (d) => { out += d.toString(); });
+      proc.stderr.on('data', (d) => { err += d.toString(); });
+      proc.on('error', (e) => resolve({ success: false, error: e.message }));
+      proc.on('close', (code) => {
+        // stdoutの最後のJSON行を結果として解釈
+        let result = null;
+        const lines = out.split('\n').map((l) => l.trim()).filter(Boolean);
+        for (let i = lines.length - 1; i >= 0; i--) {
+          if (lines[i].startsWith('{')) {
+            try { result = JSON.parse(lines[i]); break; } catch (e) { /* ignore */ }
+          }
+        }
+        if (result && result.ok) {
+          resolve({ success: true });
+        } else {
+          resolve({ success: false, error: (result && result.error) || err.trim() || `送信に失敗しました (exit ${code})` });
+        }
+      });
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Auto-update functions
 function checkForUpdates() {
   // 全プラットフォーム共通: GitHub APIでリリースをチェック

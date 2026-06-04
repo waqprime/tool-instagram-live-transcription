@@ -54,6 +54,17 @@ const progressDetails = document.getElementById('progress-details');
 const dropZone = document.getElementById('drop-zone');
 const modelDownloadBtn = document.getElementById('model-download-btn');
 const modelDownloadStatus = document.getElementById('model-download-status');
+// ログ送信モーダル
+const sendLogBtn = document.getElementById('send-log-btn');
+const sendLogModal = document.getElementById('send-log-modal');
+const sendLogCloseBtn = document.getElementById('send-log-close-btn');
+const sendLogCancelBtn = document.getElementById('send-log-cancel-btn');
+const sendLogSubmitBtn = document.getElementById('send-log-submit-btn');
+const sendLogNote = document.getElementById('send-log-note');
+const sendLogPreview = document.getElementById('send-log-preview');
+const sendLogMeta = document.getElementById('send-log-meta');
+const sendLogStatus = document.getElementById('send-log-status');
+let sendLogReady = false;  // 送信対象ログがmain側で確定済みか
 
 // Supported file extensions for drag & drop
 const SUPPORTED_EXTENSIONS = ['.mp4', '.mp3', '.m4a', '.wav', '.webm', '.mkv', '.mov'];
@@ -229,6 +240,15 @@ async function init() {
   settingsSaveBtn.addEventListener('click', saveAndCloseSettings);
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettingsModal();
+  });
+
+  // Setup send-log modal
+  sendLogBtn.addEventListener('click', openSendLogModal);
+  sendLogCloseBtn.addEventListener('click', closeSendLogModal);
+  sendLogCancelBtn.addEventListener('click', closeSendLogModal);
+  sendLogSubmitBtn.addEventListener('click', submitSendLog);
+  sendLogModal.addEventListener('click', (e) => {
+    if (e.target === sendLogModal) closeSendLogModal();
   });
 
   // Setup event listeners
@@ -933,6 +953,70 @@ async function selectObsidianVault() {
 }
 
 // Settings modal functions
+async function openSendLogModal() {
+  // 初期化
+  sendLogReady = false;
+  sendLogNote.value = '';
+  sendLogPreview.value = '読み込み中...';
+  sendLogMeta.textContent = '';
+  sendLogStatus.textContent = '';
+  sendLogStatus.style.color = '';
+  sendLogSubmitBtn.disabled = true;
+  sendLogModal.style.display = '';
+
+  try {
+    const info = await window.electronAPI.getLogForSend();
+    if (!info || !info.found) {
+      sendLogPreview.value = '';
+      sendLogMeta.textContent = '送信できるログが見つかりませんでした。一度ファイル/URLを処理してから再度お試しください。';
+      sendLogSubmitBtn.disabled = true;
+      return;
+    }
+    sendLogReady = true;
+    sendLogPreview.value = info.preview || '';
+    sendLogMeta.textContent =
+      `ログ: ${info.logFileName} ／ アプリ v${info.appVersion} ／ ${info.platform} ${info.arch} (${info.osRelease})`;
+    sendLogSubmitBtn.disabled = false;
+  } catch (e) {
+    sendLogReady = false;
+    sendLogPreview.value = '';
+    sendLogMeta.textContent = `ログ取得エラー: ${e.message}`;
+    sendLogSubmitBtn.disabled = true;
+  }
+}
+
+function closeSendLogModal() {
+  sendLogModal.style.display = 'none';
+}
+
+async function submitSendLog() {
+  if (!sendLogReady) return;
+  sendLogSubmitBtn.disabled = true;
+  sendLogCancelBtn.disabled = true;
+  sendLogStatus.style.color = '';
+  sendLogStatus.textContent = '送信中...';
+  try {
+    const result = await window.electronAPI.sendLog({
+      note: sendLogNote.value || '',
+    });
+    if (result && result.success) {
+      sendLogStatus.style.color = '#4caf50';
+      sendLogStatus.textContent = '✓ 送信しました。ありがとうございます！';
+      setTimeout(() => { closeSendLogModal(); }, 1500);
+    } else {
+      sendLogStatus.style.color = '#ff6b6b';
+      sendLogStatus.textContent = `✗ 送信に失敗しました: ${(result && result.error) || '不明なエラー'}`;
+      sendLogSubmitBtn.disabled = false;
+    }
+  } catch (e) {
+    sendLogStatus.style.color = '#ff6b6b';
+    sendLogStatus.textContent = `✗ 送信エラー: ${e.message}`;
+    sendLogSubmitBtn.disabled = false;
+  } finally {
+    sendLogCancelBtn.disabled = false;
+  }
+}
+
 function openSettingsModal() {
   settingsModal.style.display = '';
 }

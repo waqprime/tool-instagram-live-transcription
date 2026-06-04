@@ -34,6 +34,7 @@ a = Analysis(
             ('downloader.py', '.'),
             ('audio_converter.py', '.'),
             ('summarizer.py', '.'),
+            ('log_sender.py', '.'),
             ('title_generator.py', '.'),
             ('obsidian_writer.py', '.'),
             ('voicy_extractor.py', '.'),

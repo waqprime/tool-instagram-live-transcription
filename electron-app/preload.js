@@ -32,6 +32,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Open folder in file explorer
   openFolder: (path) => ipcRenderer.invoke('open-folder', path),
 
+  // ログ送信
+  getLogForSend: () => ipcRenderer.invoke('get-log-for-send'),
+  sendLog: (payload) => ipcRenderer.invoke('send-log', payload),
+
   // Event listeners
   onProcessingLog: (callback) => {
     ipcRenderer.on('processing-log', (event, log) => callback(log));

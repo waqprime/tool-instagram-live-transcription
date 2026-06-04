@@ -11,6 +11,7 @@ class ProcessManager {
     this.logCallback = null;
     this.progressCallback = null;
     this.stopped = false;
+    this.lastLogFilePath = null;  // 直近に生成したprocess_logのパス（ログ送信機能用）
 
     console.log('ProcessManager initialized (Bundled mode):');
     console.log('  Backend binary:', path.basename(this.binaryPath));
@@ -72,8 +73,8 @@ class ProcessManager {
       if (sensitiveFlags.includes(a)) return a;
       // URLのクエリパラメータを除去
       if (a.startsWith('http://') || a.startsWith('https://')) return this._sanitizeUrl(a);
-      // 絶対パスをベース名に変換（出力先ディレクトリは除く）
-      if (path.isAbsolute(a) && !arr[i - 1]?.includes('output-dir')) return path.basename(a);
+      // 絶対パスをベース名に変換（output-dirも含め、ユーザー名等の漏洩を防ぐ）
+      if (path.isAbsolute(a)) return path.basename(a);
       return a;
     });
   }
@@ -295,6 +296,7 @@ class ProcessManager {
       // Create log file
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
+      this.lastLogFilePath = logFilePath;  // ログ送信機能で参照
       const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
 
       const writeLog = (message) => {
@@ -353,7 +355,7 @@ class ProcessManager {
 
           if (mp3Files.length > 0 && transcriptFiles.length > 0) {
             writeLog(`SUCCESS: Found output files`);
-            writeLog(`Log file saved to: ${logFilePath}`);
+            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: true,
@@ -361,7 +363,7 @@ class ProcessManager {
             });
           } else {
             writeLog(`ERROR: Output files not found`);
-            writeLog(`Log file saved to: ${logFilePath}`);
+            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: false,
@@ -370,7 +372,7 @@ class ProcessManager {
           }
         } else if (code === null || signal === 'SIGKILL') {
           writeLog(`ERROR: Process killed (signal: ${signal}) - likely out of memory`);
-          writeLog(`Log file saved to: ${logFilePath}`);
+          writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
           logStream.end();
           const totalMem = Math.round(require('os').totalmem() / (1024 * 1024 * 1024));
           resolve({
@@ -379,7 +381,7 @@ class ProcessManager {
           });
         } else {
           writeLog(`ERROR: Process failed with exit code ${code}`);
-          writeLog(`Log file saved to: ${logFilePath}`);
+          writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
           logStream.end();
           resolve({
             success: false,
@@ -482,6 +484,7 @@ class ProcessManager {
       // Create log file for this processing session
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
       const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
+      this.lastLogFilePath = logFilePath;  // ログ送信機能で参照
       const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
 
       const writeLog = (message) => {
@@ -597,7 +600,7 @@ class ProcessManager {
 
           if (mp3Files.length > 0 && transcriptFiles.length > 0) {
             writeLog(`SUCCESS: Found output files - MP3: ${mp3Files[0]}, Transcript: ${transcriptFiles[0]}`);
-            writeLog(`Log file saved to: ${logFilePath}`);
+            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: true,
@@ -605,7 +608,7 @@ class ProcessManager {
             });
           } else {
             writeLog(`ERROR: Output files not found - MP3s: ${mp3Files.length}, Transcripts: ${transcriptFiles.length}`);
-            writeLog(`Log file saved to: ${logFilePath}`);
+            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: false,
@@ -614,7 +617,7 @@ class ProcessManager {
           }
         } else if (code === null || signal === 'SIGKILL') {
           writeLog(`ERROR: Process killed (signal: ${signal}) - likely out of memory`);
-          writeLog(`Log file saved to: ${logFilePath}`);
+          writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
           logStream.end();
           const totalMem = Math.round(require('os').totalmem() / (1024 * 1024 * 1024));
           resolve({
@@ -623,7 +626,7 @@ class ProcessManager {
           });
         } else {
           writeLog(`ERROR: Process failed with exit code ${code}`);
-          writeLog(`Log file saved to: ${logFilePath}`);
+          writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
           logStream.end();
           resolve({
             success: false,

@@ -820,6 +820,21 @@ def main():
         help="指定したfaster-whisperモデルを事前ダウンロードして終了"
     )
     parser.add_argument(
+        "--send-log",
+        default=None,
+        help="指定したprocess_logファイルを開発者へ送信して終了（アプリのログ送信機能用）"
+    )
+    parser.add_argument(
+        "--log-note",
+        default="",
+        help="ログ送信時に付与する任意メモ（--send-log と併用）"
+    )
+    parser.add_argument(
+        "--app-version",
+        default="",
+        help="ログ送信時に付与するアプリバージョン（--send-log と併用）"
+    )
+    parser.add_argument(
         "--cookies-from-browser",
         default=None,
         choices=["chrome", "edge", "firefox", "safari", "brave", "opera", "chromium", "vivaldi"],
@@ -831,6 +846,19 @@ def main():
     # モデル事前ダウンロードモード
     if args.download_model:
         return _download_model(args.download_model)
+
+    # ログ送信モード（モデルをロードせず早期に処理して終了）
+    if args.send_log:
+        import json as _json
+        from log_sender import send_log
+        result = send_log(
+            args.send_log,
+            app_version=args.app_version or "",
+            note=args.log_note or "",
+        )
+        # 機械可読用途のためASCIIエスケープ（Windowsの文字コード差異対策）
+        print(_json.dumps(result, ensure_ascii=True), flush=True)
+        return 0 if result.get("ok") else 1
 
     # プロセッサーを初期化
     processor = AudioTranscriptionProcessor(

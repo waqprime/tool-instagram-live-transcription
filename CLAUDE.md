@@ -129,8 +129,9 @@ python main.py --url "URL" --keep-video
 
 ### 配布形態
 - **macOS / Windows**: Electronアプリ（`electron-app/`）として配布。CLIバイナリ単体ではない
-- **CI (GitHub Actions)**: Windows + macOS arm64 を自動ビルド・署名・公証・リリース
-- **Intel Mac (x64)**: CIでは対応不可。ローカルで手動ビルドする
+- **CI (GitHub Actions)**: Windows + macOS arm64 + Linux を自動ビルド・署名・公証・リリース
+- **Intel Mac (x64)**: CIでは作らない。`git push origin vX.Y.Z` を検知するローカルのPostToolUseフックが
+  自動ビルド＆アップロードする（詳細は「CI/デプロイの注意点」参照）。手動ビルド手順は下記フォールバック
 
 ### Intel Mac 手動ビルド手順
 ```bash
@@ -160,6 +161,34 @@ rm -rf electron-app/dist dist build
 - エンドポイント: API Gateway経由
 - APIキーはLambda環境変数 `GEMINI_API_KEY` に格納
 - スロットリング: 2リクエスト/秒、バースト5
+
+### CI/デプロイの注意点（重要・ハマりどころ）
+
+**YouTubeダウンロード（yt-dlp）**
+- YouTubeはJS難読化チャレンジ（n-challenge）の解決にJSランタイム＋EJSソルバーが必須。
+  `downloader.py` の `_apply_cookies()` で全yt-dlp経路に `remote_components: ['ejs:github']` を付与し、
+  同梱deno（`resources/deno`）で解決する。これが無いと「Requested format is not available（画像のみ取得）」で失敗する。
+
+**ffmpegバイナリ取得（`electron-app/build-scripts/download-ffmpeg.js`）**
+- 各OSの「最新版」URLからDLしSHA256を `KNOWN_HASHES` にピン留め。配布元がリビルドするとハッシュがドリフトし、
+  **キャッシュの無いCIだけ**が「hash mismatch」で失敗する（ローカルは既存バイナリを使うため気づきにくい）。
+  → CIログの `Got: <hash>` を `KNOWN_HASHES` に貼って更新する。
+- DLは最大3回リトライ＋120s無応答タイムアウト付き（一過性のタイムアウト／不完全DLを自己回復）。
+- **Linuxは BtbN/FFmpeg-Builds（GitHubホスト）を使う**。johnvansickle.com はGitHub ActionsのIPをブロックし
+  正規tarballを返さず tar展開が必ず失敗するため。**johnvansickleに戻さないこと**。
+
+**Intel Mac (x64) リリースの自動化とレース回避**
+- CIは x64 を作らない。`git push origin vX.Y.Z` を検知するローカルのPostToolUseフック
+  （`.claude/settings.local.json`）が `scripts/release-mac-x64.sh` を**バックグラウンド実行**して x64 を作る。
+- `release.yml` の release ジョブは「既存リリースを削除→再作成」する（electron-builder直publishとの
+  `422 already_exists` 対策。**この削除ステップは消さない**）。そのため x64 を**CI完了前にアップロードすると
+  削除に巻き込まれて消える**。→ スクリプトは `gh run list` で当該タグのCI実行が `completed` になり、
+  リリースが存在するのを待ってから `gh release upload --clobber` する。ログ: `scripts/release-x64-vX.Y.Z.log`。
+- 失敗時は手動で `bash scripts/release-mac-x64.sh vX.Y.Z` を再実行（冪等・--clobber）。
+
+**自動アップデート**
+- 実装は GitHub APIで最新リリースをチェックし**ダウンロードページを開く「通知のみ」**。
+  electron-updaterによる自動DL/インストールではない（`AUTO_UPDATE_GUIDE.md` の記述は実装と乖離している）。
 
 ## Known Limitations
 
