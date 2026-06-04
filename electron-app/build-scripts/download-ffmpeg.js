@@ -22,7 +22,7 @@ const KNOWN_HASHES = {
   'win32-x64': '228d7a8556258de907fdb55f36850078ebc7680b84ec30d84ea02e99bec1d1eb',
   // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを
   // ブロックし正規tarballを返さないため、CIから確実にDLできるGitHub Releasesに変更。
-  'linux-x64': '55f1b80d845629d9bd3b468edf2ec119c30fb2ee933072d71b19c8ff16dd28fc',
+  'linux-x64': '7e7325ec858018dbf8d636933f957f72eb4909c835d2ff5ae6d61d563225e746',
 };
 
 // Platform-specific download URLs

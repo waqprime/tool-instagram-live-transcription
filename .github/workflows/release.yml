@@ -187,6 +187,9 @@ jobs:
 
   release:
     needs: [build-windows, build-macos-arm64, build-linux]
+    # Linux(BtbN latestのハッシュドリフト等)が失敗しても、配布対象のWindows/macOSが
+    # 成功していればリリースを作成する。Linuxはベストエフォート扱い。
+    if: ${{ always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
