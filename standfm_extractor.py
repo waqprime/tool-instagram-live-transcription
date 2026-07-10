@@ -249,10 +249,13 @@ class StandfmExtractor:
         if self._is_episode_url(url):
             result = self.extract_audio_info(url)
             if result:
+                match = re.search(r'/episodes/([a-f0-9]+)', url)
+                if not match:
+                    return None
                 return {
                     'title': result['title'],
                     'uploader': result.get('channel', ''),
-                    'id': re.search(r'/episodes/([a-f0-9]+)', url).group(1),
+                    'id': match.group(1),
                 }
         elif self._is_channel_url(url):
             data = self._fetch_server_state(url)

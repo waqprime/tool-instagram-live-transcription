@@ -96,6 +96,7 @@ class VoicyExtractor:
             from selenium.webdriver.chrome.service import Service
             from selenium.webdriver.chrome.options import Options
             from selenium.webdriver.common.by import By
+            from selenium.common.exceptions import TimeoutException
             from webdriver_manager.chrome import ChromeDriverManager
             import time
 
@@ -119,7 +120,15 @@ class VoicyExtractor:
             driver = webdriver.Chrome(service=service, options=chrome_options)
 
             try:
-                driver.get(page_url)
+                # ページ読み込みのタイムアウトを設定（無応答ページでハングしないように）
+                driver.set_page_load_timeout(30)
+
+                try:
+                    driver.get(page_url)
+                except TimeoutException:
+                    print(f"[ERROR] ページ読み込みがタイムアウトしました: {page_url}", flush=True)
+                    return None
+
                 print("[INFO] ページ読み込み中...", flush=True)
 
                 # ページが完全に読み込まれるまで待機
@@ -133,8 +142,13 @@ class VoicyExtractor:
                 play_clicked = False
                 if voice_id:
                     print(f"[INFO] 指定放送を検索中 (voice_id: {voice_id})", flush=True)
-                    # voice_idを含むリンクを探す
-                    voice_links = driver.find_elements(By.CSS_SELECTOR, f'a[href*="/{voice_id}"]')
+                    # voice_idを含むリンクを探す（CSSセレクタで粗く絞り込み、
+                    # 境界付き正規表現で部分文字列誤マッチを排除）
+                    voice_id_boundary_re = re.compile(rf'/{re.escape(voice_id)}(?:[/"\'?#]|$)')
+                    voice_links = [
+                        link for link in driver.find_elements(By.CSS_SELECTOR, f'a[href*="/{voice_id}"]')
+                        if voice_id_boundary_re.search(link.get_attribute('href') or '')
+                    ]
                     if voice_links:
                         # 該当放送の近くの再生ボタンを探す
                         for link in voice_links:
@@ -162,7 +176,7 @@ class VoicyExtractor:
                         all_links = driver.find_elements(By.CSS_SELECTOR, 'a[href*="/channel/"]')
                         for link in all_links:
                             href = link.get_attribute('href') or ''
-                            if voice_id in href:
+                            if voice_id_boundary_re.search(href):
                                 try:
                                     parent = link
                                     for _ in range(10):
