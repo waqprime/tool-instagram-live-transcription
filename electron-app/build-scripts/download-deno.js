@@ -4,7 +4,10 @@ const path = require('path');
 const crypto = require('crypto');
 const unzipper = require('unzipper');
 
-const DENO_VERSION = '2.1.4';
+// yt-dlp 2026.7.4+ のEJSソルバーは deno >= 2.3.0 必須（DenoJsRuntime.MIN_SUPPORTED_VERSION）。
+// 古いdenoだとn-challenge解決が "no solutions" で失敗し「Requested format is not available」になる。
+const DENO_VERSION = '2.9.2';
+const ROOT_DIR = path.join(__dirname, '..', '..');
 const RESOURCES_DIR = path.join(__dirname, '..', 'resources');
 const DENO_DIR = path.join(RESOURCES_DIR, 'deno');
 const HASH_FILE = path.join(DENO_DIR, '.deno_hash');
@@ -13,10 +16,10 @@ const HASH_FILE = path.join(DENO_DIR, '.deno_hash');
 // When a new version is released, run the build once to get the hash,
 // verify the binary manually, then add the hash here.
 const KNOWN_HASHES = {
-  'win32-x64': '83c98e4365c9e629c6a351b141cbabed0abe6265bde93b256cc10e49d4265fee',
-  'darwin-arm64': '4a3228aa41c0767099ae31bf51e4c6f2cbfcef6b380996f524e885865e586e40',
-  'darwin-x64': '09fc6ce6396e54bf97238e26d82a65360b22255def184f57bc67e1b3aeb7a629',
-  'linux-x64': '10af0f31dc48bfea949e83daa042c03a9a84f7c52056d20597cac7ad005ab6aa',
+  'win32-x64': 'a5270c2bb75a2ec12fef53185730327267d9e9fe6be6a962c5d1d5a050f93c88',
+  'darwin-arm64': '218ab752ae8f64f0a7822af710886488f15169fdae153a3aada4861f9635b266',
+  'darwin-x64': '201651c6e72bd0df2dbe994b4f8ca0f935631e08c27290a3a92342e02ad0e865',
+  'linux-x64': '5bc8a7a4a628360b391ddeac2efac7dec9e670b33156d831bf1e899070655173',
 };
 
 // Platform-specific download URLs (GitHub releases)
@@ -200,11 +203,68 @@ async function downloadDeno(platform, arch) {
   console.log(`  deno binary ready (${sizeMB} MB)`);
 }
 
+// requirements.txt は yt-dlp をバージョン固定していないため、ビルドごとに入る最新yt-dlpの
+// deno要求バージョンが DENO_VERSION を追い越すことがある。追い越されると実行時に
+// n-challenge解決が「no solutions」で黙って壊れるため、ビルド時に照合して先に落とす。
+function checkYtDlpDenoRequirement() {
+  const { execFileSync } = require('child_process');
+  const platform = process.platform;
+  const isCrossCompileX64 = platform === 'darwin' && process.env.TARGET_ARCH === 'x64' && process.arch === 'arm64';
+
+  // build-backend.js と同じ優先順位で「PyInstallerが凍結するyt-dlp」の環境を選ぶ
+  const candidates = [];
+  if (isCrossCompileX64) candidates.push(path.join(ROOT_DIR, 'venv-x64', 'bin', 'python'));
+  if (platform !== 'win32') candidates.push(path.join(ROOT_DIR, 'venv', 'bin', 'python'));
+  candidates.push(platform === 'win32' ? 'python' : 'python3');
+
+  const probe = 'from yt_dlp.utils._jsruntime import DenoJsRuntime; print(".".join(map(str, DenoJsRuntime.MIN_SUPPORTED_VERSION)))';
+  let required = null;
+  for (const py of candidates) {
+    if (py.includes(path.sep) && !fs.existsSync(py)) continue;
+    try {
+      required = execFileSync(py, ['-c', probe], { stdio: 'pipe' }).toString().trim();
+      break;
+    } catch (_) { /* 次の候補へ */ }
+  }
+
+  if (!required || !/^\d+(\.\d+)*$/.test(required)) {
+    console.warn('  [warn] yt-dlpのdeno要求バージョンを取得できませんでした（チェックをスキップ）');
+    return;
+  }
+
+  const toTuple = (v) => v.split('.').map(Number);
+  const cmp = (a, b) => {
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const d = (a[i] || 0) - (b[i] || 0);
+      if (d !== 0) return d;
+    }
+    return 0;
+  };
+
+  if (cmp(toTuple(DENO_VERSION), toTuple(required)) < 0) {
+    console.error(`\n${'!'.repeat(60)}`);
+    console.error(`同梱deno v${DENO_VERSION} は yt-dlp の要求 (>= ${required}) を満たしません。`);
+    console.error('このままビルドするとYouTubeのn-challenge解決が "no solutions" で失敗します。');
+    console.error('対処: download-deno.js の DENO_VERSION を上げ、4プラットフォームの');
+    console.error('KNOWN_HASHES を更新してください（zipではなく展開後のdenoバイナリのsha256）。');
+    console.error(`${'!'.repeat(60)}\n`);
+    throw new Error(`Build aborted: bundled deno v${DENO_VERSION} < yt-dlp required v${required}`);
+  }
+  console.log(`  yt-dlp deno requirement OK (bundled ${DENO_VERSION} >= required ${required})`);
+}
+
 // Main
 const platform = process.platform;
 const arch = process.env.TARGET_ARCH || process.arch;
 
 console.log(`Platform: ${platform} ${arch}`);
+
+try {
+  checkYtDlpDenoRequirement();
+} catch (error) {
+  console.error('  Error:', error.message);
+  process.exit(1);
+}
 
 downloadDeno(platform, arch)
   .then(() => {
