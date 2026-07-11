@@ -49,7 +49,14 @@ if [ ! -f "$ZIP" ]; then
   exit 1
 fi
 
-# DMGが生成されなかった場合（hdiutil日本語ボリューム名バグ）、手動作成
+# DMGが未生成または壊れている場合（hdiutil日本語ボリューム名バグ）、手動作成。
+# macOS 26ではelectron-builderが「成功」と報告しつつアプリ本体を含まない
+# 約1.8MBのDMGを生成することがあるため、サイズでも壊れを検出する（50MB未満は壊れ扱い）。
+DMG_MIN_BYTES=$((50 * 1024 * 1024))
+if [ -f "$DMG" ] && [ "$(stat -f%z "$DMG")" -lt "$DMG_MIN_BYTES" ]; then
+  echo "WARNING: DMGが${DMG_MIN_BYTES}バイト未満（アプリ本体欠落の疑い）。作り直します"
+  rm -f "$DMG"
+fi
 if [ ! -f "$DMG" ]; then
   echo "DMG未生成 - ASCIIボリューム名で手動作成..."
   APP_PATH="dist/mac/文字起こしツール.app"
