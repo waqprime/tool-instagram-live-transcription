@@ -5,7 +5,9 @@ UTAGE動画URL抽出モジュール
 UTAGEページからHLS(.m3u8)動画URLを抽出（複数動画対応）
 """
 
+import ipaddress
 import re
+import socket
 import sys
 from typing import Optional, List
 from urllib.parse import urljoin, urlparse
@@ -14,6 +16,47 @@ from urllib.parse import urljoin, urlparse
 if sys.platform == 'win32':
     import os
     os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+
+def _is_safe_external_url(url: str) -> bool:
+    """
+    SSRFガード: URLがパブリックなhttp/https URLかどうかを検証する
+
+    - http/https以外のスキームは拒否
+    - ホスト名が名前解決できない場合は拒否
+    - 解決先IPがプライベート/ループバック/リンクローカル
+      （169.254.0.0/16のメタデータエンドポイント含む）/予約済み/
+      マルチキャストのいずれかに該当する場合は拒否
+
+    Args:
+        url: チェックするURL
+
+    Returns:
+        外部への安全なGETが許容される場合True
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+
+    if parsed.scheme not in ('http', 'https'):
+        return False
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+
+    try:
+        resolved_ip = socket.gethostbyname(hostname)
+        ip = ipaddress.ip_address(resolved_ip)
+    except Exception:
+        return False
+
+    if (ip.is_private or ip.is_loopback or ip.is_link_local or
+            ip.is_reserved or ip.is_multicast):
+        return False
+
+    return True
 
 
 class UtageExtractor:
@@ -41,10 +84,21 @@ class UtageExtractor:
         try:
             import requests
 
+            # SSRFガード: localhost/プライベートIP/メタデータエンドポイント等への
+            # アクセスを防ぐ（未知のホストへの無制限GETを避ける）
+            if not _is_safe_external_url(url):
+                print(f"[WARNING] 安全でないURLのためスキップ: {url}")
+                return False
+
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
             }
-            response = requests.get(url, headers=headers, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10, allow_redirects=False)
+
+            # リダイレクトは追わず、非UTAGEとして扱う（既存挙動を大きく変えない）
+            if response.is_redirect or response.status_code in (301, 302, 303, 307, 308):
+                return False
+
             html = response.text.lower()
 
             # UTAGE特有の文字列をチェック
@@ -60,7 +114,7 @@ class UtageExtractor:
             if matches >= 2:
                 return True
 
-        except:
+        except Exception:
             pass
 
         return False
@@ -108,8 +162,15 @@ class UtageExtractor:
             driver = webdriver.Chrome(service=service, options=chrome_options)
 
             try:
+                # ページ読み込みのタイムアウトを設定（無応答ページでハングしないように）
+                driver.set_page_load_timeout(30)
+
                 # ページにアクセス
-                driver.get(page_url)
+                try:
+                    driver.get(page_url)
+                except TimeoutException:
+                    print(f"[ERROR] ページ読み込みがタイムアウトしました: {page_url}")
+                    return []
                 print("[INFO] ページ読み込み中...")
 
                 # 動画要素が読み込まれるまで待機（最大30秒）

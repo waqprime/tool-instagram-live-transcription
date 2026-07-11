@@ -50,6 +50,12 @@ class ProcessManager {
       const base = p.split(/[\\/]/).pop();
       return base || p;
     });
+    // APIキー本体のマスク（OpenAI/sk-系）
+    sanitized = sanitized.replace(/sk-[A-Za-z0-9_\-]{20,}/g, 'sk-***');
+    // APIキー本体のマスク（Gemini/AIza系）
+    sanitized = sanitized.replace(/AIza[0-9A-Za-z_\-]{35}/g, 'AIza***');
+    // Authorization: Bearer ヘッダのマスク
+    sanitized = sanitized.replace(/(Authorization:\s*Bearer\s+)\S+/gi, '$1***');
     return sanitized;
   }
 
@@ -298,6 +304,7 @@ class ProcessManager {
       const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
       this.lastLogFilePath = logFilePath;  // ログ送信機能で参照
       const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+      logStream.on('error', (e) => { console.error('ログ書き込みエラー:', e); });
 
       const writeLog = (message) => {
         const timestampStr = new Date().toISOString();
@@ -324,7 +331,7 @@ class ProcessManager {
           if (!line.trim()) continue;
           writeLog(`STDOUT: ${this._sanitizeLogLine(line.trim())}`);
 
-          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]')) {
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('[HINT]')) {
             this.log('info', this._sanitizeLogLine(line.trim()));
           }
         }
@@ -349,25 +356,35 @@ class ProcessManager {
         writeLog('='.repeat(60));
 
         if (code === 0) {
-          // Find the output files
-          const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
-          const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
+          try {
+            // Find the output files
+            const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
+            const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
 
-          if (mp3Files.length > 0 && transcriptFiles.length > 0) {
-            writeLog(`SUCCESS: Found output files`);
-            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
-            logStream.end();
-            resolve({
-              success: true,
-              output: path.join(outputDir, transcriptFiles[0])
-            });
-          } else {
-            writeLog(`ERROR: Output files not found`);
+            if (mp3Files.length > 0 && transcriptFiles.length > 0) {
+              writeLog(`SUCCESS: Found output files`);
+              writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
+              logStream.end();
+              resolve({
+                success: true,
+                output: path.join(outputDir, transcriptFiles[0])
+              });
+            } else {
+              writeLog(`ERROR: Output files not found`);
+              writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
+              logStream.end();
+              resolve({
+                success: false,
+                error: '出力ファイルが見つかりませんでした'
+              });
+            }
+          } catch (e) {
+            writeLog(`ERROR: Failed to read output directory: ${this._sanitizeLogLine(e.message)}`);
             writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: false,
-              error: '出力ファイルが見つかりませんでした'
+              error: `出力ファイルの確認に失敗しました: ${e.message}`
             });
           }
         } else if (code === null || signal === 'SIGKILL') {
@@ -486,6 +503,7 @@ class ProcessManager {
       const logFilePath = path.join(outputDir, `process_log_${timestamp}.txt`);
       this.lastLogFilePath = logFilePath;  // ログ送信機能で参照
       const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+      logStream.on('error', (e) => { console.error('ログ書き込みエラー:', e); });
 
       const writeLog = (message) => {
         const timestampStr = new Date().toISOString();
@@ -547,7 +565,7 @@ class ProcessManager {
           }
 
           // Log important messages (sanitized)
-          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('[HINT]') || line.includes('Whisper')) {
             this.log('info', this._sanitizeLogLine(line.trim()));
           }
 
@@ -594,25 +612,35 @@ class ProcessManager {
         writeLog('='.repeat(60));
 
         if (code === 0) {
-          // Find the output files
-          const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
-          const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
+          try {
+            // Find the output files
+            const mp3Files = fs.readdirSync(outputDir).filter(f => f.endsWith('.mp3'));
+            const transcriptFiles = fs.readdirSync(outputDir).filter(f => f.endsWith('_transcript.txt'));
 
-          if (mp3Files.length > 0 && transcriptFiles.length > 0) {
-            writeLog(`SUCCESS: Found output files - MP3: ${mp3Files[0]}, Transcript: ${transcriptFiles[0]}`);
-            writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
-            logStream.end();
-            resolve({
-              success: true,
-              output: path.join(outputDir, transcriptFiles[0])
-            });
-          } else {
-            writeLog(`ERROR: Output files not found - MP3s: ${mp3Files.length}, Transcripts: ${transcriptFiles.length}`);
+            if (mp3Files.length > 0 && transcriptFiles.length > 0) {
+              writeLog(`SUCCESS: Found output files - MP3: ${mp3Files[0]}, Transcript: ${transcriptFiles[0]}`);
+              writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
+              logStream.end();
+              resolve({
+                success: true,
+                output: path.join(outputDir, transcriptFiles[0])
+              });
+            } else {
+              writeLog(`ERROR: Output files not found - MP3s: ${mp3Files.length}, Transcripts: ${transcriptFiles.length}`);
+              writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
+              logStream.end();
+              resolve({
+                success: false,
+                error: '出力ファイルが見つかりませんでした'
+              });
+            }
+          } catch (e) {
+            writeLog(`ERROR: Failed to read output directory: ${this._sanitizeLogLine(e.message)}`);
             writeLog(`Log file saved to: ${path.basename(logFilePath)}`);
             logStream.end();
             resolve({
               success: false,
-              error: '出力ファイルが見つかりませんでした'
+              error: `出力ファイルの確認に失敗しました: ${e.message}`
             });
           }
         } else if (code === null || signal === 'SIGKILL') {

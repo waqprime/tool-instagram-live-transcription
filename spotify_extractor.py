@@ -16,6 +16,19 @@ from urllib.parse import quote_plus
 
 import requests as _requests_module
 
+# XML実体展開DoS対策: defusedxmlが利用可能ならそちらを使う。
+# PyInstallerバンドル等でdefusedxmlが無い環境では標準ライブラリにフォールバックし、
+# その場合はフィードサイズに上限を設けて防御する。
+try:
+    from defusedxml.ElementTree import fromstring as _safe_xml_fromstring
+    _HAS_DEFUSEDXML = True
+except ImportError:
+    from xml.etree.ElementTree import fromstring as _safe_xml_fromstring
+    _HAS_DEFUSEDXML = False
+
+# フォールバック時（defusedxml不在時）のRSSフィード最大サイズ
+_MAX_RSS_FEED_BYTES = 20 * 1024 * 1024  # 20MB
+
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
     import os
@@ -242,7 +255,16 @@ class SpotifyExtractor:
             if resp.status_code != 200:
                 print(f"[WARNING] RSSフィード取得失敗: {resp.status_code}", flush=True)
                 return None
-            return ET.fromstring(resp.content)
+
+            if not _HAS_DEFUSEDXML and len(resp.content) > _MAX_RSS_FEED_BYTES:
+                print(
+                    f"[ERROR] RSSフィードがサイズ上限を超えています "
+                    f"({len(resp.content)}バイト > {_MAX_RSS_FEED_BYTES}バイト)。defusedxml未導入のため安全のためスキップします",
+                    flush=True,
+                )
+                return None
+
+            return _safe_xml_fromstring(resp.content)
         except ET.ParseError as e:
             print(f"[ERROR] RSS XMLパースエラー: {e}", flush=True)
             return None

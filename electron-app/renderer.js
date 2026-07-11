@@ -613,6 +613,13 @@ function handleLog(log) {
     return;
   }
 
+  // ログイン/Cookie設定の案内（バックエンドの[HINT]行）はエラー詳細より優先して表示する
+  if (typeof message === 'string' && message.includes('[HINT]')) {
+    const hint = message.slice(message.indexOf('[HINT]') + '[HINT]'.length).trim();
+    updateProgress(null, null, `💡 ${hint}`);
+    return;
+  }
+
   // Extract important progress info from log messages
   // 初期化メッセージ（「有効」「対応」含む）はステータス更新しない
   if (message.includes(': 有効') || message.includes('対応:') || message.includes('エンジン:')) {
@@ -1044,6 +1051,7 @@ async function saveAndCloseSettings() {
     engine: engineSelect.value,
     model: modelSelect.value,
     language: languageSelect.value,
+    cookiesBrowser: cookiesBrowserSelect.value,
   };
   await window.electronAPI.saveSettings(settingsToSave);
   closeSettingsModal();

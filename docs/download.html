@@ -179,6 +179,27 @@
     <script>
     const REPO = 'waqprime/tool-instagram-live-transcription';
 
+    // HTML特殊文字をエスケープ（GitHub API由来の値をinnerHTMLに挿入する前に必ず通す）
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // href属性に入れるURLを無害化（javascript:等の危険スキームを拒否）
+    function safeHref(url) {
+        try {
+            const parsed = new URL(url, window.location.href);
+            if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '#';
+            return encodeURI(parsed.href);
+        } catch (e) {
+            return '#';
+        }
+    }
+
     function detectOS() {
         const ua = navigator.userAgent;
         if (/Mac/i.test(ua)) {
@@ -291,9 +312,9 @@
 
             // Build primary button
             let html = `
-                <a href="${primary.url}" class="dl-primary" download>
-                    ${primary.label} 版をダウンロード
-                    <span class="dl-sub">${primary.name}${primary.size ? ' (' + formatSize(primary.size) + ')' : ''}</span>
+                <a href="${safeHref(primary.url)}" class="dl-primary" download>
+                    ${escapeHtml(primary.label)} 版をダウンロード
+                    <span class="dl-sub">${escapeHtml(primary.name)}${primary.size ? ' (' + escapeHtml(formatSize(primary.size)) + ')' : ''}</span>
                 </a>`;
 
             // Build other downloads
@@ -306,9 +327,9 @@
                 for (const a of others) {
                     html += `
                         <li>
-                            <a href="${a.url}" download>
-                                <span><span class="dl-icon">${a.icon}</span>${a.label}</span>
-                                <span class="dl-size">${formatSize(a.size)}</span>
+                            <a href="${safeHref(a.url)}" download>
+                                <span><span class="dl-icon">${escapeHtml(a.icon)}</span>${escapeHtml(a.label)}</span>
+                                <span class="dl-size">${escapeHtml(formatSize(a.size))}</span>
                             </a>
                         </li>`;
                 }

@@ -89,6 +89,39 @@ class VideoDownloader:
         ydl_opts.setdefault('remote_components', ['ejs:github'])
         return ydl_opts
 
+    def _login_required_hint(self, url: str, error: Exception) -> Optional[str]:
+        """
+        ログイン/Cookieが必要なことに起因するエラーかを判定し、
+        該当する場合はユーザー向けの案内メッセージを返す（非該当時はNone）。
+        """
+        msg = str(error).lower()
+        needs_login = (
+            'empty media response' in msg
+            or 'login' in msg
+            or 'cookies' in msg
+            or 'rate-limit' in msg
+            or 'requested content is not available' in msg
+        )
+        if not needs_login:
+            return None
+        # 既にCookieブラウザが指定済みの場合は、非公開/未ログインの可能性を案内
+        if self.cookies_from_browser:
+            return (
+                "この投稿はログインが必要か、選択中のブラウザがログイン状態でない可能性があります。"
+                "対象アカウントでブラウザにログイン済みか確認し、非公開投稿はダウンロードできない点にご注意ください。"
+            )
+        service = "このサイト"
+        if 'instagram.com' in url:
+            service = "Instagram"
+        elif 'facebook.com' in url:
+            service = "Facebook"
+        elif 'twitter.com' in url or 'x.com' in url:
+            service = "X (Twitter)"
+        return (
+            f"{service}はログインが必要です。アプリ設定の「Cookieブラウザ」で"
+            "ログイン済みのブラウザ（Chrome等）を選択してから、もう一度お試しください。"
+        )
+
     def _progress_hook(self, d):
         """yt-dlpの進捗フック"""
         if d['status'] == 'downloading':
@@ -258,6 +291,9 @@ class VideoDownloader:
             return None
         except Exception as e:
             print(f"[ERROR] 予期しないエラー: {e}")
+            hint = self._login_required_hint(url, e)
+            if hint:
+                print(f"[HINT] {hint}", flush=True)
             return None
 
     def _download_voicy(self, url: str, output_filename: Optional[str] = None) -> Optional[str]:
@@ -329,6 +365,7 @@ class VideoDownloader:
 
             cmd = [
                 ffmpeg_path,
+                "-protocol_whitelist", "file,crypto,data,http,https,tcp,tls,httpproxy",
                 "-i", m3u8_url,
                 "-acodec", "libmp3lame",
                 "-b:a", "192k",
@@ -758,6 +795,9 @@ class VideoDownloader:
             return None
         except Exception as e:
             print(f"[ERROR] 情報取得エラー: {e}", flush=True)
+            hint = self._login_required_hint(url, e)
+            if hint:
+                print(f"[HINT] {hint}", flush=True)
             return None
 
 

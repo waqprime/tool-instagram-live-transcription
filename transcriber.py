@@ -608,6 +608,7 @@ class KotobaWhisperExternalTranscriber(TranscriberBase):
                     result = subprocess.run(
                         [path, "-c", "import sys; print(sys.executable)"],
                         capture_output=True, text=True, timeout=10,
+                        encoding='utf-8', errors='replace',
                     )
                     exe = result.stdout.strip()
                     # _MEI（PyInstaller展開先）を含むものはスキップ
@@ -629,6 +630,7 @@ class KotobaWhisperExternalTranscriber(TranscriberBase):
             result = subprocess.run(
                 [self.python_cmd, "-c", check_script],
                 capture_output=True, text=True, timeout=30,
+                encoding='utf-8', errors='replace',
             )
             if result.returncode == 0 and "OK" in result.stdout:
                 print("[kotoba-whisper] 依存パッケージ確認OK", flush=True)
@@ -717,6 +719,7 @@ except Exception as e:
                 [self.python_cmd, "-c", script],
                 capture_output=True, text=True,
                 timeout=1800,  # 30分タイムアウト
+                encoding='utf-8', errors='replace',
             )
 
             # stderrのログを表示

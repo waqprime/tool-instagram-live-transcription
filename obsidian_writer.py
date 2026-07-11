@@ -38,7 +38,12 @@ class ObsidianWriter:
         # パストラバーサル防止: vault_path の外に出ないことを確認
         resolved = output_dir.resolve()
         vault_resolved = self.vault_path.resolve()
-        if not str(resolved).startswith(str(vault_resolved)):
+        try:
+            is_inside = resolved == vault_resolved or vault_resolved in resolved.parents
+        except Exception:
+            # 比較に失敗した場合は安全側（拒否）に倒す
+            is_inside = False
+        if not is_inside:
             raise ValueError(f"サブフォルダがVaultの外を指定しています: {self.subfolder}")
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
@@ -142,14 +147,14 @@ class ObsidianWriter:
 
             # YAML frontmatter
             frontmatter_lines = ["---"]
-            # タイトル中のコロンやクォートをエスケープ
-            safe_title = title.replace('"', '\\"')
+            # タイトル中のバックスラッシュ・クォートをエスケープ（バックスラッシュを先に処理）
+            safe_title = title.replace('\\', '\\\\').replace('"', '\\"')
             frontmatter_lines.append(f'title: "{safe_title}"')
             if url:
-                safe_url = url.replace('"', '%22')
+                safe_url = url.replace('\\', '\\\\').replace('"', '%22')
                 frontmatter_lines.append(f'url: "{safe_url}"')
             if source:
-                safe_source = source.replace('"', '\\"')
+                safe_source = source.replace('\\', '\\\\').replace('"', '\\"')
                 frontmatter_lines.append(f'source: "{safe_source}"')
             frontmatter_lines.append(f"date: {date}")
             frontmatter_lines.append("---")

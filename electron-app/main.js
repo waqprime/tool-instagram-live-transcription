@@ -251,6 +251,24 @@ function getDenoDirPath() {
   return null;
 }
 
+// 外部ブラウザで開くことを許可するURLか判定（GitHub / Google AI Studio のみ）
+function isAllowedExternalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname;
+    if (host === 'github.com' || host.endsWith('.github.com') || host.endsWith('.github.io')) {
+      return true;
+    }
+    if (host === 'aistudio.google.com') {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -261,7 +279,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      sandbox: true
     },
     // Default title bar for better window dragging
     titleBarStyle: 'default',
@@ -269,6 +288,36 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
+
+  // 新規ウィンドウ/ポップアップ生成をガード:
+  // 許可ドメイン（GitHub / Google AI Studio）宛はデフォルトブラウザで開き、
+  // それ以外はElectron内に新規ウィンドウを作らせない
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedExternalUrl(url)) {
+      const { shell } = require('electron');
+      shell.openExternal(url);
+    } else {
+      console.error('Blocked window.open: disallowed URL:', url);
+    }
+    return { action: 'deny' };
+  });
+
+  // アプリ内ページ以外へのトップレベルナビゲーションをガード
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = mainWindow.webContents.getURL();
+    // 自身のindex.html内（ハッシュ遷移等含む）への遷移は許可
+    if (url === currentUrl || url.split('#')[0] === currentUrl.split('#')[0]) {
+      return;
+    }
+    // 許可ドメインへの遷移は外部ブラウザに逃がし、アプリ内遷移は防ぐ
+    event.preventDefault();
+    if (isAllowedExternalUrl(url)) {
+      const { shell } = require('electron');
+      shell.openExternal(url);
+    } else {
+      console.error('Blocked navigation: disallowed URL:', url);
+    }
+  });
 
   // Development mode: Open DevTools automatically
   if (isDev) {

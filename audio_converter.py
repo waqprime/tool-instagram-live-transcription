@@ -88,7 +88,8 @@ class AudioConverter:
             import json
             info = json.loads(result.stdout)
             return float(info.get('format', {}).get('duration', 0))
-        except:
+        except Exception as e:
+            print(f"[WARNING] duration取得失敗: {e}")
             return None
 
     def convert_to_mp4(
@@ -128,6 +129,7 @@ class AudioConverter:
             # ffmpegコマンドを実行（HLS/m3u8対応）
             cmd = [
                 self.ffmpeg_path,
+                "-protocol_whitelist", "file,crypto,data,http,https,tcp,tls,httpproxy",
                 "-i", input_file,
                 "-c", "copy",  # コーデックをコピー（再エンコードなし）
                 "-bsf:a", "aac_adtstoasc",  # AACストリームの修正
@@ -140,7 +142,8 @@ class AudioConverter:
                 check=True,
                 capture_output=True,
                 encoding='utf-8',
-                errors='replace'
+                errors='replace',
+                timeout=300,
             )
 
             if Path(output_file).exists():
@@ -151,6 +154,9 @@ class AudioConverter:
                 print("[ERROR] 出力ファイルが生成されませんでした")
                 return None
 
+        except subprocess.TimeoutExpired:
+            print("[ERROR] MP4変換がタイムアウトしました（300秒）")
+            return None
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] MP4変換エラー: {e}")
             print(f"stderr: {e.stderr}")
@@ -212,7 +218,7 @@ class AudioConverter:
             process = subprocess.Popen(
                 cmd,
                 stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
                 encoding='utf-8',
                 errors='replace'
             )

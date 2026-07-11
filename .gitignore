@@ -69,3 +69,6 @@ Thumbs.db
 .app_token
 .collaborator
 .claude/settings.local.json
+
+# リリーススクリプトのログ
+scripts/*.log
