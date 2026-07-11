@@ -331,7 +331,7 @@ class ProcessManager {
           if (!line.trim()) continue;
           writeLog(`STDOUT: ${this._sanitizeLogLine(line.trim())}`);
 
-          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]')) {
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('[HINT]')) {
             this.log('info', this._sanitizeLogLine(line.trim()));
           }
         }
@@ -565,7 +565,7 @@ class ProcessManager {
           }
 
           // Log important messages (sanitized)
-          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('Whisper')) {
+          if (line.includes('ステップ') || line.includes('処理') || line.includes('[OK]') || line.includes('[ERROR]') || line.includes('[HINT]') || line.includes('Whisper')) {
             this.log('info', this._sanitizeLogLine(line.trim()));
           }
 
