@@ -5,12 +5,16 @@ UTAGE動画URL抽出モジュール
 UTAGEページからHLS(.m3u8)動画URLを抽出（複数動画対応）
 """
 
+import concurrent.futures
 import ipaddress
 import re
 import socket
 import sys
 from typing import Optional, List
 from urllib.parse import urljoin, urlparse
+
+# DNS解決のタイムアウト（秒）
+_DNS_RESOLVE_TIMEOUT = 5
 
 # Windows環境での文字化け対策
 if sys.platform == 'win32':
@@ -46,11 +50,24 @@ def _is_safe_external_url(url: str) -> bool:
     if not hostname:
         return False
 
+    # DNS解決にOS標準のタイムアウトが無いため、ThreadPoolExecutorで明示的に
+    # タイムアウトさせる（解決不能なホスト名で無限にハングするのを防ぐ）。
+    # 検証時と実際の接続時でDNS解決のタイミングが分かれるため、DNSリバインディング
+    # (TOCTOU)には耐性が無い。本アプリはデスクトップアプリでURLは利用者自身の入力
+    # であるため、残リスクとして許容する。
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        resolved_ip = socket.gethostbyname(hostname)
+        future = executor.submit(socket.gethostbyname, hostname)
+        try:
+            resolved_ip = future.result(timeout=_DNS_RESOLVE_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            print(f"[WARNING] DNS解決がタイムアウトしたため安全でないと判定: {hostname}")
+            return False
         ip = ipaddress.ip_address(resolved_ip)
     except Exception:
         return False
+    finally:
+        executor.shutdown(wait=False)
 
     if (ip.is_private or ip.is_loopback or ip.is_link_local or
             ip.is_reserved or ip.is_multicast):

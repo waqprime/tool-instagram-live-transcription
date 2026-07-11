@@ -602,12 +602,16 @@ ipcMain.handle('start-processing', async (event, config) => {
 
     // Set up log handler
     processManager.onLog((log) => {
-      mainWindow.webContents.send('processing-log', log);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('processing-log', log);
+      }
     });
 
     // Set up progress handler
     processManager.onProgress((progress) => {
-      mainWindow.webContents.send('processing-progress', progress);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('processing-progress', progress);
+      }
     });
 
     // Start processing

@@ -1122,7 +1122,12 @@ function setupDragAndDrop() {
       const ext = '.' + file.name.split('.').pop().toLowerCase();
       if (!SUPPORTED_EXTENSIONS.includes(ext)) continue;
 
-      const filePath = file.path;
+      let filePath;
+      try {
+        filePath = window.electronAPI.getPathForFile(file);
+      } catch (err) {
+        continue;
+      }
       if (!filePath || selectedFiles.includes(filePath)) continue;
 
       selectedFiles.push(filePath);

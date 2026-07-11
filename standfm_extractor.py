@@ -86,6 +86,10 @@ class StandfmExtractor:
                 end = i + 1
                 break
 
+        if end == start:
+            print("[WARNING] __SERVER_STATE__のJSON解析に失敗（終端未検出）", flush=True)
+            return None
+
         return json.loads(html[start:end])
 
     def _fetch_server_state(self, page_url: str) -> Optional[dict]:
@@ -100,7 +104,15 @@ class StandfmExtractor:
                 response = self._session.get(page_url, timeout=30)
 
                 if response.status_code == 429:
-                    retry_after = int(response.headers.get('Retry-After', self.RETRY_BASE_DELAY * attempt))
+                    # Retry-Afterは秒数(int)またはHTTP-date形式のことがある。
+                    # HTTP-date形式はint()で例外になりリトライ自体が放棄されてしまうため、
+                    # パース失敗時はデフォルトの待機時間にフォールバックする。
+                    default_delay = self.RETRY_BASE_DELAY * attempt
+                    raw_retry_after = response.headers.get('Retry-After')
+                    try:
+                        retry_after = int(raw_retry_after) if raw_retry_after is not None else default_delay
+                    except ValueError:
+                        retry_after = default_delay
                     print(f"[WARNING] レート制限検出 (429)。{retry_after}秒後にリトライ ({attempt}/{self.MAX_RETRIES})", flush=True)
                     time.sleep(retry_after)
                     continue

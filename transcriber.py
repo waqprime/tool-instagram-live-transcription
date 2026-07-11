@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 音声文字起こしモジュール
-4つのエンジンに対応:
+3つのエンジンに対応:
   - faster-whisper (デフォルト、高速・高精度)
   - openai-api (クラウド、OpenAI Whisper API / gpt-4o-transcribe)
-  - local-whisper (従来版、openai-whisper)
   - kotoba-whisper (日本語特化、Kotoba-Whisper v2.0)
 """
 
@@ -315,12 +314,12 @@ class OpenAIAPITranscriber(TranscriberBase):
         for attempt in range(3):
             try:
                 with open(audio_path, 'rb') as f:
-                    # gpt-4o系モデルは timestamp_granularities 非対応
+                    # gpt-4o系モデルは response_format=verbose_json / timestamp_granularities 非対応（json/textのみ対応）
                     params = {
                         'model': self.model_name,
                         'file': f,
                         'language': self.language,
-                        'response_format': "verbose_json",
+                        'response_format': "json" if self._is_gpt4o_model() else "verbose_json",
                     }
                     if not self._is_gpt4o_model():
                         params['timestamp_granularities'] = ["segment"]
@@ -853,7 +852,7 @@ def main():
     parser.add_argument("-o", "--output", help="出力ディレクトリ", default=None)
     parser.add_argument(
         "-e", "--engine",
-        choices=["faster-whisper", "openai-api", "local-whisper", "kotoba-whisper"],
+        choices=["faster-whisper", "openai-api", "kotoba-whisper"],
         default="faster-whisper",
         help="文字起こしエンジン (デフォルト: faster-whisper)",
     )
