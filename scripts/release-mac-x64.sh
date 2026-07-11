@@ -57,11 +57,16 @@ if [ ! -f "$DMG" ]; then
     # 権限エラー回避: tmpにコピーしてからDMG作成
     TMP_DMG_DIR=$(mktemp -d)
     cp -R "$APP_PATH" "$TMP_DMG_DIR/TranscriptionTool.app"
-    hdiutil create -srcfolder "$TMP_DMG_DIR" \
+    # set -e で即死してZIPアップロードまで消えるのを防ぐため、if文で保護し
+    # 失敗時は警告のみでDMGなしで続行する（TMP_DMG_DIRの掃除は成否に関わらず実行）
+    if hdiutil create -srcfolder "$TMP_DMG_DIR" \
       -volname "TranscriptionTool" -anyowners -nospotlight \
-      -format UDZO -fs APFS "$DMG"
+      -format UDZO -fs APFS "$DMG"; then
+      echo "DMG手動作成完了"
+    else
+      echo "WARNING: hdiutilによるDMG作成に失敗。DMGなしで続行します"
+    fi
     rm -rf "$TMP_DMG_DIR"
-    echo "DMG手動作成完了"
   else
     echo "WARNING: .appが見つかりません。DMGはスキップ"
   fi

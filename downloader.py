@@ -9,6 +9,7 @@ yt-dlpを使用して各種プラットフォームから動画・音声をダ�
 import os
 import re
 import sys
+import time
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -122,6 +123,54 @@ class VideoDownloader:
             "ログイン済みのブラウザ（Chrome等）を選択してから、もう一度お試しください。"
         )
 
+    # ダウンロード後に探す拡張子（yt-dlpが選択しうる代表的なコンテナ/コーデック）
+    KNOWN_MEDIA_EXTENSIONS = [
+        'mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg',
+        'ts', 'flv', '3gp', 'aac', 'wav', 'mov', 'avi',
+    ]
+
+    def _find_downloaded_file(self, filename: Optional[str], start_time: float) -> Optional[str]:
+        """
+        ダウンロードしたファイルを探す。
+
+        既知の拡張子リストで見つからない場合は、フォールバックとして
+        output_dir内で処理開始（start_time）以降に更新された、
+        一時ファイル(.part/.ytdl/.tmp)・出力物(.txt/.json/.md)以外の
+        最新ファイルを採用する（未知の拡張子で保存されたケースに対応）。
+        """
+        if filename:
+            for ext in self.KNOWN_MEDIA_EXTENSIONS:
+                filepath = self.output_dir / f"{filename}.{ext}"
+                if filepath.exists():
+                    return str(filepath)
+        else:
+            media_files = []
+            for ext in self.KNOWN_MEDIA_EXTENSIONS:
+                media_files.extend(self.output_dir.glob(f"*.{ext}"))
+            if media_files:
+                files = sorted(media_files, key=os.path.getmtime)
+                return str(files[-1])
+
+        excluded_suffixes = {'.part', '.ytdl', '.tmp', '.txt', '.json', '.md'}
+        candidates = []
+        for entry in self.output_dir.iterdir():
+            if not entry.is_file() or entry.suffix.lower() in excluded_suffixes:
+                continue
+            try:
+                mtime = entry.stat().st_mtime
+            except OSError:
+                continue
+            if mtime >= start_time:
+                candidates.append((mtime, entry))
+
+        if candidates:
+            candidates.sort(key=lambda x: x[0])
+            fallback_path = candidates[-1][1]
+            print(f"[WARNING] 既知の拡張子で見つからないため、更新日時から最新ファイルを採用: {fallback_path}", flush=True)
+            return str(fallback_path)
+
+        return None
+
     def _progress_hook(self, d):
         """yt-dlpの進捗フック"""
         if d['status'] == 'downloading':
@@ -192,6 +241,7 @@ class VideoDownloader:
                 output_template = str(self.output_dir / "%(id)s.%(ext)s")
 
             print(f"ダウンロード中: {url}")
+            download_start_time = time.time()
 
             # yt-dlpをPythonモジュールとして使用
             try:
@@ -234,25 +284,9 @@ class VideoDownloader:
                 )
 
             # ダウンロードしたファイルを探す
-            downloaded_file = None
-            if output_filename:
-                # 可能性のある拡張子をチェック
-                for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
-                    filepath = self.output_dir / f"{output_filename}.{ext}"
-                    if filepath.exists():
-                        print(f"[OK] ダウンロード完了: {filepath}")
-                        downloaded_file = str(filepath)
-                        break
-            else:
-                # 最新の動画ファイルを取得（ログファイルを除外）
-                video_files = []
-                for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
-                    video_files.extend(self.output_dir.glob(f"*.{ext}"))
-
-                if video_files:
-                    files = sorted(video_files, key=os.path.getmtime)
-                    print(f"[OK] ダウンロード完了: {files[-1]}")
-                    downloaded_file = str(files[-1])
+            downloaded_file = self._find_downloaded_file(output_filename, download_start_time)
+            if downloaded_file:
+                print(f"[OK] ダウンロード完了: {downloaded_file}")
 
             if not downloaded_file:
                 print("[ERROR] ダウンロードしたファイルが見つかりません")
@@ -628,6 +662,7 @@ class VideoDownloader:
 
                 # ダウンロード実行（extract_video_urlsで既にURLを取得しているので直接ダウンロード）
                 try:
+                    download_start_time = time.time()
                     if filename:
                         output_template = str(self.output_dir / f"{filename}.%(ext)s")
                     else:
@@ -672,21 +707,7 @@ class VideoDownloader:
                         )
 
                     # ダウンロードしたファイルを探す
-                    downloaded_file = None
-                    if filename:
-                        for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
-                            filepath = self.output_dir / f"{filename}.{ext}"
-                            if filepath.exists():
-                                downloaded_file = str(filepath)
-                                break
-                    else:
-                        # 最新の動画ファイルを取得
-                        video_files = []
-                        for ext in ['mp4', 'webm', 'mkv', 'm4a', 'mp3', 'opus', 'ogg']:
-                            video_files.extend(self.output_dir.glob(f"*.{ext}"))
-                        if video_files:
-                            files = sorted(video_files, key=os.path.getmtime)
-                            downloaded_file = str(files[-1])
+                    downloaded_file = self._find_downloaded_file(filename, download_start_time)
 
                     if not downloaded_file:
                         print(f"[ERROR] 動画 {i} のダウンロードファイルが見つかりません")
@@ -785,10 +806,15 @@ class VideoDownloader:
                     return ydl.extract_info(url, download=False)
 
             # タイムアウト付きで実行（30秒）
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            # with文だとexit時にshutdown(wait=True)されタイムアウト後もバックグラウンドスレッドの完了を待ってしまうため、
+            # 明示的にshutdown(wait=False)して即座に戻す
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            try:
                 future = executor.submit(_extract)
                 info = future.result(timeout=30)
                 return info
+            finally:
+                executor.shutdown(wait=False)
 
         except concurrent.futures.TimeoutError:
             print(f"[WARNING] 情報取得タイムアウト（30秒）: {url}", flush=True)

@@ -248,23 +248,34 @@ class SpotifyExtractor:
         """RSSフィードを取得してパース"""
         try:
             self._wait_for_rate_limit()
-            resp = self._session.get(feed_url, timeout=30)
+            resp = self._session.get(feed_url, timeout=30, stream=True)
             if resp.status_code == 401 or resp.status_code == 403:
                 print(f"[ERROR] RSSフィードへのアクセスが拒否されました（認証が必要な可能性があります）", flush=True)
+                resp.close()
                 return None
             if resp.status_code != 200:
                 print(f"[WARNING] RSSフィード取得失敗: {resp.status_code}", flush=True)
+                resp.close()
                 return None
 
-            if not _HAS_DEFUSEDXML and len(resp.content) > _MAX_RSS_FEED_BYTES:
-                print(
-                    f"[ERROR] RSSフィードがサイズ上限を超えています "
-                    f"({len(resp.content)}バイト > {_MAX_RSS_FEED_BYTES}バイト)。defusedxml未導入のため安全のためスキップします",
-                    flush=True,
-                )
-                return None
+            # サイズガード: 全量ダウンロード後にチェックすると上限の意味が無いため、
+            # ストリーミングでチャンクごとに読み、上限超過時点で打ち切る。
+            # defusedxmlの有無に関わらず常に適用する（多層防御）。
+            chunks = []
+            total = 0
+            for chunk in resp.iter_content(chunk_size=65536):
+                total += len(chunk)
+                if total > _MAX_RSS_FEED_BYTES:
+                    print(
+                        f"[ERROR] RSSフィードがサイズ上限を超えています "
+                        f"({_MAX_RSS_FEED_BYTES}バイト超)。安全のため打ち切ります",
+                        flush=True,
+                    )
+                    resp.close()
+                    return None
+                chunks.append(chunk)
 
-            return _safe_xml_fromstring(resp.content)
+            return _safe_xml_fromstring(b''.join(chunks))
         except ET.ParseError as e:
             print(f"[ERROR] RSS XMLパースエラー: {e}", flush=True)
             return None
@@ -345,6 +356,7 @@ class SpotifyExtractor:
 
     def _get_latest_episode(self, root: ET.Element) -> Optional[Dict]:
         """RSSフィードから最新エピソードを取得（pubDateでソート）"""
+        from datetime import timezone
         from email.utils import parsedate_to_datetime
         ns = {'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'}
         channel = root.find('channel')
@@ -361,9 +373,14 @@ class SpotifyExtractor:
             return None
 
         # pubDateでソート（新しい順）、パース失敗時は元の順序を維持
+        # tz付き/naiveなdatetimeが混在するとsort時にTypeErrorになるため、
+        # naiveなものはUTC扱いに正規化して比較可能にする
         def parse_date(ep):
             try:
-                return parsedate_to_datetime(ep['pub_date'])
+                dt = parsedate_to_datetime(ep['pub_date'])
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
             except Exception:
                 return None
 

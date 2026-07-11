@@ -100,7 +100,7 @@ class AudioTranscriptionProcessor:
             whisper_model: Whisperモデル名
             language: 言語コード
             keep_video: 動画ファイルを保持するかどうか
-            engine: 文字起こしエンジン (faster-whisper / openai-api / local-whisper)
+            engine: 文字起こしエンジン (faster-whisper / openai-api / kotoba-whisper)
             api_key: OpenAI APIキー (openai-api エンジン用)
             diarize: 話者分離を実行するかどうか
             obsidian_vault: Obsidian Vaultのルートパス
@@ -740,13 +740,13 @@ def main():
     parser.add_argument(
         "-e", "--engine",
         default="faster-whisper",
-        choices=["faster-whisper", "openai-api", "local-whisper", "kotoba-whisper"],
+        choices=["faster-whisper", "openai-api", "kotoba-whisper"],
         help="文字起こしエンジン（デフォルト: faster-whisper）"
     )
     parser.add_argument(
         "-m", "--model",
         default=None,
-        help="Whisperモデル名（デフォルト: エンジンに依存。faster-whisper=large-v3-turbo, local-whisper=base）"
+        help="Whisperモデル名（デフォルト: エンジンに依存。faster-whisper=large-v3-turbo）"
     )
     parser.add_argument(
         "--api-key",
