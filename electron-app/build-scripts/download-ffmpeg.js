@@ -16,13 +16,13 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
   // evermeet.cx ffmpeg (latest release) — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': '3a0ea97adddecfbf87b865da3bcbb321edfce4bab18a98ae1ba4ba9f0bd1f93a',
-  'darwin-x64': '3a0ea97adddecfbf87b865da3bcbb321edfce4bab18a98ae1ba4ba9f0bd1f93a',
-  // gyan.dev ffmpeg essentials (8.1.1)
-  'win32-x64': '228d7a8556258de907fdb55f36850078ebc7680b84ec30d84ea02e99bec1d1eb',
+  'darwin-arm64': '60725ea0467ccaf900bf294d3567c302a802dc661f03bdde6aa7ecc9ccf05c4f',
+  'darwin-x64': '60725ea0467ccaf900bf294d3567c302a802dc661f03bdde6aa7ecc9ccf05c4f',
+  // gyan.dev ffmpeg essentials (8.1.2)
+  'win32-x64': '1326dde4c84ff1f96fe6b8916c5bed29e163e9b5dccf995f6f3db069d143ec5e',
   // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを
   // ブロックし正規tarballを返さないため、CIから確実にDLできるGitHub Releasesに変更。
-  'linux-x64': '7e7325ec858018dbf8d636933f957f72eb4909c835d2ff5ae6d61d563225e746',
+  'linux-x64': '5cc94a7343a4f60ccbd1011337d496ce11b757b3ece9fce1b3984bcd521fdf1a',
 };
 
 // Platform-specific download URLs
@@ -295,7 +295,8 @@ async function downloadFFmpeg(platform, arch) {
       if (/not in KNOWN_HASHES/.test(err.message)) {
         throw err;
       }
-      console.warn(`⚠ ffmpeg取得失敗 (attempt ${attempt}/${MAX_ATTEMPTS}): ${err.message.split('\n')[0]}`);
+      // ハッシュ不一致時のExpected/Got行を潰さないよう全文を出す（CIログからKNOWN_HASHES更新に必要）
+      console.warn(`⚠ ffmpeg取得失敗 (attempt ${attempt}/${MAX_ATTEMPTS}): ${err.message}`);
       cleanupTemp();
       if (attempt < MAX_ATTEMPTS) {
         const waitMs = attempt * 5000;
@@ -307,7 +308,7 @@ async function downloadFFmpeg(platform, arch) {
 
   throw new Error(
     `ffmpeg取得に${MAX_ATTEMPTS}回失敗しました (${platform}-${arch}): ` +
-    `${lastError ? lastError.message.split('\n')[0] : 'unknown error'}`
+    `${lastError ? lastError.message : 'unknown error'}`
   );
 }
 
