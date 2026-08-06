@@ -185,11 +185,86 @@ jobs:
             electron-app/dist/*.zip
             !electron-app/dist/*.blockmap
 
+  # Intel Mac (x64): macos-15-intel は2027年8月まで利用可能な最後のx86_64イメージ。
+  # 以前はローカルフック(scripts/release-mac-x64.sh)でビルドしていたが、
+  # 署名証明書・Apple認証情報を持つCIに集約した。
+  build-macos-x64:
+    runs-on: macos-15-intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements-light.txt
+
+      - name: Inject app token
+        env:
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        run: echo -n "$BUILTIN_APP_TOKEN" > .app_token
+
+      - name: Install Apple Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o $CERTIFICATE_PATH
+          security create-keychain -p "$MACOS_CERTIFICATE_PWD" build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security unlock-keychain -p "$MACOS_CERTIFICATE_PWD" build.keychain
+          security import $CERTIFICATE_PATH -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security list-keychains -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$MACOS_CERTIFICATE_PWD" build.keychain
+
+      - name: Install Electron dependencies
+        run: |
+          cd electron-app
+          npm install
+
+      - name: Update version in package.json
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cd electron-app
+          npm version $VERSION --no-git-tag-version --allow-same-version
+
+      - name: Build for macOS x64
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
+        run: |
+          cd electron-app
+          npm run build:mac-x64
+
+      - name: Upload macOS x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64-build
+          path: |
+            electron-app/dist/*.dmg
+            electron-app/dist/*.zip
+            !electron-app/dist/*.blockmap
+
   release:
-    needs: [build-windows, build-macos-arm64, build-linux]
+    needs: [build-windows, build-macos-arm64, build-macos-x64, build-linux]
     # Linux(BtbN latestのハッシュドリフト等)が失敗しても、配布対象のWindows/macOSが
     # 成功していればリリースを作成する。Linuxはベストエフォート扱い。
-    if: ${{ always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' }}
+    if: ${{ always() && needs.build-windows.result == 'success' && needs.build-macos-arm64.result == 'success' && needs.build-macos-x64.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -218,6 +293,7 @@ jobs:
           files: |
             artifacts/windows-build/**/*
             artifacts/macos-arm64-build/**/*
+            artifacts/macos-x64-build/**/*
             artifacts/linux-build/**/*
           draft: false
           prerelease: false

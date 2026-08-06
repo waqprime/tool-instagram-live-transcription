@@ -347,11 +347,18 @@ class AudioTranscriptionProcessor:
         if process_all and self.downloader.utage_extractor.is_utage_url(url):
             return self._process_multiple_videos(url, filename_prefix)
 
-        # タイトル取得（yt-dlpメタデータ）
+        # タイトル・作者名取得（yt-dlpメタデータ）
         title = None
+        author = None
         try:
             print("タイトル取得中...", flush=True)
-            title = self.title_generator.get_title_from_url(url, self.downloader)
+            info = self.downloader.get_video_info(url) or {}
+            title = info.get('title')
+            author = info.get('uploader') or info.get('channel') or info.get('uploader_id')
+            if title:
+                print(f"[OK] タイトル取得: {title}", flush=True)
+            if author:
+                print(f"[OK] 作者名取得: {author}", flush=True)
         except Exception as e:
             print(f"[WARNING] タイトル取得失敗（処理は続行）: {e}", flush=True)
 
@@ -408,6 +415,7 @@ class AudioTranscriptionProcessor:
                 segments=result.get('segments'),
                 url=url,
                 source=source,
+                author=author,
             )
 
         print(f"\n{'=' * 60}")

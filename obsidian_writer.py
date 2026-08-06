@@ -111,6 +111,7 @@ class ObsidianWriter:
         url: Optional[str] = None,
         source: Optional[str] = None,
         date: Optional[str] = None,
+        author: Optional[str] = None,
     ) -> Optional[str]:
         """
         Obsidianノートを保存
@@ -122,6 +123,7 @@ class ObsidianWriter:
             url: ソースURL
             source: ソース名（YouTube, Instagram等）
             date: 日付文字列
+            author: 作者名（チャンネル名・配信者名等）
 
         Returns:
             保存したファイルパス、失敗時はNone
@@ -156,6 +158,9 @@ class ObsidianWriter:
             if source:
                 safe_source = source.replace('\\', '\\\\').replace('"', '\\"')
                 frontmatter_lines.append(f'source: "{safe_source}"')
+            if author:
+                safe_author = author.replace('\\', '\\\\').replace('"', '\\"')
+                frontmatter_lines.append(f'author: "{safe_author}"')
             frontmatter_lines.append(f"date: {date}")
             frontmatter_lines.append("---")
             frontmatter = '\n'.join(frontmatter_lines)

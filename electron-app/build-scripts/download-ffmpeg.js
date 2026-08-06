@@ -15,9 +15,9 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ビルドが失敗した場合は新バイナリを手動で検証し、ここを更新すること。
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
-  // evermeet.cx ffmpeg (latest release) — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': '60725ea0467ccaf900bf294d3567c302a802dc661f03bdde6aa7ecc9ccf05c4f',
-  'darwin-x64': '60725ea0467ccaf900bf294d3567c302a802dc661f03bdde6aa7ecc9ccf05c4f',
+  // evermeet.cx ffmpeg (latest release, 9.0-tessus) — darwin arm64/x64 は同一URLのため同一バイナリ
+  'darwin-arm64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
+  'darwin-x64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
   // gyan.dev ffmpeg essentials (8.1.2)
   'win32-x64': '1326dde4c84ff1f96fe6b8916c5bed29e163e9b5dccf995f6f3db069d143ec5e',
   // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを

@@ -129,9 +129,10 @@ python main.py --url "URL" --keep-video
 
 ### 配布形態
 - **macOS / Windows**: Electronアプリ（`electron-app/`）として配布。CLIバイナリ単体ではない
-- **CI (GitHub Actions)**: Windows + macOS arm64 + Linux を自動ビルド・署名・公証・リリース
-- **Intel Mac (x64)**: CIでは作らない。`git push origin vX.Y.Z` を検知するローカルのPostToolUseフックが
-  自動ビルド＆アップロードする（詳細は「CI/デプロイの注意点」参照）。手動ビルド手順は下記フォールバック
+- **CI (GitHub Actions)**: Windows + macOS arm64 + **macOS x64 (Intel)** + Linux を自動ビルド・署名・公証・リリース
+- **Intel Mac (x64)**: v1.9.10以降はCIの `build-macos-x64` ジョブ（`macos-15-intel` ランナー、2027年8月まで利用可能な
+  最後のx86_64イメージ）でビルドする。以前のローカルPostToolUseフック方式は廃止（署名証明書・Apple認証情報が
+  ローカルに無いため）。手動ビルド手順は下記フォールバック（要: Developer ID証明書 + .envのApple認証情報）
 
 ### Intel Mac 手動ビルド手順
 ```bash
@@ -177,14 +178,14 @@ rm -rf electron-app/dist dist build
 - **Linuxは BtbN/FFmpeg-Builds（GitHubホスト）を使う**。johnvansickle.com はGitHub ActionsのIPをブロックし
   正規tarballを返さず tar展開が必ず失敗するため。**johnvansickleに戻さないこと**。
 
-**Intel Mac (x64) リリースの自動化とレース回避**
-- CIは x64 を作らない。`git push origin vX.Y.Z` を検知するローカルのPostToolUseフック
-  （`.claude/settings.local.json`）が `scripts/release-mac-x64.sh` を**バックグラウンド実行**して x64 を作る。
+**Intel Mac (x64) リリース**
+- v1.9.10以降、x64はCIの `build-macos-x64` ジョブ（`macos-15-intel` ランナー）でビルドされ、
+  他プラットフォームと同じreleaseジョブで一括リリースされる。ローカルフック方式は廃止。
 - `release.yml` の release ジョブは「既存リリースを削除→再作成」する（electron-builder直publishとの
-  `422 already_exists` 対策。**この削除ステップは消さない**）。そのため x64 を**CI完了前にアップロードすると
-  削除に巻き込まれて消える**。→ スクリプトは `gh run list` で当該タグのCI実行が `completed` になり、
-  リリースが存在するのを待ってから `gh release upload --clobber` する。ログ: `scripts/release-x64-vX.Y.Z.log`。
-- 失敗時は手動で `bash scripts/release-mac-x64.sh vX.Y.Z` を再実行（冪等・--clobber）。
+  `422 already_exists` 対策。**この削除ステップは消さない**）。リリース後に手動でアセットを追加する場合は
+  CI完了を待ってから `gh release upload --clobber` すること（CI完了前だと削除に巻き込まれて消える）。
+- 旧ローカルビルドスクリプト `scripts/release-mac-x64.sh` はフォールバック用に残置
+  （要: キーチェーンのDeveloper ID証明書 + `.env` のApple認証情報 + x86_64 Python 3.11の `venv-x64`）。
 
 **自動アップデート**
 - 実装は GitHub APIで最新リリースをチェックし**ダウンロードページを開く「通知のみ」**。

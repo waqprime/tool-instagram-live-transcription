@@ -79,7 +79,7 @@ class TitleGenerator:
             生成されたタイトル、失敗時はNone
         """
         if not self.api_key:
-            print("[WARNING] OpenAI APIキーが設定されていないためタイトル生成をスキップ", flush=True)
+            print("[INFO] OpenAI APIキー未設定のためAIタイトル生成をスキップ（ファイル名をタイトルに使用します）", flush=True)
             return None
 
         if not text or not text.strip():

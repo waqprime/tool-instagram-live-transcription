@@ -242,6 +242,10 @@ class FasterWhisperTranscriber(TranscriberBase):
             full_text_parts: List[str] = []
             segments: List[Dict] = []
 
+            # 音声全体の長さから進捗を算出（segments_iterは遅延評価でストリーム処理される）
+            total_duration = getattr(info, 'duration', 0) or 0
+            last_percent = 0
+
             for seg in segments_iter:
                 full_text_parts.append(seg.text)
                 segments.append({
@@ -249,6 +253,11 @@ class FasterWhisperTranscriber(TranscriberBase):
                     'end': seg.end,
                     'text': seg.text,
                 })
+                if total_duration > 0:
+                    percent = min(99, int(seg.end / total_duration * 100))
+                    if percent > last_percent:
+                        last_percent = percent
+                        print(f"[PROGRESS] 文字起こし: {percent}%", flush=True)
 
             return {
                 'text': ''.join(full_text_parts),

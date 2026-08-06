@@ -75,7 +75,7 @@ class AudioConverter:
             sys.exit(1)
 
     def _get_duration(self, input_file: str) -> Optional[float]:
-        """動画の長さを取得（秒）"""
+        """動画の長さを取得（秒）。ffprobeが無い環境ではffmpegの出力から取得"""
         try:
             cmd = [
                 self.ffprobe_path,
@@ -88,9 +88,25 @@ class AudioConverter:
             import json
             info = json.loads(result.stdout)
             return float(info.get('format', {}).get('duration', 0))
+        except Exception:
+            pass
+
+        # バンドル版アプリはffmpegのみ同梱でffprobeが無いため、
+        # ffmpeg -i のstderrに出る "Duration: HH:MM:SS.xx" から取得する
+        try:
+            import re
+            result = subprocess.run(
+                [self.ffmpeg_path, "-i", input_file],
+                capture_output=True, encoding='utf-8', errors='replace'
+            )
+            match = re.search(r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)', result.stderr or '')
+            if match:
+                hours, minutes, seconds = match.groups()
+                return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+            print("[WARNING] duration取得失敗: ffmpeg出力にDurationが見つかりません")
         except Exception as e:
             print(f"[WARNING] duration取得失敗: {e}")
-            return None
+        return None
 
     def convert_to_mp4(
         self,
