@@ -18,11 +18,11 @@ const KNOWN_HASHES = {
   // evermeet.cx ffmpeg (latest release, 9.0-tessus) — darwin arm64/x64 は同一URLのため同一バイナリ
   'darwin-arm64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
   'darwin-x64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
-  // gyan.dev ffmpeg essentials (8.1.2)
-  'win32-x64': '1326dde4c84ff1f96fe6b8916c5bed29e163e9b5dccf995f6f3db069d143ec5e',
+  // gyan.dev ffmpeg essentials (9.0)
+  'win32-x64': '227af0691433b703ffc5725e47f7d06eefc34b4a72e7870e73d30e2cda483ecf',
   // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを
   // ブロックし正規tarballを返さないため、CIから確実にDLできるGitHub Releasesに変更。
-  'linux-x64': '35f625f5a3bf6a3c9f842361c0b220042798461bccc0a36c987eb3fd32922dfb',
+  'linux-x64': '0d5babad4ce81ea290b569ae7962147b104304e98c9bcc0acfba276f99d67c4c',
 };
 
 // Platform-specific download URLs
