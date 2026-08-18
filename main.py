@@ -423,7 +423,6 @@ class AudioTranscriptionProcessor:
         print(f"{'=' * 60}")
         print(f"MP3ファイル: {mp3_file}")
         print(f"文字起こし: {Path(mp3_file).stem}_transcript.txt")
-        print(f"詳細情報: {Path(mp3_file).stem}_transcript.json")
 
         return True
 
