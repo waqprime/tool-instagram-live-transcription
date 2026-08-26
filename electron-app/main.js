@@ -260,6 +260,9 @@ function isAllowedExternalUrl(url) {
     if (host === 'github.com' || host.endsWith('.github.com') || host.endsWith('.github.io')) {
       return true;
     }
+    if (host === 'mojiokoshi-tool.pages.dev') {
+      return true;
+    }
     if (host === 'aistudio.google.com') {
       return true;
     }
@@ -889,7 +892,7 @@ async function checkGitHubUpdate() {
           if (compareSemver(latestVersion, currentVersion) > 0) {
             console.log(`Update available: ${latestVersion}`);
             if (mainWindow && !mainWindow.isDestroyed()) {
-              const downloadPageUrl = 'https://waqprime.github.io/tool-instagram-live-transcription/download.html';
+              const downloadPageUrl = 'https://mojiokoshi-tool.pages.dev/';
               mainWindow.webContents.send('update-available-portable', {
                 version: latestVersion,
                 downloadUrl: downloadPageUrl,
@@ -921,7 +924,8 @@ ipcMain.handle('open-download-page', (event, url) => {
     const parsed = new URL(url);
     const allowed = parsed.hostname === 'github.com'
       || parsed.hostname.endsWith('.github.com')
-      || parsed.hostname.endsWith('.github.io');
+      || parsed.hostname.endsWith('.github.io')
+      || parsed.hostname === 'mojiokoshi-tool.pages.dev';
     if (!allowed) {
       console.error('Blocked open-download-page: non-GitHub URL:', url);
       return;
