@@ -72,3 +72,4 @@ Thumbs.db
 
 # リリーススクリプトのログ
 scripts/*.log
+.wrangler/
