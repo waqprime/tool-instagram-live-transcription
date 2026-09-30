@@ -249,7 +249,7 @@ class VideoDownloader:
 
                 ydl_opts = {
                     'outtmpl': output_template,
-                    'format': 'best',
+                    'format': 'best/bestaudio',
                     'nocheckcertificate': False,
                     'quiet': False,
                     'no_warnings': False,
@@ -270,7 +270,7 @@ class VideoDownloader:
                 # フォールバック: コマンドラインのyt-dlpを使用
                 cmd = [
                     "yt-dlp",
-                    "-f", "best",
+                    "-f", "best/bestaudio",
                     "--remote-components", "ejs:github",
                     "-o", output_template,
                     url
@@ -674,7 +674,7 @@ class VideoDownloader:
 
                         ydl_opts = {
                             'outtmpl': output_template,
-                            'format': 'best',
+                            'format': 'best/bestaudio',
                             'nocheckcertificate': False,
                             'quiet': False,
                             'no_warnings': False,
@@ -693,7 +693,7 @@ class VideoDownloader:
                         # フォールバック: コマンドラインのyt-dlpを使用
                         cmd = [
                             "yt-dlp",
-                            "-f", "best",
+                            "-f", "best/bestaudio",
                             "--remote-components", "ejs:github",
                             "-o", output_template,
                             video_url
