@@ -129,32 +129,9 @@ python main.py --url "URL" --keep-video
 
 ### 配布形態
 - **macOS / Windows**: Electronアプリ（`electron-app/`）として配布。CLIバイナリ単体ではない
-- **CI (GitHub Actions)**: Windows + macOS arm64 + **macOS x64 (Intel)** + Linux を自動ビルド・署名・公証・リリース
-- **Intel Mac (x64)**: v1.9.10以降はCIの `build-macos-x64` ジョブ（`macos-15-intel` ランナー、2027年8月まで利用可能な
-  最後のx86_64イメージ）でビルドする。以前のローカルPostToolUseフック方式は廃止（署名証明書・Apple認証情報が
-  ローカルに無いため）。手動ビルド手順は下記フォールバック（要: Developer ID証明書 + .envのApple認証情報）
-
-### Intel Mac 手動ビルド手順
-```bash
-# 1. Electronアプリとしてx64ビルド
-cd electron-app
-npm version X.Y.Z --no-git-tag-version --allow-same-version
-APPLE_ID="..." APPLE_APP_SPECIFIC_PASSWORD="..." APPLE_TEAM_ID="..." \
-  npm run build:mac-x64
-
-# 2. DMG作成失敗時（macOS 26+ hdiutil日本語ボリューム名バグ）
-#    npm run build:mac-x64 でzipは作成されるがDMGがhdiutilエラーで失敗する場合、
-#    手動でDMG作成する:
-hdiutil create -srcfolder "dist/mac/文字起こしツール.app" \
-  -volname "TranscriptionTool" -anyowners -nospotlight \
-  -format UDZO -fs APFS "dist/TranscriptionTool-X.Y.Z-x64.dmg"
-
-# 3. リリースにアップロード
-gh release upload vX.Y.Z electron-app/dist/TranscriptionTool-*.dmg electron-app/dist/TranscriptionTool-*.zip
-
-# 4. クリーンアップ
-rm -rf electron-app/dist dist build
-```
+- **CI (GitHub Actions)**: Windows + macOS arm64 + Linux を自動ビルド・署名・公証・リリース
+- **Intel Mac (x64)**: **v1.9.10で配布終了**（v1.9.11以降はビルドしない）。DLページはIntel/判定不能なMacに
+  Apple Silicon版を推奨しつつ、v1.9.10 Intel版（R2 `v1.9.10/`）へのリンクを表示する。R2の旧x64ファイルは消さないこと
 
 ### AWS Lambda（ビルトイン要約）
 - 関数名: `transcription-summarizer`
@@ -178,14 +155,15 @@ rm -rf electron-app/dist dist build
 - **Linuxは BtbN/FFmpeg-Builds（GitHubホスト）を使う**。johnvansickle.com はGitHub ActionsのIPをブロックし
   正規tarballを返さず tar展開が必ず失敗するため。**johnvansickleに戻さないこと**。
 
-**Intel Mac (x64) リリース**
-- v1.9.10以降、x64はCIの `build-macos-x64` ジョブ（`macos-15-intel` ランナー）でビルドされ、
-  他プラットフォームと同じreleaseジョブで一括リリースされる。ローカルフック方式は廃止。
+**リリースジョブ**
 - `release.yml` の release ジョブは「既存リリースを削除→再作成」する（electron-builder直publishとの
   `422 already_exists` 対策。**この削除ステップは消さない**）。リリース後に手動でアセットを追加する場合は
   CI完了を待ってから `gh release upload --clobber` すること（CI完了前だと削除に巻き込まれて消える）。
-- 旧ローカルビルドスクリプト `scripts/release-mac-x64.sh` はフォールバック用に残置
-  （要: キーチェーンのDeveloper ID証明書 + `.env` のApple認証情報 + x86_64 Python 3.11の `venv-x64`）。
+
+**macOS arm64の署名（electron-builder 26.15.x）**
+- arm64ビルドステップには `CSC_LINK` を渡さない。26.15.xは独自一時キーチェーンの `set-key-partition-list` に
+  証明書パスワードを渡すバグがあり、macOS 26ランナーで `SecKeychainUnlock` エラーになる。
+  証明書は前段ステップで `build.keychain` に取り込み済みなので、`identity` 指定で自動検出させる。
 
 **自動アップデート**
 - 実装は GitHub APIで最新リリースをチェックし**ダウンロードページを開く「通知のみ」**。
