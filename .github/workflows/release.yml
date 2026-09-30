@@ -169,8 +169,9 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          # CSC_LINKは渡さない: electron-builder 26.15.xは独自一時キーチェーンの
+          # set-key-partition-listに証明書パスワードを渡すバグがあり、macOS 26で失敗する。
+          # 証明書は上のステップでbuild.keychainに取り込み済みなので自動検出させる。
           BUILTIN_APP_TOKEN: ${{ secrets.BUILTIN_APP_TOKEN }}
         run: |
           cd electron-app
