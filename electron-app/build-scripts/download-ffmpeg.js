@@ -15,14 +15,14 @@ const HASH_FILE = path.join(FFMPEG_DIR, '.ffmpeg_hash');
 // ビルドが失敗した場合は新バイナリを手動で検証し、ここを更新すること。
 // ハッシュ未登録のプラットフォームは初回ダウンロード時に記録・表示される。
 const KNOWN_HASHES = {
-  // evermeet.cx ffmpeg (latest release, 9.0-tessus) — darwin arm64/x64 は同一URLのため同一バイナリ
-  'darwin-arm64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
-  'darwin-x64': 'f6db556b9e00083dbb22fc28c2370e07f1373a5402a20bfd3b22dd33cc6eeb8f',
-  // gyan.dev ffmpeg essentials (9.0)
-  'win32-x64': '227af0691433b703ffc5725e47f7d06eefc34b4a72e7870e73d30e2cda483ecf',
+  // evermeet.cx ffmpeg (latest release, 9.0.2-tessus) — darwin arm64/x64 は同一URLのため同一バイナリ
+  'darwin-arm64': 'a45b462cf91ed89148ae218c4577e30896485d7a6792c3673bcf5f823fa01b63',
+  'darwin-x64': 'a45b462cf91ed89148ae218c4577e30896485d7a6792c3673bcf5f823fa01b63',
+  // gyan.dev ffmpeg essentials (9.0.2)
+  'win32-x64': '3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec',
   // BtbN/FFmpeg-Builds (GitHubホスト) — johnvansickle.com はGitHub ActionsのIPを
   // ブロックし正規tarballを返さないため、CIから確実にDLできるGitHub Releasesに変更。
-  'linux-x64': '0d5babad4ce81ea290b569ae7962147b104304e98c9bcc0acfba276f99d67c4c',
+  'linux-x64': '8757e5834cd4df5ee95d6b6e54f12de580261e759962c6bec239eb80396385a4',
 };
 
 // Platform-specific download URLs
