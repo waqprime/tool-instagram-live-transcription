@@ -338,6 +338,13 @@ class AudioTranscriptionProcessor:
         print(f"処理開始: {url}")
         print(f"{'=' * 60}\n")
 
+        # Udemyは非対応（ログイン必須＋多くの講座がDRM保護、規約でもダウンロード禁止）
+        if 'udemy.com' in url.lower():
+            print("[ERROR] Udemyは非対応です", flush=True)
+            print("[HINT] Udemyは非対応です（DRM保護・利用規約のため）。"
+                  "講義画面の「トランスクリプト」から文字起こしテキストをご利用ください。", flush=True)
+            return False
+
         # ファイル名プレフィックスが指定されていない場合は自動生成
         if not filename_prefix:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
