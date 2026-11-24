@@ -521,6 +521,7 @@ class ProcessManager {
       let outputData = '';
       let errorData = '';
       let lastProgressUpdate = Date.now();
+      let lastModelLogDecile = -1;  // モデルDL進捗のログは10%刻みで出す
 
       this.currentProcess.stdout.on('data', (data) => {
         const text = data.toString();
@@ -537,8 +538,26 @@ class ProcessManager {
           // Parse [PROGRESS] messages
           const progressMatch = line.match(/\[PROGRESS\]\s*(.+?):\s*(\d+(?:\.\d+)?)%/);
           if (progressMatch) {
-            const taskName = progressMatch[1];  // "ダウンロード", "音声抽出", "文字起こし"
+            const taskName = progressMatch[1];  // "モデル準備", "ダウンロード", "音声抽出", "文字起こし"
             const percent = parseFloat(progressMatch[2]);
+
+            // 初回のモデルダウンロード: 全体進捗は動かさず、DL状況（%とサイズ）を表示する
+            if (taskName.includes('モデル')) {
+              const sizeMatch = line.match(/\(([^)]+)\)\s*$/);
+              const sizeText = sizeMatch ? ` ${sizeMatch[1]}` : '';
+              this.updateProgress(
+                null,
+                `文字起こしモデルをダウンロード中（初回のみ）... ${percent.toFixed(1)}%${sizeText}`,
+                `URL ${urlNum}/${totalItems}`
+              );
+              const decile = Math.floor(percent / 10);
+              if (decile > lastModelLogDecile) {
+                lastModelLogDecile = decile;
+                this.log('info', `モデルダウンロード: ${percent.toFixed(1)}%${sizeText}`);
+              }
+              lastProgressUpdate = Date.now();
+              continue;
+            }
 
             // Calculate overall progress based on task
             // Task weights: Download 33%, Audio 33%, Transcribe 34%

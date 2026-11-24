@@ -426,8 +426,14 @@ const MODEL_REPO_MAP = {
 function getDownloadedModels() {
   const downloaded = {};
   for (const [model, dirName] of Object.entries(MODEL_REPO_MAP)) {
-    const modelPath = path.join(MODEL_CACHE_DIR, dirName, 'snapshots');
-    downloaded[model] = fs.existsSync(modelPath) && fs.readdirSync(modelPath).length > 0;
+    // 途中で失敗した場合も snapshots/ は作られるため、model.bin まで揃っているかで判定する
+    const snapshotsDir = path.join(MODEL_CACHE_DIR, dirName, 'snapshots');
+    try {
+      downloaded[model] = fs.existsSync(snapshotsDir) && fs.readdirSync(snapshotsDir)
+        .some(rev => fs.existsSync(path.join(snapshotsDir, rev, 'model.bin')));
+    } catch (e) {
+      downloaded[model] = false;
+    }
   }
   return downloaded;
 }

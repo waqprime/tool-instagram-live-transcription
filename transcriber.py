@@ -38,6 +38,302 @@ if sys.platform == 'win32':
     except (AttributeError, OSError):
         pass
 
+# Hugging Face Hub の通信設定（huggingface_hub の import 前に設定する必要がある）
+# 既定のタイムアウト（DL 10秒 / メタデータ 10秒）は遅い回線だと頻繁に切れるため延長する。
+# ユーザーが環境変数で指定している場合はそちらを優先する。
+os.environ.setdefault('HF_HUB_DOWNLOAD_TIMEOUT', '60')
+os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '30')
+os.environ.setdefault('HF_HUB_DISABLE_SYMLINKS_WARNING', '1')
+
+
+# ---------------------------------------------------------------------------
+# モデルダウンロード（faster-whisper）
+# ---------------------------------------------------------------------------
+class ModelDownloadError(RuntimeError):
+    """モデルのダウンロードに失敗した（主に通信エラー）"""
+
+
+# 例外クラス名で通信エラーを判定する（httpx / requests / huggingface_hub のバージョン差を吸収）
+_NETWORK_ERROR_NAMES = {
+    'ConnectError', 'ConnectTimeout', 'ReadTimeout', 'WriteTimeout', 'PoolTimeout',
+    'TimeoutException', 'NetworkError', 'ReadError', 'WriteError', 'RemoteProtocolError',
+    'ConnectionError', 'Timeout', 'ChunkedEncodingError', 'ProtocolError',
+    'LocalEntryNotFoundError', 'IncompleteRead',
+}
+
+
+def _is_network_error(exc: BaseException) -> bool:
+    import socket
+    seen = set()
+    e: Optional[BaseException] = exc
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        if isinstance(e, (socket.gaierror, socket.timeout, TimeoutError, ConnectionError, ssl.SSLError)):
+            return True
+        if any(cls.__name__ in _NETWORK_ERROR_NAMES for cls in type(e).__mro__):
+            return True
+        e = e.__cause__ or e.__context__
+    return False
+
+
+def _format_bytes(n: float) -> str:
+    if n >= 1024 ** 3:
+        return f"{n / 1024 ** 3:.2f}GB"
+    return f"{n / 1024 ** 2:.0f}MB"
+
+
+def _apply_hf_timeouts():
+    """huggingface_hub が既に import 済みでもタイムアウト設定を反映する"""
+    try:
+        from huggingface_hub import constants
+        constants.HF_HUB_DOWNLOAD_TIMEOUT = int(os.environ.get('HF_HUB_DOWNLOAD_TIMEOUT', '60'))
+        constants.HF_HUB_ETAG_TIMEOUT = int(os.environ.get('HF_HUB_ETAG_TIMEOUT', '30'))
+    except Exception:
+        pass
+
+
+class _NetworkRetryExhausted(Exception):
+    """再試行しても通信が回復しなかった"""
+
+    def __init__(self, last_error: BaseException):
+        super().__init__(str(last_error))
+        self.last_error = last_error
+
+
+# 進捗が無いまま失敗した回数ごとの待機秒数（合計 約5分待っても回復しなければ諦める）
+_RETRY_WAITS = [5, 10, 20, 30, 60, 60, 60, 60]
+
+
+def _call_with_network_retry(fn, what: str):
+    """通信エラーなら待機して再試行する（メタデータ取得・小さいファイルのDL用）"""
+    for attempt in range(len(_RETRY_WAITS) + 1):
+        try:
+            return fn()
+        except Exception as e:
+            if not _is_network_error(e):
+                raise
+            if attempt >= len(_RETRY_WAITS):
+                raise _NetworkRetryExhausted(e) from e
+            wait = _RETRY_WAITS[attempt]
+            print(f"[INFO] 通信エラーのため、{wait}秒後に{what}を再試行します"
+                  f"（{attempt + 1}/{len(_RETRY_WAITS)}）", flush=True)
+            time.sleep(wait)
+
+
+def _resumable_download(url: str, dest: Path, expected_size: Optional[int],
+                        headers: Dict[str, str], timeout: float) -> None:
+    """Range リクエストで途中から再開できるダウンロード。
+
+    途中のデータは dest + '.partial' に保存し続けるため、通信断・アプリ終了後も続きから再開できる。
+    （huggingface_hub 標準のDLは一時ファイルがプロセスごとに作り直され、再実行時は最初からになる）
+    """
+    import urllib.request
+    import urllib.error
+
+    partial = dest.with_name(dest.name + '.partial')
+    try:
+        import certifi
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ssl_ctx = ssl.create_default_context()
+
+    failures = 0
+    last_percent = -1.0
+    last_print = 0.0
+
+    def _report(done: int, force: bool = False):
+        nonlocal last_percent, last_print
+        if not expected_size:
+            return
+        percent = min(99.9, done / expected_size * 100)
+        now = time.time()
+        if force or percent - last_percent >= 1.0 or now - last_print >= 10:
+            print(f"[PROGRESS] モデル準備: {percent:.1f}% "
+                  f"({_format_bytes(done)} / {_format_bytes(expected_size)})", flush=True)
+            last_percent, last_print = percent, now
+
+    done = partial.stat().st_size if partial.exists() else 0
+    if done:
+        print(f"[INFO] 前回の続きからダウンロードを再開します（{_format_bytes(done)} 取得済み）", flush=True)
+    _report(done, force=True)
+
+    while True:
+        done = partial.stat().st_size if partial.exists() else 0
+        if expected_size and done >= expected_size:
+            break
+        req_headers = dict(headers)
+        if done:
+            req_headers['Range'] = f'bytes={done}-'
+        progressed = False
+        try:
+            req = urllib.request.Request(url, headers=req_headers)
+            with urllib.request.urlopen(req, timeout=timeout, context=ssl_ctx) as resp:
+                mode = 'ab'
+                if done and resp.status != 206:
+                    # サーバーが Range を無視した → 最初から取り直す
+                    mode, done = 'wb', 0
+                with open(partial, mode) as f:
+                    while True:
+                        chunk = resp.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        done += len(chunk)
+                        progressed = True
+                        _report(done)
+            if not expected_size or done >= expected_size:
+                break
+            last_error: BaseException = ConnectionError(
+                f"接続が途中で閉じられました（{done}/{expected_size} bytes）")
+        except urllib.error.HTTPError as e:
+            if e.code == 416 and done:
+                # 範囲外 = 手元の途中ファイルがサーバー側と合わない → 破棄してやり直す
+                partial.unlink(missing_ok=True)
+                continue
+            if e.code < 500 and e.code != 429:
+                raise
+            last_error = e
+        except Exception as e:
+            if not (_is_network_error(e) or isinstance(e, urllib.error.URLError)):
+                raise
+            last_error = e
+
+        failures = 0 if progressed else failures + 1
+        if failures > len(_RETRY_WAITS):
+            raise _NetworkRetryExhausted(last_error) from last_error
+        wait = 2 if progressed else _RETRY_WAITS[failures - 1]
+        print(f"[INFO] 通信が途切れました。{wait}秒後にダウンロードを再開します"
+              f"（{_format_bytes(done)} 取得済み）", flush=True)
+        time.sleep(wait)
+
+    if expected_size and partial.stat().st_size != expected_size:
+        actual = partial.stat().st_size
+        partial.unlink(missing_ok=True)
+        raise RuntimeError(f"ダウンロードしたファイルのサイズが一致しません（{actual} != {expected_size}）")
+    os.replace(partial, dest)
+
+
+def _verify_sha256(path: Path, expected_hex: str) -> bool:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(8 * 1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest() == expected_hex
+
+
+def _cleanup_stale_incomplete(blobs_dir: Path, max_age_sec: int = 3600):
+    """強制終了で残った huggingface_hub の一時ファイル（*.incomplete）を削除する。
+    再利用できないファイルなので、古いものはディスク容量の無駄になるだけ"""
+    try:
+        now = time.time()
+        for f in blobs_dir.glob('*.incomplete'):
+            if now - f.stat().st_mtime > max_age_sec:
+                f.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def download_faster_whisper_model(model_name: str, cache_dir: Path) -> str:
+    """faster-whisper モデルを取得してローカルパスを返す。
+
+    - DL済みならネットワークに接続せずキャッシュを使う
+    - 大きい model.bin は自前のレジューム対応DLで取得（通信断・アプリ終了後も続きから再開）し、
+      HFキャッシュの blobs/ に置く。残りの小さいファイルとキャッシュ構造は snapshot_download に任せる
+      （blob が既にあれば snapshot_download はDLせずリンクだけ作る）
+    - DL中は [PROGRESS] モデル準備: NN% (取得済み / 合計) を出力（UIの進捗表示用）
+    - 通信エラー時は待機して再試行し、回復しなければ日本語の案内を出して ModelDownloadError を送出
+    """
+    import re
+    import huggingface_hub
+    from faster_whisper import utils as fw_utils
+
+    _apply_hf_timeouts()
+
+    repo_id = model_name if '/' in model_name else fw_utils._MODELS.get(model_name)
+    if not repo_id:
+        raise ValueError(f"無効なモデル名: {model_name}")
+
+    # faster_whisper.utils.download_model と同じファイル群
+    allow_patterns = ["config.json", "preprocessor_config.json", "model.bin",
+                      "tokenizer.json", "vocabulary.*"]
+    # huggingface_hub 標準のプログレスバー（stderr）は抑止する
+    quiet_kwargs = {}
+    if getattr(fw_utils, 'disabled_tqdm', None) is not None:
+        quiet_kwargs['tqdm_class'] = fw_utils.disabled_tqdm
+
+    def _snapshot(local_files_only: bool = False) -> str:
+        return huggingface_hub.snapshot_download(
+            repo_id, cache_dir=str(cache_dir), allow_patterns=allow_patterns,
+            local_files_only=local_files_only, **quiet_kwargs,
+        )
+
+    # 1) DL済みならそのまま使う（model.bin まで揃っているかを確認）
+    try:
+        local_path = _snapshot(local_files_only=True)
+        if (Path(local_path) / "model.bin").is_file():
+            return local_path
+    except Exception:
+        pass
+
+    print(f"[INFO] 初回のみ、文字起こしモデル（{model_name}）をダウンロードします。"
+          f"回線速度によっては数十分かかることがあります", flush=True)
+
+    blobs_dir = Path(cache_dir) / f"models--{repo_id.replace('/', '--')}" / "blobs"
+    blobs_dir.mkdir(parents=True, exist_ok=True)
+    _cleanup_stale_incomplete(blobs_dir)
+    timeout = float(os.environ.get('HF_HUB_DOWNLOAD_TIMEOUT', '60'))
+    expected_size: Optional[int] = None
+    partial_path: Optional[Path] = None
+
+    try:
+        # 2) model.bin をレジューム対応DLで blobs/<etag> に置く
+        meta = _call_with_network_retry(
+            lambda: huggingface_hub.get_hf_file_metadata(
+                huggingface_hub.hf_hub_url(repo_id, "model.bin")),
+            "モデル情報の取得",
+        )
+        etag = (meta.etag or "").strip('"')
+        expected_size = meta.size
+        if etag and meta.commit_hash:
+            blob_path = blobs_dir / etag
+            partial_path = blob_path.with_name(blob_path.name + '.partial')
+            if not blob_path.exists():
+                if expected_size:
+                    print(f"[INFO] ダウンロードサイズ: 約{_format_bytes(expected_size)}", flush=True)
+                _resumable_download(
+                    huggingface_hub.hf_hub_url(repo_id, "model.bin", revision=meta.commit_hash),
+                    blob_path, expected_size, huggingface_hub.utils.build_hf_headers(), timeout,
+                )
+                # LFS の etag は SHA256。壊れたファイルで読み込みエラーになるのを防ぐ
+                if re.fullmatch(r'[0-9a-f]{64}', etag):
+                    print("[INFO] ダウンロードしたモデルを検証中...", flush=True)
+                    if not _verify_sha256(blob_path, etag):
+                        blob_path.unlink(missing_ok=True)
+                        raise RuntimeError("ダウンロードしたモデルが破損していました。もう一度実行してください")
+
+        # 3) 残りの小さいファイルとキャッシュ構造（snapshots/）を snapshot_download で揃える
+        local_path = _call_with_network_retry(_snapshot, "モデルのダウンロード")
+        print("[PROGRESS] モデル準備: 100.0%", flush=True)
+        return local_path
+
+    except _NetworkRetryExhausted as e:
+        last_error = e.last_error
+
+    done = partial_path.stat().st_size if partial_path and partial_path.exists() else 0
+    if done:
+        progress_note = f"（{_format_bytes(done)} / {_format_bytes(expected_size)} まで取得済み）" if expected_size else ""
+        print(f"[ERROR] 文字起こしモデル（{model_name}）のダウンロード中に通信が切れました{progress_note}", flush=True)
+        print("[HINT] 途中までダウンロードした分は保存されています。通信が安定してから再実行すると続きから再開します", flush=True)
+    else:
+        print(f"[ERROR] 文字起こしモデル（{model_name}）のダウンロード先（huggingface.co）に接続できませんでした", flush=True)
+        print("[HINT] インターネットに接続されているか確認してから再実行してください", flush=True)
+    print("[HINT] 改善しない場合: 有線LANや安定したWi-Fiに接続する／ダウンロード中はPCをスリープさせない／"
+          "VPN・セキュリティソフトで huggingface.co への通信を許可する／設定で軽量モデル（small）を選ぶ", flush=True)
+    raise ModelDownloadError(
+        f"文字起こしモデル（{model_name}）のダウンロードに失敗しました（通信エラー）: {last_error}"
+    ) from last_error
+
 
 # ---------------------------------------------------------------------------
 # Base class
@@ -209,22 +505,23 @@ class FasterWhisperTranscriber(TranscriberBase):
         model_cache_dir = Path.home() / ".cache" / "transcription-tool" / "models"
         model_cache_dir.mkdir(parents=True, exist_ok=True)
 
+        # DL（進捗表示・再試行・日本語エラー）は自前で行い、WhisperModel にはローカルパスを渡す
+        model_path = download_faster_whisper_model(self.model_name, model_cache_dir)
+
         try:
             self.model = WhisperModel(
-                self.model_name,
+                model_path,
                 device=device,
                 compute_type=compute_type,
-                download_root=str(model_cache_dir),
             )
             print(f"[OK] faster-whisper モデル読み込み完了: {self.model_name} (device={device}, compute={compute_type})", flush=True)
         except Exception as e:
             if device == "cuda":
                 print(f"[WARNING] GPU読み込み失敗、CPUにフォールバックします: {e}", flush=True)
                 self.model = WhisperModel(
-                    self.model_name,
+                    model_path,
                     device="cpu",
                     compute_type="int8",
-                    download_root=str(model_cache_dir),
                 )
                 print(f"[OK] faster-whisper モデル読み込み完了: {self.model_name} (device=cpu, compute=int8)", flush=True)
             else:

@@ -154,9 +154,18 @@ async function init() {
 
   // Listen for model download progress
   window.electronAPI.onModelDownloadProgress((progress) => {
-    if (modelDownloadStatus && progress.message) {
-      modelDownloadStatus.textContent = progress.message;
+    if (!modelDownloadStatus || !progress.message) return;
+    // 複数行まとめて届くことがあるので最後の行を表示する
+    const lines = progress.message.split('\n').map(l => l.trim()).filter(Boolean);
+    const last = lines[lines.length - 1];
+    if (!last) return;
+    const m = last.match(/\[PROGRESS\][^:]*:\s*(\d+(?:\.\d+)?)%\s*(?:\(([^)]+)\))?/);
+    if (m) {
+      modelDownloadStatus.textContent = `ダウンロード中... ${parseFloat(m[1]).toFixed(1)}%${m[2] ? `（${m[2]}）` : ''}`;
+    } else if (/^\[(INFO|ERROR|HINT|OK)\]/.test(last)) {
+      modelDownloadStatus.textContent = last.replace(/^\[(INFO|OK)\]\s*/, '');
     }
+    // それ以外（huggingface_hub の英語警告など）は表示を上書きしない
   });
 
   // Load settings from file

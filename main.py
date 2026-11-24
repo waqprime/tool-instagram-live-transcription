@@ -38,7 +38,7 @@ if sys.platform == 'win32':
 
 from downloader import VideoDownloader
 from audio_converter import AudioConverter
-from transcriber import AudioTranscriber
+from transcriber import AudioTranscriber, ModelDownloadError
 from title_generator import TitleGenerator
 from obsidian_writer import ObsidianWriter
 from summarizer import ContentSummarizer, DEFAULT_SUMMARY_PROMPT
@@ -702,6 +702,9 @@ def _download_model(model_name: str) -> int:
         FasterWhisperTranscriber(model_name=model_name)
         print(f"[OK] モデルのダウンロード完了: {model_name}", flush=True)
         return 0
+    except ModelDownloadError:
+        # 原因と対処は transcriber 側で [ERROR]/[HINT] として出力済み
+        return 1
     except Exception as e:
         print(f"[ERROR] モデルのダウンロード失敗: {e}", flush=True)
         return 1
@@ -915,6 +918,11 @@ if __name__ == "__main__":
         sys.exit(main())
     except KeyboardInterrupt:
         print("\n\n[ERROR] ユーザーによる中断")
+        sys.exit(1)
+    except ModelDownloadError:
+        # 原因と対処は transcriber 側で [ERROR]/[HINT] として出力済み。詳細はログ（stderr）に残す
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         print(f"\n[ERROR] 予期しないエラー: {e}")
